@@ -1,10 +1,12 @@
 // %100 Çevrimdışı (Offline-First) Service Worker
-const CACHE_NAME = 'faiz-takip-offline-v2';
+const CACHE_NAME = 'faiz-takip-offline-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './wallet.css',
+  './xlsx.full.min.js',
+  './excel-sync.js',
   './app.js',
   './wallet.js',
   './icon.svg',

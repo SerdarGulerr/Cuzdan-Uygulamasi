@@ -66,11 +66,11 @@ function getTodayDateString() {
 
 // Format: 12345.67 -> 12.345,67 ₺
 function formatTL(num) {
-  if (isNaN(num)) return '0,00 ₺';
+  if (isNaN(num)) return '0,00\u00A0₺';
   return new Intl.NumberFormat('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(num) + ' ₺';
+  }).format(num) + '\u00A0₺';
 }
 
 // Format Date: 2026-10-23 -> 23 Eki 2026
@@ -1279,10 +1279,17 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTxHistory();
     openModal('modalTxHistory');
   });
-  document.getElementById('btnSettings').addEventListener('click', () => {
+  function openAppSettings() {
     renderSettings();
     openModal('modalSettings');
-  });
+  }
+  window.openAppSettings = openAppSettings;
+
+  const btnFaizSettings = document.getElementById('btnSettings');
+  if (btnFaizSettings) btnFaizSettings.addEventListener('click', openAppSettings);
+
+  const btnWalletSettings = document.getElementById('btnWalletSettings');
+  if (btnWalletSettings) btnWalletSettings.addEventListener('click', openAppSettings);
 
   // Modal dışına tıklayınca kapatma
   document.querySelectorAll('.app-modal').forEach(modal => {

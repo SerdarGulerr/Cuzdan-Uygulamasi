@@ -43,11 +43,11 @@ let currentCategoryMgrType = 'expense'; // 'expense' | 'income'
 
 // --- Yardımcı Tarih ve Para Formatlama ---
 function formatWalletTL(amount) {
-  if (isNaN(amount)) return '0,00 ₺';
+  if (isNaN(amount)) return '0,00\u00A0₺';
   return new Intl.NumberFormat('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(amount) + ' ₺';
+  }).format(amount) + '\u00A0₺';
 }
 
 function getMonthNameTR(monthIdx) {
@@ -837,7 +837,7 @@ function renderSubCategoryPicker(type) {
           <span>🏷️ Alt Başlık Seçin</span>
           <small style="color: var(--text-dim); font-weight: normal;">(${currentCat.name})</small>
         </span>
-        <button type="button" class="btn-text-action" onclick="promptQuickAddSubcategory('${currentCat.id}', '${type}')" title="Bu başlığa yeni alt başlık ekle">
+        <button type="button" class="btn-text-action" onclick="openAddSubCategoryModal('${currentCat.id}', '${type}')" title="Bu başlığa yeni alt başlık ekle">
           + Yeni Alt Başlık
         </button>
       </div>
@@ -857,7 +857,7 @@ function renderSubCategoryPicker(type) {
   });
 
   html += `
-        <button type="button" class="subcat-chip subcat-chip-add" onclick="promptQuickAddSubcategory('${currentCat.id}', '${type}')">
+        <button type="button" class="subcat-chip subcat-chip-add" onclick="openAddSubCategoryModal('${currentCat.id}', '${type}')">
           ➕ Ekle
         </button>
       </div>
@@ -873,22 +873,7 @@ function selectSubCategory(sub) {
 }
 
 function promptQuickAddSubcategory(catId, type) {
-  const name = prompt('Yeni alt başlık adı girin (Örn: BİM, ŞOK, Migros, Shell, Netflix):');
-  if (!name || !name.trim()) return;
-
-  const catList = type === 'expense' ? walletState.categories.expense : walletState.categories.income;
-  const cat = catList.find(c => c.id === catId);
-  if (!cat) return;
-
-  if (!Array.isArray(cat.subcategories)) cat.subcategories = [];
-  const cleanName = name.trim();
-  if (!cat.subcategories.includes(cleanName)) {
-    cat.subcategories.push(cleanName);
-    saveWalletState();
-  }
-
-  selectedSubCategoryId = cleanName;
-  renderSubCategoryPicker(type);
+  openAddSubCategoryModal(catId, type);
 }
 
 function populateWalletAccountSelectors() {
@@ -1042,7 +1027,7 @@ function renderCategoryManagerModal() {
             </div>
           </div>
           <div class="cat-mgr-actions">
-            <button type="button" class="btn-icon-subtle" onclick="promptEditCategory('${cat.id}', '${type}')" title="Başlığı Düzenle">✎</button>
+            <button type="button" class="btn-icon-subtle" onclick="openEditCategoryModal('${cat.id}', '${type}')" title="Başlığı Düzenle">✎</button>
             <button type="button" class="btn-icon-subtle danger" onclick="deleteCategory('${cat.id}', '${type}')" title="Grup Başlığını Sil">🗑️</button>
           </div>
         </div>
@@ -1060,7 +1045,7 @@ function renderCategoryManagerModal() {
     });
 
     html += `
-          <button type="button" class="subcat-chip subcat-chip-add" onclick="promptAddSubcategory('${cat.id}', '${type}')">
+          <button type="button" class="subcat-chip subcat-chip-add" onclick="openAddSubCategoryModal('${cat.id}', '${type}')">
             + Alt Başlık Ekle
           </button>
         </div>
@@ -1071,59 +1056,250 @@ function renderCategoryManagerModal() {
   container.innerHTML = html;
 }
 
-function promptAddMainCategory() {
-  const type = currentCategoryMgrType;
-  const typeLabel = type === 'expense' ? 'Gider' : 'Gelir';
-  const name = prompt(`${typeLabel} Grup Başlığı Adı (Örn: Market & Gıda, Faturalar, Abonelikler):`);
-  if (!name || !name.trim()) return;
+// Popüler Grup / Kategori Emojileri ve Simgeleri
+const POPULAR_CATEGORY_ICONS = [
+  // Gıda & İçecek
+  '🛒', '🍔', '🍕', '☕', '🥖', '🍎', '🥩', '🍰',
+  // Faturalar, Ev & Yaşam
+  '💡', '🏠', '🔌', '💧', '📶', '📱', '🛋️', '🔑',
+  // Ulaşım & Araç
+  '🚗', '⛽', '🚌', '🚇', '✈️', '🚕', '🚲', '🔧',
+  // Alışveriş, Giyim & Teknoloji
+  '🛍️', '👕', '👟', '💄', '🎁', '📦', '💻', '🎮',
+  // Sağlık, Spor & Bakım
+  '💊', '🩺', '🏋️', '⚽', '🧘', '🦷', '🌿', '💈',
+  // Gelir, Finans, İş & Eğitim
+  '💼', '💰', '💵', '📈', '🏦', '🪙', '🎓', '🧾',
+  // Eğlence, Hobi & Genel
+  '🎬', '🐾', '🏖️', '🎨', '📚', '👶', '🍿', '⭐'
+];
 
-  const icon = prompt('Emoji / İkon simgesi (Örn: 🛒, 🐾, 🎮, 🏠, ☕):', '📁') || '📁';
+function populateCategoryIconGrid() {
+  const grid = document.getElementById('categoryIconGrid');
+  if (!grid || grid.children.length > 0) return;
 
-  const newCat = {
-    id: 'cat_' + Date.now(),
-    name: name.trim(),
-    icon: icon.trim(),
-    color: '#3b82f6',
-    subcategories: []
-  };
+  grid.innerHTML = '';
+  POPULAR_CATEGORY_ICONS.forEach(icon => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emoji-opt-btn';
+    btn.textContent = icon;
+    btn.onclick = () => selectCategoryIcon(icon);
+    grid.appendChild(btn);
+  });
+}
 
-  if (type === 'expense') {
-    walletState.categories.expense.push(newCat);
+function openAddCategoryModal(type) {
+  populateCategoryIconGrid();
+  const targetType = type || currentCategoryMgrType || 'expense';
+
+  const modal = document.getElementById('modalWalletCategoryEdit');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('modalCategoryEditTitle');
+  if (titleEl) titleEl.textContent = 'Yeni Grup Başlığı Ekle';
+
+  document.getElementById('inputCategoryEditId').value = '';
+  document.getElementById('inputCategoryName').value = '';
+
+  const typeGroup = document.getElementById('categoryTypeGroup');
+  if (typeGroup) typeGroup.style.display = 'block';
+
+  setCategoryFormType(targetType);
+
+  const delBtn = document.getElementById('btnDeleteCategoryModal');
+  if (delBtn) delBtn.style.display = 'none';
+
+  updateCategoryPreview();
+  modal.showModal();
+}
+
+function openEditCategoryModal(catId, type) {
+  populateCategoryIconGrid();
+  const targetType = type || currentCategoryMgrType || 'expense';
+  const catList = targetType === 'expense' ? walletState.categories.expense : walletState.categories.income;
+  const cat = catList.find(c => c.id === catId);
+  if (!cat) return;
+
+  const modal = document.getElementById('modalWalletCategoryEdit');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('modalCategoryEditTitle');
+  if (titleEl) titleEl.textContent = 'Grup Başlığını Düzenle';
+
+  document.getElementById('inputCategoryEditId').value = cat.id;
+  document.getElementById('inputCategoryEditType').value = targetType;
+  document.getElementById('inputCategoryName').value = cat.name;
+
+  const typeGroup = document.getElementById('categoryTypeGroup');
+  if (typeGroup) typeGroup.style.display = 'none';
+
+  selectCategoryIcon(cat.icon || '📁');
+  selectCategoryColor(cat.color || '#3b82f6');
+
+  const delBtn = document.getElementById('btnDeleteCategoryModal');
+  if (delBtn) delBtn.style.display = 'inline-flex';
+
+  updateCategoryPreview();
+  modal.showModal();
+}
+
+function setCategoryFormType(type) {
+  const typeInput = document.getElementById('inputCategoryEditType');
+  if (typeInput) typeInput.value = type;
+
+  const btnExp = document.getElementById('btnCatEditExpense');
+  const btnInc = document.getElementById('btnCatEditIncome');
+  if (btnExp) btnExp.className = `segment-opt-btn ${type === 'expense' ? 'active' : ''}`;
+  if (btnInc) btnInc.className = `segment-opt-btn ${type === 'income' ? 'active' : ''}`;
+
+  const isEditing = !!document.getElementById('inputCategoryEditId').value;
+  if (!isEditing) {
+    if (type === 'expense') {
+      selectCategoryIcon('🛒');
+      selectCategoryColor('#f59e0b');
+    } else {
+      selectCategoryIcon('💼');
+      selectCategoryColor('#10b981');
+    }
+  }
+
+  updateCategoryPreview();
+}
+
+function selectCategoryIcon(icon) {
+  const input = document.getElementById('inputCategoryIcon');
+  if (input) input.value = icon;
+
+  const btns = document.querySelectorAll('#categoryIconGrid .emoji-opt-btn');
+  btns.forEach(btn => {
+    if (btn.textContent.trim() === icon) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  updateCategoryPreview();
+}
+
+function onCustomIconInput(val) {
+  const trimmed = val ? val.trim() : '';
+  const btns = document.querySelectorAll('#categoryIconGrid .emoji-opt-btn');
+  btns.forEach(btn => {
+    if (trimmed && btn.textContent.trim() === trimmed) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  updateCategoryPreview();
+}
+
+function selectCategoryColor(color) {
+  const input = document.getElementById('inputCategoryColor');
+  if (input) input.value = color;
+
+  const btns = document.querySelectorAll('#categoryColorPicker .color-opt-btn');
+  btns.forEach(btn => {
+    if (btn.getAttribute('data-color') === color) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  updateCategoryPreview();
+}
+
+function updateCategoryPreview() {
+  const nameInput = document.getElementById('inputCategoryName');
+  const iconInput = document.getElementById('inputCategoryIcon');
+  const colorInput = document.getElementById('inputCategoryColor');
+  const typeInput = document.getElementById('inputCategoryEditType');
+
+  const name = (nameInput && nameInput.value.trim()) || 'Yeni Grup Başlığı';
+  const icon = (iconInput && iconInput.value.trim()) || '📁';
+  const color = (colorInput && colorInput.value) || '#3b82f6';
+  const type = (typeInput && typeInput.value) || 'expense';
+
+  const previewName = document.getElementById('previewCategoryName');
+  const previewIcon = document.getElementById('previewCategoryIcon');
+  const previewBadge = document.getElementById('previewCategoryBadge');
+  const previewCard = document.getElementById('categoryPreviewCard');
+
+  if (previewName) previewName.textContent = name;
+  if (previewIcon) {
+    previewIcon.textContent = icon;
+    previewIcon.style.borderColor = color;
+    previewIcon.style.background = `${color}25`;
+  }
+  if (previewBadge) {
+    previewBadge.textContent = type === 'expense' ? '🔴 Gider Başlığı' : '🟢 Gelir Başlığı';
+  }
+  if (previewCard) {
+    previewCard.style.borderColor = `${color}40`;
+  }
+}
+
+function handleCategoryFormSubmit(e) {
+  e.preventDefault();
+  const catId = document.getElementById('inputCategoryEditId').value;
+  const type = document.getElementById('inputCategoryEditType').value || 'expense';
+  const name = document.getElementById('inputCategoryName').value.trim();
+  const icon = document.getElementById('inputCategoryIcon').value.trim() || '📁';
+  const color = document.getElementById('inputCategoryColor').value || '#3b82f6';
+
+  if (!name) return;
+
+  const catList = type === 'expense' ? walletState.categories.expense : walletState.categories.income;
+
+  if (catId) {
+    const cat = catList.find(c => c.id === catId);
+    if (cat) {
+      cat.name = name;
+      cat.icon = icon;
+      cat.color = color;
+    }
   } else {
-    walletState.categories.income.push(newCat);
+    const newCat = {
+      id: 'cat_' + Date.now(),
+      name: name,
+      icon: icon,
+      color: color,
+      subcategories: []
+    };
+    catList.push(newCat);
   }
 
   saveWalletState();
   renderCategoryManagerModal();
   renderCategoryGrid(currentTxType);
+  renderWalletUI();
+  closeModal('modalWalletCategoryEdit');
 }
 
-function promptEditCategory(catId, type) {
-  const catList = type === 'expense' ? walletState.categories.expense : walletState.categories.income;
-  const cat = catList.find(c => c.id === catId);
-  if (!cat) return;
+function handleDeleteCurrentCategoryFromModal() {
+  const catId = document.getElementById('inputCategoryEditId').value;
+  const type = document.getElementById('inputCategoryEditType').value;
+  if (!catId) return;
 
-  const newName = prompt('Grup Başlığı Adı:', cat.name);
-  if (!newName || !newName.trim()) return;
-
-  const newIcon = prompt('Emoji / İkon simgesi:', cat.icon);
-  cat.name = newName.trim();
-  if (newIcon && newIcon.trim()) cat.icon = newIcon.trim();
-
-  saveWalletState();
-  renderCategoryManagerModal();
-  renderCategoryGrid(currentTxType);
-  renderWalletUI();
+  const deleted = deleteCategory(catId, type);
+  if (deleted) {
+    closeModal('modalWalletCategoryEdit');
+  }
 }
 
 function deleteCategory(catId, type) {
   const catList = type === 'expense' ? walletState.categories.expense : walletState.categories.income;
   if (catList.length <= 1) {
     alert('En az 1 adet grup başlığı bulunmalıdır.');
-    return;
+    return false;
   }
 
-  if (!confirm('Bu grup başlığını ve altındaki tüm alt başlıkları silmek istediğinize emin misiniz?')) return;
+  if (!confirm('Bu grup başlığını ve altındaki tüm alt başlıkları silmek istediğinize emin misiniz?')) {
+    return false;
+  }
 
   if (type === 'expense') {
     walletState.categories.expense = walletState.categories.expense.filter(c => c.id !== catId);
@@ -1135,25 +1311,123 @@ function deleteCategory(catId, type) {
   renderCategoryManagerModal();
   renderCategoryGrid(currentTxType);
   renderWalletUI();
+  return true;
 }
 
-function promptAddSubcategory(catId, type) {
-  const name = prompt('Yeni Alt Başlık Adı (Örn: BİM, ŞOK, Migros, Shell, Netflix):');
-  if (!name || !name.trim()) return;
+// Akıllı Alt Başlık Öneri Listesi
+function getSuggestedSubcategories(catName) {
+  const n = (catName || '').toLowerCase();
+  if (n.includes('market') || n.includes('gıda') || n.includes('bakkal')) {
+    return ['BİM', 'A101', 'ŞOK', 'Migros', 'Carrefour', 'Tarım Kredi', 'Kasap', 'Manav', 'Fırın'];
+  }
+  if (n.includes('yemek') || n.includes('kafe') || n.includes('restoran')) {
+    return ['Restoran', 'Kafe / Kahve', 'Fast Food', 'Yemeksepeti', 'Getir', 'Starbucks', 'Burger King'];
+  }
+  if (n.includes('fatura') || n.includes('aidat') || n.includes('ev')) {
+    return ['Elektrik', 'Doğalgaz', 'Su', 'İnternet', 'Aidat', 'Telefon / GSM', 'Netflix', 'Spotify'];
+  }
+  if (n.includes('ulaşım') || n.includes('araç') || n.includes('akaryakıt') || n.includes('benzin')) {
+    return ['Benzin / Motorin', 'Shell', 'Opet', 'BP', 'Toplu Taşıma / Kart', 'Taksi', 'HGS / OGS', 'Otopark'];
+  }
+  if (n.includes('giyim') || n.includes('alışveriş') || n.includes('moda')) {
+    return ['Giyim & Ayakkabı', 'Kozmetik', 'Trendyol', 'Hepsiburada', 'Amazon', 'Zara', 'LCW'];
+  }
+  if (n.includes('sağlık') || n.includes('eczane')) {
+    return ['Eczane / İlaç', 'Hastane / Muayene', 'Diş', 'Tahlil'];
+  }
+  if (n.includes('eğlence') || n.includes('hobi') || n.includes('tatil')) {
+    return ['Sinema & Konser', 'Abonelikler', 'Oyun & Steam', 'Tatil & Gezi', 'Kitap'];
+  }
+  if (n.includes('maaş') || n.includes('gelir')) {
+    return ['Ana Maaş', 'Mesai', 'Prim', 'İkramiye', 'Freelance / Ek İş', 'Kira Geliri'];
+  }
+  return ['Genel', 'Ekstra', 'Nakit', 'Online', 'Çeşitli'];
+}
+
+function openAddSubCategoryModal(catId, type) {
+  const targetType = type || currentCategoryMgrType || 'expense';
+  const catList = targetType === 'expense' ? walletState.categories.expense : walletState.categories.income;
+  const cat = catList.find(c => c.id === catId);
+  if (!cat) return;
+
+  const modal = document.getElementById('modalWalletSubCategory');
+  if (!modal) return;
+
+  document.getElementById('inputSubCategoryCatId').value = cat.id;
+  document.getElementById('inputSubCategoryType').value = targetType;
+
+  const badgeIcon = document.getElementById('subcatParentBadgeIcon');
+  const badgeName = document.getElementById('subcatParentBadgeName');
+  if (badgeIcon) badgeIcon.textContent = cat.icon || '📁';
+  if (badgeName) badgeName.textContent = cat.name;
+
+  const inputName = document.getElementById('inputSubCategoryName');
+  if (inputName) {
+    inputName.value = '';
+    setTimeout(() => inputName.focus(), 50);
+  }
+
+  const chipsContainer = document.getElementById('subcatSuggestionsChips');
+  if (chipsContainer) {
+    const existingSubs = cat.subcategories || [];
+    const suggestions = getSuggestedSubcategories(cat.name).filter(s => !existingSubs.includes(s));
+    if (suggestions.length === 0) {
+      chipsContainer.innerHTML = '<span style="font-size: 0.72rem; color: var(--text-dim);">Özel bir alt başlık adı girebilirsiniz.</span>';
+    } else {
+      chipsContainer.innerHTML = suggestions.map(s => `
+        <button type="button" class="subcat-quick-chip" onclick="selectSubCategorySuggestion('${s.replace(/'/g, "\\'")}')">
+          + ${s}
+        </button>
+      `).join('');
+    }
+  }
+
+  modal.showModal();
+}
+
+function selectSubCategorySuggestion(name) {
+  const input = document.getElementById('inputSubCategoryName');
+  if (input) {
+    input.value = name;
+    input.focus();
+  }
+}
+
+function handleSubCategoryFormSubmit(e) {
+  e.preventDefault();
+  const catId = document.getElementById('inputSubCategoryCatId').value;
+  const type = document.getElementById('inputSubCategoryType').value;
+  const name = document.getElementById('inputSubCategoryName').value.trim();
+
+  if (!name) return;
 
   const catList = type === 'expense' ? walletState.categories.expense : walletState.categories.income;
   const cat = catList.find(c => c.id === catId);
   if (!cat) return;
 
   if (!Array.isArray(cat.subcategories)) cat.subcategories = [];
-  const cleanName = name.trim();
-  if (!cat.subcategories.includes(cleanName)) {
-    cat.subcategories.push(cleanName);
+  if (!cat.subcategories.includes(name)) {
+    cat.subcategories.push(name);
     saveWalletState();
   }
 
   renderCategoryManagerModal();
+  selectedSubCategoryId = name;
   renderSubCategoryPicker(currentTxType);
+  closeModal('modalWalletSubCategory');
+}
+
+// Eski prompt çağrıları için geriye dönük uyumluluk
+function promptAddMainCategory() {
+  openAddCategoryModal();
+}
+
+function promptEditCategory(catId, type) {
+  openEditCategoryModal(catId, type);
+}
+
+function promptAddSubcategory(catId, type) {
+  openAddSubCategoryModal(catId, type);
 }
 
 function deleteSubcategory(catId, subName, type) {
@@ -1170,6 +1444,7 @@ function deleteSubcategory(catId, subName, type) {
 // Sayfa yüklendiğinde başlat
 document.addEventListener('DOMContentLoaded', () => {
   loadWalletState();
+  populateCategoryIconGrid();
 
   // Son aktif modülü hatırla
   const savedMod = localStorage.getItem('active_suite_module');

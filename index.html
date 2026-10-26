@@ -12,8 +12,8 @@
   <title>Aile Günlük Faiz & Kasa Takip</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
-  <link rel="stylesheet" href="style.css?v=20261026_v9">
-  <link rel="stylesheet" href="wallet.css?v=20261026_v9">
+  <link rel="stylesheet" href="style.css?v=20261026_v10">
+  <link rel="stylesheet" href="wallet.css?v=20261026_v10">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -54,38 +54,12 @@
         <span class="drawer-badge new-tag">Yeni</span>
       </button>
 
-      <div class="drawer-section-title" style="margin-top: 10px;">Cüzdan Araçları</div>
-      <button type="button" class="drawer-item" onclick="closeDrawer(); openWalletCategoryManagerModal('expense')">
-        <div class="drawer-item-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">🏷️</div>
+      <div class="drawer-section-title" style="margin-top: 14px;">Genel Ayarlar</div>
+      <button type="button" class="drawer-item" onclick="closeDrawer(); openAppSettings();">
+        <div class="drawer-item-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">⚙️</div>
         <div class="drawer-item-text">
-          <div class="drawer-item-title">Grup & Alt Başlıklar</div>
-          <div class="drawer-item-desc">Market (BİM, ŞOK vb.) başlık yönetimi</div>
-        </div>
-      </button>
-
-      <div class="drawer-section-title" style="margin-top: 14px;">Veri Güvenliği</div>
-      <button type="button" class="drawer-item" onclick="closeDrawer(); exportDataBackup();">
-        <div class="drawer-item-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">💾</div>
-        <div class="drawer-item-text">
-          <div class="drawer-item-title">Tam Yedek İndir (.json)</div>
-          <div class="drawer-item-desc">Faiz & Cüzdan verilerini cihaza kaydet</div>
-        </div>
-      </button>
-
-      <label class="drawer-item" style="cursor: pointer; margin: 0;">
-        <div class="drawer-item-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3);">📥</div>
-        <div class="drawer-item-text">
-          <div class="drawer-item-title">Yedekten Geri Yükle</div>
-          <div class="drawer-item-desc">Kayıtlı .json dosyasını aktar</div>
-        </div>
-        <input type="file" accept=".json" onchange="closeDrawer(); importDataBackup(event)" style="display:none;">
-      </label>
-
-      <button type="button" class="drawer-item" id="btnCheckUpdate" onclick="closeDrawer(); checkForAppUpdate(false)">
-        <div class="drawer-item-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3);">🚀</div>
-        <div class="drawer-item-text">
-          <div class="drawer-item-title">Güncellemeleri Kontrol Et</div>
-          <div class="drawer-item-desc" id="appVersionLabel">Yeni sürüm varsa indir</div>
+          <div class="drawer-item-title">Uygulama & Veri Yönetimi</div>
+          <div class="drawer-item-desc">Yedekler, Excel, başlıklar ve güncellemeler</div>
         </div>
       </button>
     </div>
@@ -342,9 +316,8 @@
           </div>
         </div>
         <div class="header-actions">
-          <button type="button" class="btn-subtle" onclick="openWalletCategoryManagerModal(currentTxType)" title="Grup ve Alt Başlıkları Yönet" style="font-size: 0.78rem; padding: 6px 10px;">🏷️ Başlıklar</button>
-          <button type="button" class="icon-btn" onclick="openAddWalletTxModal()" title="Hızlı İşlem Ekle">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <button type="button" class="icon-btn" id="btnWalletSettings" onclick="openAppSettings()" title="Ayarlar & Araçlar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
           </button>
         </div>
       </header>
@@ -367,19 +340,31 @@
       <section class="wallet-summary-card">
         <div class="summary-col border-right">
           <span class="sum-label">Gelir</span>
-          <span class="sum-amount sum-income" id="walletSummaryIncome">+0,00 ₺</span>
+          <span class="sum-amount sum-income" id="walletSummaryIncome">+0,00&nbsp;₺</span>
         </div>
         <div class="summary-col border-right">
           <span class="sum-label">Gider</span>
-          <span class="sum-amount sum-expense" id="walletSummaryExpense">-0,00 ₺</span>
+          <span class="sum-amount sum-expense" id="walletSummaryExpense">-0,00&nbsp;₺</span>
         </div>
         <div class="summary-col">
           <span class="sum-label">Net Kalan</span>
-          <span class="sum-amount sum-net" id="walletSummaryNet">0,00 ₺</span>
+          <span class="sum-amount sum-net" id="walletSummaryNet">0,00&nbsp;₺</span>
         </div>
       </section>
 
-      <!-- Sub Navigation Tabs (Günlük / Takvim / Analiz / Hesaplar) -->
+      <!-- Sub-View 1: Günlük Liste (Timeline) -->
+      <div id="subView_daily" class="wallet-view-content active"></div>
+
+      <!-- Sub-View 2: Takvim (Calendar) -->
+      <div id="subView_calendar" class="wallet-view-content"></div>
+
+      <!-- Sub-View 3: Analiz & İstatistik (Stats) -->
+      <div id="subView_stats" class="wallet-view-content"></div>
+
+      <!-- Sub-View 4: Hesaplar / Cüzdanlar (Accounts) -->
+      <div id="subView_accounts" class="wallet-view-content"></div>
+
+      <!-- Sub Navigation Tabs (Günlük / Takvim / Analiz / Hesaplar) - Sayfanın En Altında -->
       <div class="wallet-nav-tabs">
         <button type="button" class="wallet-nav-btn active" id="subTabBtn_daily" onclick="switchWalletSubView('daily')">
           <span>📅</span> Günlük
@@ -394,18 +379,6 @@
           <span>💳</span> Hesaplar
         </button>
       </div>
-
-      <!-- Sub-View 1: Günlük Liste (Timeline) -->
-      <div id="subView_daily" class="wallet-view-content active"></div>
-
-      <!-- Sub-View 2: Takvim (Calendar) -->
-      <div id="subView_calendar" class="wallet-view-content"></div>
-
-      <!-- Sub-View 3: Analiz & İstatistik (Stats) -->
-      <div id="subView_stats" class="wallet-view-content"></div>
-
-      <!-- Sub-View 4: Hesaplar / Cüzdanlar (Accounts) -->
-      <div id="subView_accounts" class="wallet-view-content"></div>
 
       <!-- Floating Action Button (+ FAB) -->
       <button type="button" class="wallet-fab" onclick="openAddWalletTxModal()" title="Gelir / Gider Ekle" aria-label="Ekle">
@@ -580,8 +553,17 @@
         <button class="modal-close" onclick="closeModal('modalSettings')">&times;</button>
       </div>
       
+      <!-- CÜZDAN ARAÇLARI (Grup & Alt Başlıklar) -->
       <div class="settings-block">
-        <h4>Kişi Yönetimi</h4>
+        <h4>🏷️ Cüzdan Araçları & Başlıklar</h4>
+        <p class="modal-desc">Gelir ve gider işlemleriniz için grup (Market, Fatura vb.) ve alt başlıkları (BİM, ŞOK, A101 vb.) özelleştirin.</p>
+        <button type="button" class="btn-secondary-full" onclick="closeModal('modalSettings'); openWalletCategoryManagerModal(typeof currentTxType !== 'undefined' ? currentTxType : 'expense');" style="border-color: rgba(245, 158, 11, 0.4); color: #f59e0b; font-weight: 700;">
+          🏷️ Grup & Alt Başlıkları Yönet
+        </button>
+      </div>
+
+      <div class="settings-block">
+        <h4>👥 Kişi Yönetimi (Aile Faiz & Kasa)</h4>
         <p class="modal-desc">Hesaba ortak olan kişileri düzenleyin veya yeni kişi ekleyin.</p>
         <div id="membersManagerList" class="members-manager-list"></div>
         <div class="add-member-row">
@@ -591,27 +573,41 @@
       </div>
 
       <div class="settings-block">
-        <h4>Veri Yedekleme & Geri Yükleme</h4>
-        <p class="modal-desc">Telefon değiştirirken veya verilerinizi yedeklemek istediğinizde kullanın.</p>
+        <h4>💾 Veri Güvenliği (Yedekleme & Geri Yükleme)</h4>
+        <p class="modal-desc">Telefon değiştirirken veya tüm verilerinizi (Faiz + Cüzdan) güvenceye almak istediğinizde kullanın.</p>
         <div class="backup-actions">
           <button class="btn-secondary-full" onclick="exportDataBackup()">
-            💾 Verileri Telefona İndir (Yedek Al)
+            💾 Tam Yedek İndir (.json)
           </button>
           <label class="btn-secondary-full upload-label">
-            📥 Yedek Dosyası Yükle
+            📥 Yedekten Geri Yükle (.json)
             <input type="file" id="importFileInput" accept=".json" onchange="importDataBackup(event)" style="display:none;">
           </label>
         </div>
       </div>
 
       <div class="settings-block">
-        <h4>Çerezler ve Site Verilerini Temizleme</h4>
-        <p class="modal-desc">
-          Tarayıcıda biriken eski çerezleri, site önbelleğini ve servis kayıtlarını temizler.
-          <strong style="color: var(--emerald); display: block; margin-top: 4px;">✓ Girdiğiniz hesaplar, para hareketleri ve faiz verileriniz kesinlikle silinmez, korunur.</strong>
-        </p>
-        <button type="button" class="btn-secondary-full btn-clean-cookies" onclick="clearCookiesAndSiteData()">
-          🧹 Çerezler ve Site Verilerini Sil
+        <h4>📊 Excel (.xlsx) ile Toplu Veri Yönetimi</h4>
+        <p class="modal-desc">Bilgisayardan toplu kayıt girmek için mevcut verilerinizle dolu Excel tablosunu indirin, düzenleyip tek tıkla geri yükleyin.</p>
+        <div class="backup-actions">
+          <button type="button" class="btn-secondary-full" onclick="closeModal('modalSettings'); openExcelSyncModal();" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; font-weight: 700; margin-bottom: 4px;">
+            📊 Excel Senkronizasyon & Tablo Paneli
+          </button>
+          <button class="btn-secondary-full" onclick="exportDataToExcel()" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981;">
+            📥 Hızlı Excel (.xlsx) Şablon İndir
+          </button>
+          <label class="btn-secondary-full upload-label" style="border-color: rgba(59, 130, 246, 0.4); color: #60a5fa;">
+            📤 Excel Dosyası Yükle (.xlsx)
+            <input type="file" id="importExcelInput" accept=".xlsx, .xls" onchange="importDataFromExcel(event)" style="display:none;">
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <h4>🚀 Uygulama Güncellemeleri</h4>
+        <p class="modal-desc" id="appVersionLabel">Yeni sürüm varsa indirip doğrudan güncelleyin.</p>
+        <button type="button" class="btn-secondary-full" id="btnCheckUpdate" onclick="checkForAppUpdate(false)" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc; font-weight: 700;">
+          🚀 Güncellemeleri Kontrol Et
         </button>
       </div>
 
@@ -623,6 +619,58 @@
 
       <div class="modal-footer">
         <button type="button" class="btn-cancel" onclick="closeModal('modalSettings')">Kapat</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: EXCEL SENKRONİZASYON VE TOPLU İŞLEM -->
+  <dialog class="app-modal" id="modalExcelSync">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">📊</span>
+          <h3 style="margin: 0;">Excel ile Toplu İşlem</h3>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('modalExcelSync')">&times;</button>
+      </div>
+
+      <p class="modal-desc" style="margin-bottom: 18px; line-height: 1.5;">
+        Bilgisayarınızın klavyesinden hızlıca onlarca harcama ve gelir girişi yapmak için Excel dosyasını kullanabilirsiniz.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+        <button type="button" class="btn-secondary-full" onclick="exportDataToExcel(); closeModal('modalExcelSync');" style="display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 14px 16px; border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.08); text-align: left;">
+          <span style="font-size: 1.6rem;">📥</span>
+          <div>
+            <div style="font-weight: 700; color: #10b981; font-size: 0.95rem;">1. Excel Şablon & Verileri İndir</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Mevcut kayıtlar ve hazır sütunlarla .xlsx dosyasını indirir</div>
+          </div>
+        </button>
+
+        <label class="btn-secondary-full upload-label" style="display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 14px 16px; border-color: rgba(59, 130, 246, 0.35); background: rgba(59, 130, 246, 0.08); text-align: left; cursor: pointer;">
+          <span style="font-size: 1.6rem;">📤</span>
+          <div>
+            <div style="font-weight: 700; color: #60a5fa; font-size: 0.95rem;">2. Doldurulan Excel'i Geri Yükle</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Bilgisayarda doldurduğunuz .xlsx dosyasını seçip içeri aktarır</div>
+          </div>
+          <input type="file" accept=".xlsx, .xls" onchange="closeModal('modalExcelSync'); importDataFromExcel(event)" style="display:none;">
+        </label>
+      </div>
+
+      <div class="info-card" style="margin-bottom: 12px; padding: 12px 14px;">
+        <div class="info-icon" style="font-size: 1.2rem;">💡</div>
+        <div class="info-text" style="font-size: 0.76rem; line-height: 1.45;">
+          <strong>Nasıl Kullanılır?</strong>
+          <ul style="margin: 4px 0 0 16px; padding: 0;">
+            <li>Excel dosyasında en alta yeni satırlar eklerken <b>Kayıt ID</b> sütununu boş bırakın.</li>
+            <li>Yeni bir kategori veya alt başlık yazarsanız sistem onu otomatik olarak oluşturur.</li>
+            <li>İşlem bittiğinde dosyayı kaydedip yukarıdaki 2. adımdan yüklemeniz yeterlidir.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 10px;">
+        <button type="button" class="btn-cancel" onclick="closeModal('modalExcelSync')">Kapat</button>
       </div>
     </div>
   </dialog>
@@ -704,7 +752,7 @@
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
         <span style="font-size: 0.78rem; color: var(--text-muted);">Grup başlıklarını ve altındaki alt başlıkları düzenleyin:</span>
-        <button type="button" class="btn-small" onclick="promptAddMainCategory()">+ Yeni Başlık</button>
+        <button type="button" class="btn-small" onclick="openAddCategoryModal()">+ Yeni Başlık</button>
       </div>
 
       <div id="walletCategoryManagerList" class="cat-mgr-list">
@@ -714,6 +762,123 @@
       <div class="modal-footer" style="margin-top: 16px;">
         <button type="button" class="btn-cancel" onclick="closeModal('modalWalletCategories')">Kapat</button>
       </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: GRUP BAŞLIĞI EKLE & DÜZENLE -->
+  <dialog class="app-modal" id="modalWalletCategoryEdit">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="modalCategoryEditTitle">Yeni Grup Başlığı Ekle</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalWalletCategoryEdit')">&times;</button>
+      </div>
+
+      <form id="formWalletCategory" onsubmit="handleCategoryFormSubmit(event)">
+        <input type="hidden" id="inputCategoryEditId" value="">
+        <input type="hidden" id="inputCategoryEditType" value="expense">
+
+        <!-- Grup Türü Seçici -->
+        <div class="form-group" id="categoryTypeGroup">
+          <label>Grup Türü</label>
+          <div class="segmented-control two-options">
+            <button type="button" class="segment-opt-btn active" id="btnCatEditExpense" onclick="setCategoryFormType('expense')">🔴 Gider Grubu</button>
+            <button type="button" class="segment-opt-btn" id="btnCatEditIncome" onclick="setCategoryFormType('income')">🟢 Gelir Grubu</button>
+          </div>
+        </div>
+
+        <!-- Canlı Önizleme Kartı -->
+        <div class="category-preview-card" id="categoryPreviewCard">
+          <div class="cat-preview-icon" id="previewCategoryIcon">🛒</div>
+          <div class="cat-preview-details">
+            <div class="cat-preview-name" id="previewCategoryName">Yeni Grup Başlığı</div>
+            <div class="cat-preview-badge" id="previewCategoryBadge">🔴 Gider Başlığı</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputCategoryName">Grup Başlığı Adı</label>
+          <input type="text" id="inputCategoryName" placeholder="Örn: Market & Gıda, Faturalar, Abonelikler..." required autofocus oninput="updateCategoryPreview()">
+        </div>
+
+        <!-- Renk Paleti -->
+        <div class="form-group">
+          <label>Renk Teması</label>
+          <div class="color-picker-row" id="categoryColorPicker">
+            <button type="button" class="color-opt-btn active" style="background: #f59e0b;" onclick="selectCategoryColor('#f59e0b')" data-color="#f59e0b" title="Amber"></button>
+            <button type="button" class="color-opt-btn" style="background: #ef4444;" onclick="selectCategoryColor('#ef4444')" data-color="#ef4444" title="Kırmızı"></button>
+            <button type="button" class="color-opt-btn" style="background: #f97316;" onclick="selectCategoryColor('#f97316')" data-color="#f97316" title="Turuncu"></button>
+            <button type="button" class="color-opt-btn" style="background: #10b981;" onclick="selectCategoryColor('#10b981')" data-color="#10b981" title="Yeşil"></button>
+            <button type="button" class="color-opt-btn" style="background: #06b6d4;" onclick="selectCategoryColor('#06b6d4')" data-color="#06b6d4" title="Cyan"></button>
+            <button type="button" class="color-opt-btn" style="background: #3b82f6;" onclick="selectCategoryColor('#3b82f6')" data-color="#3b82f6" title="Mavi"></button>
+            <button type="button" class="color-opt-btn" style="background: #8b5cf6;" onclick="selectCategoryColor('#8b5cf6')" data-color="#8b5cf6" title="Mor"></button>
+            <button type="button" class="color-opt-btn" style="background: #ec4899;" onclick="selectCategoryColor('#ec4899')" data-color="#ec4899" title="Pembe"></button>
+            <button type="button" class="color-opt-btn" style="background: #64748b;" onclick="selectCategoryColor('#64748b')" data-color="#64748b" title="Gri"></button>
+          </div>
+          <input type="hidden" id="inputCategoryColor" value="#f59e0b">
+        </div>
+
+        <!-- İkon / Logo Seçici -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="margin: 0;">Logo / İkon Seçimi</label>
+            <small style="color: var(--text-dim); font-size: 0.72rem;">İstediğiniz simgeyi yazabilir veya tıklayabilirsiniz</small>
+          </div>
+          <div class="emoji-picker-container">
+            <div class="emoji-picker-top">
+              <input type="text" id="inputCategoryIcon" value="🛒" maxlength="4" class="icon-input-display" oninput="onCustomIconInput(this.value)">
+              <span style="font-size: 0.75rem; color: var(--text-dim);">Özel emoji/simge girebilir veya aşağıdaki popüler logolardan seçebilirsiniz:</span>
+            </div>
+            <div class="emoji-picker-grid" id="categoryIconGrid">
+              <!-- Emojiler wallet.js tarafından doldurulacak -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 8px;">
+          <button type="button" class="btn-danger-outline" id="btnDeleteCategoryModal" onclick="handleDeleteCurrentCategoryFromModal()" style="display: none; padding: 10px 14px; font-size: 0.8rem;">
+            🗑️ Başlığı Sil
+          </button>
+          <div style="display: flex; gap: 8px; margin-left: auto;">
+            <button type="button" class="btn-cancel" onclick="closeModal('modalWalletCategoryEdit')">Vazgeç</button>
+            <button type="submit" class="btn-submit">Kaydet</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL: YENİ ALT BAŞLIK EKLE -->
+  <dialog class="app-modal" id="modalWalletSubCategory">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Yeni Alt Başlık Ekle</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalWalletSubCategory')">&times;</button>
+      </div>
+
+      <form id="formWalletSubCategory" onsubmit="handleSubCategoryFormSubmit(event)">
+        <input type="hidden" id="inputSubCategoryCatId" value="">
+        <input type="hidden" id="inputSubCategoryType" value="expense">
+
+        <div class="subcat-parent-info" id="subcatParentInfo">
+          <span class="subcat-parent-badge-icon" id="subcatParentBadgeIcon">📁</span>
+          <span><strong id="subcatParentBadgeName">Grup Adı</strong> başlığı altına ekleniyor</span>
+        </div>
+
+        <div class="form-group">
+          <label for="inputSubCategoryName">Alt Başlık Adı</label>
+          <input type="text" id="inputSubCategoryName" placeholder="Örn: BİM, ŞOK, Migros, Netflix, Shell..." required autofocus>
+        </div>
+
+        <div class="form-group" id="subcatSuggestionsGroup">
+          <label style="font-size: 0.75rem; color: var(--text-dim);">Hızlı Örnekler (Tıklayarak Doldurun)</label>
+          <div class="subcat-quick-chips" id="subcatSuggestionsChips"></div>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center; margin-top: 18px; gap: 8px;">
+          <button type="button" class="btn-cancel" onclick="closeModal('modalWalletSubCategory')">Vazgeç</button>
+          <button type="submit" class="btn-submit">Ekle</button>
+        </div>
+      </form>
     </div>
   </dialog>
 
@@ -807,6 +972,8 @@
       }
     }
   </script>
+  <script src="xlsx.full.min.js"></script>
+  <script src="excel-sync.js?v=20261026_v1"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
   <script src="app.js?v=20261026_v9"></script>
   <script src="wallet.js?v=20261026_v9"></script>

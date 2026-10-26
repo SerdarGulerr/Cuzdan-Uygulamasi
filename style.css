@@ -213,12 +213,13 @@ body {
 }
 
 .hero-amount {
-  font-size: 2.25rem;
+  font-size: clamp(1.6rem, 5vw, 2.05rem);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #ffffff;
   margin: 6px 0 10px 0;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
 }
 
 .hero-growth-badge {
@@ -231,6 +232,7 @@ body {
   border-radius: 10px;
   font-size: 0.82rem;
   color: #d1fae5;
+  white-space: nowrap;
 }
 
 .hero-growth-badge strong {
@@ -269,14 +271,15 @@ body {
 }
 
 .stat-name {
-  font-size: 0.72rem;
+  font-size: 0.70rem;
   color: var(--text-muted);
 }
 
 .stat-val {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .stat-val.highlight {
