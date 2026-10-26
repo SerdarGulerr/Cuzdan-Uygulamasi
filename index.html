@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Aile Günlük Faiz & Kasa Takip</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="stylesheet" href="style.css?v=20261026_v9">
+  <link rel="stylesheet" href="wallet.css?v=20261026_v9">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Navigation Drawer (Açılır Yan Menü) -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <aside id="navDrawer" class="nav-drawer">
+    <div class="drawer-header">
+      <div class="drawer-brand" style="display: flex; align-items: center; gap: 10px;">
+        <div style="font-size: 1.6rem;">📱</div>
+        <div>
+          <h3 style="font-size: 1rem; font-weight: 800; color: #fff;">Finans Portalı</h3>
+          <p style="font-size: 0.72rem; color: var(--text-dim);">Uygulama Modülleri</p>
+        </div>
+      </div>
+      <button class="drawer-close-btn" onclick="closeDrawer()" aria-label="Kapat">&times;</button>
+    </div>
+    
+    <div class="drawer-menu-list">
+      <div class="drawer-section-title">Modül Seçin</div>
+      
+      <button type="button" class="drawer-item active" id="drawerItemFaiz" onclick="switchMainModule('faiz')">
+        <div class="drawer-item-icon icon-faiz">🏦</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Aile Faiz & Kasa</div>
+          <div class="drawer-item-desc">Bileşik getiri, kişi payları, günlük rapor</div>
+        </div>
+        <span class="drawer-badge active-tag">Aktif</span>
+      </button>
+
+      <button type="button" class="drawer-item" id="drawerItemWallet" onclick="switchMainModule('wallet')">
+        <div class="drawer-item-icon icon-wallet">👛</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Gelir & Gider Cüzdanım</div>
+          <div class="drawer-item-desc">Harcamalar, takvim, bütçe & hesaplar</div>
+        </div>
+        <span class="drawer-badge new-tag">Yeni</span>
+      </button>
+
+      <div class="drawer-section-title" style="margin-top: 10px;">Cüzdan Araçları</div>
+      <button type="button" class="drawer-item" onclick="closeDrawer(); openWalletCategoryManagerModal('expense')">
+        <div class="drawer-item-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">🏷️</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Grup & Alt Başlıklar</div>
+          <div class="drawer-item-desc">Market (BİM, ŞOK vb.) başlık yönetimi</div>
+        </div>
+      </button>
+
+      <div class="drawer-section-title" style="margin-top: 14px;">Veri Güvenliği</div>
+      <button type="button" class="drawer-item" onclick="closeDrawer(); exportDataBackup();">
+        <div class="drawer-item-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">💾</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Tam Yedek İndir (.json)</div>
+          <div class="drawer-item-desc">Faiz & Cüzdan verilerini cihaza kaydet</div>
+        </div>
+      </button>
+
+      <label class="drawer-item" style="cursor: pointer; margin: 0;">
+        <div class="drawer-item-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3);">📥</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Yedekten Geri Yükle</div>
+          <div class="drawer-item-desc">Kayıtlı .json dosyasını aktar</div>
+        </div>
+        <input type="file" accept=".json" onchange="closeDrawer(); importDataBackup(event)" style="display:none;">
+      </label>
+
+      <button type="button" class="drawer-item" id="btnCheckUpdate" onclick="closeDrawer(); checkForAppUpdate(false)">
+        <div class="drawer-item-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3);">🚀</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Güncellemeleri Kontrol Et</div>
+          <div class="drawer-item-desc" id="appVersionLabel">Yeni sürüm varsa indir</div>
+        </div>
+      </button>
+    </div>
+
+    <div class="drawer-footer">
+      <button type="button" class="btn-drawer-action" onclick="forceHardRefresh()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        <span>Önbelleği Yenile</span>
+      </button>
+      <div class="drawer-version">Aile Finans Süiti v2.0 • %100 Çevrimdışı</div>
+    </div>
+  </aside>
+
+  <div class="app-container">
+    <!-- MODÜL 1: AİLE FAİZ & KASA -->
+    <div id="moduleFaiz" class="app-module active">
+      <!-- SAYFA 1: ANA SAYFA -->
+      <main id="pageHome" class="app-page active">
+        <!-- Top Header -->
+        <header class="app-header">
+          <button type="button" class="btn-drawer-toggle" onclick="openDrawer()" title="Uygulama Menüsü" aria-label="Menü">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div class="brand">
+          <div class="logo-box">
+            <img src="icon.svg" alt="Logo" class="logo-img">
+          </div>
+          <div>
+            <h1>Aile Kasa & Faiz</h1>
+            <p class="subtitle" id="currentDateDisplay">Hesaplanıyor...</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" onclick="forceHardRefresh()" title="Önbelleği Temizle & En Güncel Sürümü Yükle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+          <button class="icon-btn" id="btnSettings" title="Yedekleme & Ayarlar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Account Hero Card -->
+      <section class="hero-card">
+        <div class="hero-header">
+          <span class="badge-status">
+            <span class="pulse-dot"></span>
+            Günlük Bileşik Faiz Aktif
+          </span>
+          <button class="rate-badge" id="btnOpenRates" title="Faiz oranını değiştir">
+            <span class="rate-label">Güncel Oran:</span>
+            <strong id="displayCurrentRate">%0.00</strong>
+            <span class="edit-hint">✎</span>
+          </button>
+        </div>
+
+        <div class="hero-body">
+          <span class="hero-subtitle">Banka Hesabı Toplam Değeri</span>
+          <div class="hero-amount" id="displayTotalBalance">0,00 ₺</div>
+          <div class="hero-growth-badge">
+            <span>Bugünkü Net Faiz:</span>
+            <strong id="displayTodayInterest">+0,00 ₺</strong>
+            <span class="tax-tag" id="displayTodayTaxDetail">(Stopaj: -0,00 ₺)</span>
+          </div>
+        </div>
+
+        <div class="hero-footer-stats">
+          <div class="stat-col">
+            <span class="stat-name">Yatırılan Anapara</span>
+            <span class="stat-val" id="displayTotalPrincipal">0,00 ₺</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-col">
+            <span class="stat-name">Toplam Faiz Kazancı</span>
+            <span class="stat-val highlight" id="displayTotalProfit">+0,00 ₺</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Action Bar -->
+      <div class="action-bar">
+        <button class="action-btn btn-primary" id="btnOpenDeposit">
+          <div class="btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </div>
+          <span>Para Ekle / Çek</span>
+        </button>
+
+        <button class="action-btn btn-secondary" id="btnOpenDailyReport">
+          <div class="btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          </div>
+          <span>Günlük Döküm</span>
+        </button>
+
+        <button class="action-btn btn-secondary" id="btnOpenTxHistory">
+          <div class="btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
+          <span>Geçmiş</span>
+        </button>
+      </div>
+
+      <!-- Section: Kişi Bakiyeleri -->
+      <section class="section-container">
+        <div class="section-header">
+          <h2>Kişi Bakiyeleri</h2>
+          <span class="section-tag" id="memberCountTag">3 Kişi</span>
+        </div>
+
+        <!-- Member Cards Container -->
+        <div class="members-grid" id="membersContainer">
+          <!-- Rendered dynamically by JS -->
+        </div>
+      </section>
+
+      <!-- Calculation Notice -->
+      <div class="info-card">
+        <div class="info-icon">💡</div>
+        <div class="info-text">
+          <strong>Nasıl Hesaplanıyor?</strong>
+          <p>Her gün girdiğiniz brüt faiz oranı üzerinden günlük getiri hesaplanır, %17,5 gelir vergisi (stopaj) kesintisi düşüldükten sonra kalan NET kazanç ana paraya eklenerek bileşik büyür.</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- SAYFA 2: KİŞİ DETAY SAYFASI (TAM SAYFA GÖRÜNÜMÜ) -->
+    <main id="pageMemberDetail" class="app-page" style="display: none;">
+      <!-- Page Navigation Header -->
+      <header class="page-top-nav">
+        <button type="button" class="btn-back" onclick="navigateToHome()" title="Ana Sayfaya Dön">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>Ana Sayfa</span>
+        </button>
+        <div class="page-nav-title" id="memberPageNavTitle">
+          <!-- Person Avatar + Name rendered by JS -->
+        </div>
+        <button type="button" class="icon-btn" onclick="openDepositForCurrentMember()" title="Bu Kişiye Para Yatır/Çek">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+      </header>
+
+      <!-- Member Dedicated Hero Card -->
+      <section class="hero-card member-hero-card">
+        <div class="hero-header">
+          <span class="badge-status" id="memberHeroShareBadge">
+            <span class="pulse-dot"></span>
+            %0.0 Kasa Payı
+          </span>
+          <span class="member-tag-badge" id="memberHeroTag">Kişisel Hesap</span>
+        </div>
+
+        <div class="hero-body">
+          <span class="hero-subtitle">Kişisel Toplam Varlık</span>
+          <div class="hero-amount" id="memberHeroBalance">0,00 ₺</div>
+          <div class="hero-growth-badge">
+            <span>Bugünkü Net Faiz:</span>
+            <strong id="memberHeroTodayGain">+0,00 ₺</strong>
+          </div>
+        </div>
+
+        <div class="hero-footer-stats">
+          <div class="stat-col">
+            <span class="stat-name">Yatırılan Anapara</span>
+            <span class="stat-val" id="memberHeroPrincipal">0,00 ₺</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-col">
+            <span class="stat-name">Toplam Faiz Kazancı</span>
+            <span class="stat-val highlight" id="memberHeroProfit">+0,00 ₺</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Button for this Person -->
+      <div class="action-bar single-action">
+        <button class="action-btn btn-primary" onclick="openDepositForCurrentMember()">
+          <div class="btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </div>
+          <span>Bu Kişiye Para Ekle / Çek</span>
+        </button>
+      </div>
+
+      <!-- Chart Section -->
+      <section class="chart-section page-chart-section">
+        <div class="chart-header">
+          <div class="chart-title-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            <h4>Günlük Net Faiz Gelir Grafiği</h4>
+          </div>
+          <span class="chart-badge" id="chartAvgGainBadge">Ort: +0,00 ₺</span>
+        </div>
+        
+        <div class="chart-canvas-wrapper" style="height: 210px;">
+          <canvas id="memberGainCanvas" height="210"></canvas>
+          <div id="chartTooltip" class="chart-tooltip"></div>
+        </div>
+        <p class="chart-hint">Grafikteki günlerin üzerine dokunarak o günkü net kazanç ve bakiyeyi görebilirsiniz.</p>
+      </section>
+
+      <!-- Section: Details Navigation (Tabs) -->
+      <section class="section-container">
+        <div class="member-tabs-nav">
+          <button type="button" class="member-tab-btn active" id="tabBtnIncome" onclick="switchMemberTab('income')">
+            📈 Günlük Faiz Gelirleri (<span id="memberIncomeCount">0</span>)
+          </button>
+          <button type="button" class="member-tab-btn" id="tabBtnTxs" onclick="switchMemberTab('txs')">
+            💳 Para Hareketleri (<span id="memberTxCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Tab 1: Income Table -->
+        <div class="member-tab-content active" id="tabContentIncome">
+          <div class="table-responsive">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Tarih</th>
+                  <th>Brüt Faiz</th>
+                  <th>Stopaj</th>
+                  <th>Net Kazanç</th>
+                  <th>Gün Sonu Bakiye</th>
+                </tr>
+              </thead>
+              <tbody id="memberIncomeTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 2: Transactions -->
+        <div class="member-tab-content" id="tabContentTxs" style="display: none;">
+          <div class="tx-list-container" id="memberTxListContainer">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </section>
+    </main>
+    </div><!-- End #moduleFaiz -->
+
+    <!-- MODÜL 2: GELİR & GİDER CÜZDANIM (MONEY MANAGER) -->
+    <div id="moduleWallet" class="app-module" style="display: none; flex-direction: column; gap: 16px;">
+      <!-- Wallet Header -->
+      <header class="wallet-header">
+        <div class="wallet-brand">
+          <button type="button" class="btn-drawer-toggle" onclick="openDrawer()" title="Uygulama Menüsü" aria-label="Menü">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div>
+            <h1 style="font-size: 1.25rem; font-weight: 800; color: #fff; margin: 0;">Cüzdanım</h1>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Gelir & Gider Yönetimi</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-subtle" onclick="openWalletCategoryManagerModal(currentTxType)" title="Grup ve Alt Başlıkları Yönet" style="font-size: 0.78rem; padding: 6px 10px;">🏷️ Başlıklar</button>
+          <button type="button" class="icon-btn" onclick="openAddWalletTxModal()" title="Hızlı İşlem Ekle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Month Selector Bar -->
+      <section class="month-selector-bar">
+        <button type="button" class="month-nav-btn" onclick="changeWalletMonth(-1)" title="Önceki Ay">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="current-month-display">
+          <span class="current-month-title" id="currentWalletMonthTitle">Ekim 2026</span>
+          <span class="current-month-sub">Aylık Bütçe Dönemi</span>
+        </div>
+        <button type="button" class="month-nav-btn" onclick="changeWalletMonth(1)" title="Sonraki Ay">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </section>
+
+      <!-- 3-Strip Summary Bar (Realbyte Tarzı) -->
+      <section class="wallet-summary-card">
+        <div class="summary-col border-right">
+          <span class="sum-label">Gelir</span>
+          <span class="sum-amount sum-income" id="walletSummaryIncome">+0,00 ₺</span>
+        </div>
+        <div class="summary-col border-right">
+          <span class="sum-label">Gider</span>
+          <span class="sum-amount sum-expense" id="walletSummaryExpense">-0,00 ₺</span>
+        </div>
+        <div class="summary-col">
+          <span class="sum-label">Net Kalan</span>
+          <span class="sum-amount sum-net" id="walletSummaryNet">0,00 ₺</span>
+        </div>
+      </section>
+
+      <!-- Sub Navigation Tabs (Günlük / Takvim / Analiz / Hesaplar) -->
+      <div class="wallet-nav-tabs">
+        <button type="button" class="wallet-nav-btn active" id="subTabBtn_daily" onclick="switchWalletSubView('daily')">
+          <span>📅</span> Günlük
+        </button>
+        <button type="button" class="wallet-nav-btn" id="subTabBtn_calendar" onclick="switchWalletSubView('calendar')">
+          <span>🗓️</span> Takvim
+        </button>
+        <button type="button" class="wallet-nav-btn" id="subTabBtn_stats" onclick="switchWalletSubView('stats')">
+          <span>📊</span> Analiz
+        </button>
+        <button type="button" class="wallet-nav-btn" id="subTabBtn_accounts" onclick="switchWalletSubView('accounts')">
+          <span>💳</span> Hesaplar
+        </button>
+      </div>
+
+      <!-- Sub-View 1: Günlük Liste (Timeline) -->
+      <div id="subView_daily" class="wallet-view-content active"></div>
+
+      <!-- Sub-View 2: Takvim (Calendar) -->
+      <div id="subView_calendar" class="wallet-view-content"></div>
+
+      <!-- Sub-View 3: Analiz & İstatistik (Stats) -->
+      <div id="subView_stats" class="wallet-view-content"></div>
+
+      <!-- Sub-View 4: Hesaplar / Cüzdanlar (Accounts) -->
+      <div id="subView_accounts" class="wallet-view-content"></div>
+
+      <!-- Floating Action Button (+ FAB) -->
+      <button type="button" class="wallet-fab" onclick="openAddWalletTxModal()" title="Gelir / Gider Ekle" aria-label="Ekle">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+    </div><!-- End #moduleWallet -->
+  </div><!-- End .app-container -->
+
+  <!-- MODAL 1: Para Ekle / Çek Modalı -->
+  <dialog class="app-modal" id="modalDeposit">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Para Yatır / Çek</h3>
+        <button class="modal-close" onclick="closeModal('modalDeposit')">&times;</button>
+      </div>
+      <form id="formDeposit" onsubmit="handleDepositSubmit(event)">
+        <div class="form-group">
+          <label>Kişi Seçin</label>
+          <div class="segmented-control" id="personSelector">
+            <!-- Dynamic person options -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>İşlem Türü</label>
+          <div class="segmented-control two-options">
+            <label class="segment-opt">
+              <input type="radio" name="txType" value="deposit" checked>
+              <span>+ Para Yatırma</span>
+            </label>
+            <label class="segment-opt">
+              <input type="radio" name="txType" value="withdraw">
+              <span>- Para Çekme</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputAmount">Tutar (₺)</label>
+          <div class="input-prefix-box">
+            <span class="currency-sym">₺</span>
+            <input type="number" id="inputAmount" step="0.01" min="0.01" placeholder="0.00" required inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputTxDate">İşlem Tarihi</label>
+          <input type="date" id="inputTxDate" required>
+        </div>
+
+        <div class="form-group">
+          <label for="inputNote">Açıklama (İsteğe Bağlı)</label>
+          <input type="text" id="inputNote" placeholder="Örn: Maaş, Vadeli faiz girişi, Harçlık">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('modalDeposit')">Vazgeç</button>
+          <button type="submit" class="btn-submit">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL 2: Faiz Oranı Güncelleme Modalı -->
+  <dialog class="app-modal" id="modalRates">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Günlük Faiz Oranı Belirle</h3>
+        <button class="modal-close" onclick="closeModal('modalRates')">&times;</button>
+      </div>
+      <form id="formRate" onsubmit="handleRateSubmit(event)">
+        <p class="modal-desc">
+          Girdiğiniz yıllık oran, siz yeni bir oran girene kadar sonraki tüm günlerde geçerli olmaya devam eder.
+        </p>
+
+        <div class="form-group">
+          <label for="inputRate">Yıllık Brüt Faiz Oranı (%)</label>
+          <div class="input-prefix-box">
+            <span class="currency-sym">%</span>
+            <input type="number" id="inputRate" step="0.01" min="0.01" max="150" placeholder="Örn: 48.50" required inputmode="decimal">
+          </div>
+          <small class="field-hint">Bankanızın vadeli / günlük mevduat brüt faiz oranı.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="inputTaxRate">Gelir Vergisi (Stopaj) Kesintisi (%)</label>
+          <div class="input-prefix-box">
+            <span class="currency-sym">%</span>
+            <input type="number" id="inputTaxRate" step="0.1" min="0" max="100" value="17.5" required inputmode="decimal">
+          </div>
+          <small class="field-hint">Mevduat getirisinden kesilen yasal stopaj vergisi (Varsayılan: %17,5).</small>
+        </div>
+
+        <div class="form-group">
+          <label for="inputRateDate">Geçerlilik Başlangıç Tarihi</label>
+          <input type="date" id="inputRateDate" required>
+          <small class="field-hint">Bu tarihten sonra yeni bir oran girilene kadar bu oran kullanılır.</small>
+        </div>
+
+        <div class="rate-history-preview">
+          <h4>Kayıtlı Oran Geçmişi</h4>
+          <div id="rateHistoryList" class="compact-history-list">
+            <!-- Dynamic rate history -->
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('modalRates')">Kapat</button>
+          <button type="submit" class="btn-submit">Oranı Uygula</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL 3: Günlük Detaylı Döküm / Simülasyon Raporu -->
+  <dialog class="app-modal modal-wide" id="modalDailyReport">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Günlük Kazanç ve Döküm Çizelgesi</h3>
+        <button class="modal-close" onclick="closeModal('modalDailyReport')">&times;</button>
+      </div>
+      <p class="modal-desc">
+        İlk işlem gününden bugüne kadar işleyen günlük faizler ve gün sonu kişi bakiyeleri:
+      </p>
+      <div class="table-responsive">
+        <table class="report-table" id="dailyReportTable">
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Oran</th>
+              <th>Günlük Faiz</th>
+              <th>Ben</th>
+              <th>Kızım</th>
+              <th>Eşim</th>
+              <th>Toplam Kasa</th>
+            </tr>
+          </thead>
+          <tbody id="dailyReportBody">
+            <!-- Dynamic daily rows -->
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-submit" onclick="closeModal('modalDailyReport')">Tamam</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 4: İşlem Geçmişi (Para Giriş / Çıkışlar) -->
+  <dialog class="app-modal" id="modalTxHistory">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Para Yatırma / Çekme Geçmişi</h3>
+        <button class="modal-close" onclick="closeModal('modalTxHistory')">&times;</button>
+      </div>
+      <div class="tx-list-container" id="txHistoryContainer">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-submit" onclick="closeModal('modalTxHistory')">Kapat</button>
+      </div>
+    </div>
+  </dialog>
+
+
+
+  <!-- MODAL 5: Ayarlar & Veri Yedekleme -->
+  <dialog class="app-modal" id="modalSettings">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Uygulama & Veri Yönetimi</h3>
+        <button class="modal-close" onclick="closeModal('modalSettings')">&times;</button>
+      </div>
+      
+      <div class="settings-block">
+        <h4>Kişi Yönetimi</h4>
+        <p class="modal-desc">Hesaba ortak olan kişileri düzenleyin veya yeni kişi ekleyin.</p>
+        <div id="membersManagerList" class="members-manager-list"></div>
+        <div class="add-member-row">
+          <input type="text" id="inputNewMemberName" placeholder="Yeni Kişi Adı (Örn: Oğlum)">
+          <button class="btn-small" onclick="addNewMember()">+ Ekle</button>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <h4>Veri Yedekleme & Geri Yükleme</h4>
+        <p class="modal-desc">Telefon değiştirirken veya verilerinizi yedeklemek istediğinizde kullanın.</p>
+        <div class="backup-actions">
+          <button class="btn-secondary-full" onclick="exportDataBackup()">
+            💾 Verileri Telefona İndir (Yedek Al)
+          </button>
+          <label class="btn-secondary-full upload-label">
+            📥 Yedek Dosyası Yükle
+            <input type="file" id="importFileInput" accept=".json" onchange="importDataBackup(event)" style="display:none;">
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <h4>Çerezler ve Site Verilerini Temizleme</h4>
+        <p class="modal-desc">
+          Tarayıcıda biriken eski çerezleri, site önbelleğini ve servis kayıtlarını temizler.
+          <strong style="color: var(--emerald); display: block; margin-top: 4px;">✓ Girdiğiniz hesaplar, para hareketleri ve faiz verileriniz kesinlikle silinmez, korunur.</strong>
+        </p>
+        <button type="button" class="btn-secondary-full btn-clean-cookies" onclick="clearCookiesAndSiteData()">
+          🧹 Çerezler ve Site Verilerini Sil
+        </button>
+      </div>
+
+      <div class="settings-block danger-block">
+        <h4>Sıfırlama</h4>
+        <p class="modal-desc">Tüm kayıtları silip varsayılan duruma getirmek için.</p>
+        <button class="btn-danger-outline" onclick="resetAllData()">Tüm Verileri Sıfırla</button>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeModal('modalSettings')">Kapat</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: YENİ CÜZDAN İŞLEMİ (GELİR / GİDER / TRANSFER) -->
+  <dialog class="app-modal" id="modalWalletTx">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>İşlem Ekle</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalWalletTx')">&times;</button>
+      </div>
+
+      <div class="segmented-control three-options" style="margin-bottom: 16px;">
+        <button type="button" class="segment-opt-btn active" id="txTypeBtn_expense" onclick="setTxType('expense')">🔴 Gider</button>
+        <button type="button" class="segment-opt-btn" id="txTypeBtn_income" onclick="setTxType('income')">🟢 Gelir</button>
+        <button type="button" class="segment-opt-btn" id="txTypeBtn_transfer" onclick="setTxType('transfer')">🔵 Transfer</button>
+      </div>
+
+      <form id="formWalletTx" onsubmit="handleWalletTxSubmit(event)">
+        <div class="form-group">
+          <label>Tutar (₺)</label>
+          <div class="input-with-affix">
+            <input type="number" id="inputWalletAmount" step="0.01" min="0.01" placeholder="0,00" required autofocus>
+            <span class="affix">₺</span>
+          </div>
+        </div>
+
+        <div class="form-group" id="walletAccountFromSection">
+          <label id="lblWalletFromAccount">Hesap / Cüzdan</label>
+          <select id="selectWalletFromAccount" class="app-select" required></select>
+        </div>
+
+        <div class="form-group" id="walletTransferSection" style="display: none;">
+          <label>Hedef Hesap</label>
+          <select id="selectWalletToAccount" class="app-select"></select>
+        </div>
+
+        <div class="form-group" id="walletCatSection">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="margin: 0;">Grup Başlığı (Kategori)</label>
+            <button type="button" class="btn-text-action" onclick="openWalletCategoryManagerModal(currentTxType)">⚙️ Başlıkları Düzenle</button>
+          </div>
+          <div class="category-picker-grid" id="walletCategoryGrid"></div>
+        </div>
+
+        <!-- Alt Başlık (Subcategory) Seçici -->
+        <div class="form-group" id="walletSubCatSection" style="display: none;"></div>
+
+        <div class="form-group">
+          <label>Tarih</label>
+          <input type="date" id="inputWalletTxDate" required>
+        </div>
+
+        <div class="form-group">
+          <label>Açıklama / Not (İsteğe bağlı)</label>
+          <input type="text" id="inputWalletNote" placeholder="Örn: Market alışverişi, benzin, akşam yemeği...">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('modalWalletTx')">İptal</button>
+          <button type="submit" class="btn-submit">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL: KATEGORİ VE ALT BAŞLIK YÖNETİMİ -->
+  <dialog class="app-modal" id="modalWalletCategories">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>Grup ve Alt Başlık Yönetimi</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalWalletCategories')">&times;</button>
+      </div>
+
+      <div class="segmented-control two-options" style="margin-bottom: 14px;">
+        <button type="button" class="segment-opt-btn active" id="catMgrBtnExpense" onclick="setCategoryMgrType('expense')">🔴 Gider Başlıkları</button>
+        <button type="button" class="segment-opt-btn" id="catMgrBtnIncome" onclick="setCategoryMgrType('income')">🟢 Gelir Başlıkları</button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+        <span style="font-size: 0.78rem; color: var(--text-muted);">Grup başlıklarını ve altındaki alt başlıkları düzenleyin:</span>
+        <button type="button" class="btn-small" onclick="promptAddMainCategory()">+ Yeni Başlık</button>
+      </div>
+
+      <div id="walletCategoryManagerList" class="cat-mgr-list">
+        <!-- Rendered dynamically by wallet.js -->
+      </div>
+
+      <div class="modal-footer" style="margin-top: 16px;">
+        <button type="button" class="btn-cancel" onclick="closeModal('modalWalletCategories')">Kapat</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: HESAP / CÜZDAN DÜZENLE & EKLE -->
+  <dialog class="app-modal" id="modalWalletAccount">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="modalAccountTitle">Hesabı Düzenle</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalWalletAccount')">&times;</button>
+      </div>
+
+      <form id="formWalletAccount" onsubmit="handleAccountFormSubmit(event)">
+        <input type="hidden" id="inputAccountId" value="">
+
+        <div class="form-group">
+          <label for="inputAccountName">Hesap / Cüzdan Adı</label>
+          <input type="text" id="inputAccountName" placeholder="Örn: Garanti Vadesiz, Enpara, Nakit Cüzdan" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="selectAccountType">Hesap Türü</label>
+          <select id="selectAccountType" class="app-select" onchange="handleAccountTypeChange(this.value)" required>
+            <option value="bank">🏦 Vadesiz Banka Hesabı</option>
+            <option value="cash">💵 Nakit Cüzdan</option>
+            <option value="credit">💳 Kredi Kartı</option>
+            <option value="savings">💰 Birikim / Altın</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>İkon / Emoji</label>
+          <div class="emoji-picker-row" id="accountIconPicker">
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('🏦')">🏦</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('💳')">💳</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('💵')">💵</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('💰')">💰</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('🪙')">🪙</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('📈')">📈</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('💼')">💼</button>
+            <button type="button" class="emoji-opt-btn" onclick="selectAccountIcon('🏠')">🏠</button>
+          </div>
+          <input type="hidden" id="inputAccountIcon" value="🏦">
+        </div>
+
+        <div class="form-group">
+          <label for="inputAccountBalance">Güncel Bakiye (₺)</label>
+          <div class="input-with-affix">
+            <input type="number" id="inputAccountBalance" step="0.01" placeholder="0,00" required>
+            <span class="affix">₺</span>
+          </div>
+          <small class="form-help-text" id="accountBalanceHelp">Kredi kartı borcu için eksi (-) bakiye girebilirsiniz (Örn: -3200).</small>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 8px;">
+          <button type="button" class="btn-danger-outline" id="btnDeleteAccount" onclick="handleDeleteCurrentAccount()" style="display: none; padding: 10px 14px; font-size: 0.8rem;">
+            🗑️ Hesabı Sil
+          </button>
+          <div style="display: flex; gap: 8px; margin-left: auto;">
+            <button type="button" class="btn-cancel" onclick="closeModal('modalWalletAccount')">Vazgeç</button>
+            <button type="submit" class="btn-submit">Kaydet</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <script>
+    // PWA Service Worker & Localhost Önbellek Yönetimi
+    const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if ('serviceWorker' in navigator) {
+      if (isLocalhost) {
+        // baslat.bat veya localhost ile açıldığında eski SW önbelleklerini temizle ki değişiklikler hemen görünsün
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (let reg of regs) reg.unregister();
+        });
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            for (let name of names) caches.delete(name);
+          });
+        }
+      } else if (!isNativeApp) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then((reg) => {
+              reg.update();
+            })
+            .catch((err) => console.log('SW register error:', err));
+        });
+      }
+    }
+  </script>
+  <script src="version.js" onerror="window.APP_VERSION=0"></script>
+  <script src="app.js?v=20261026_v9"></script>
+  <script src="wallet.js?v=20261026_v9"></script>
+</body>
+</html>

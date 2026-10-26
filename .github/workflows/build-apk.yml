@@ -1,0 +1,98 @@
+name: Android APK Derleyici
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # Release yayınlamak için
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Java JDK 21 Kurulumu
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: İmza anahtarı (Secrets'tan)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p ~/.android
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+            echo "Sabit anahtar Secrets'tan yüklendi."
+          else
+            echo "::warning::KEYSTORE_BASE64 secret yok! Yeni anahtar üretildi. 'IMZA-ANAHTARI' artifact'ını indirip Secrets'a ekleyin, yoksa güncellemeler kurulamaz."
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            mkdir -p keyout && cp ~/.android/debug.keystore keyout/
+          fi
+
+      - name: Yeni anahtarı indirilebilir yap (sadece ilk kurulumda)
+        if: ${{ hashFiles('keyout/debug.keystore') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: IMZA-ANAHTARI
+          path: keyout/debug.keystore
+
+      - name: Web dosyalarını hazırla ve Capacitor kur
+        run: |
+          mkdir -p dist
+          cp index.html style.css wallet.css app.js wallet.js icon.svg manifest.json sw.js dist/
+          echo "window.APP_VERSION=${{ github.run_number }};window.APP_REPO='${{ github.repository }}';" > dist/version.js
+          cat > capacitor.config.json << 'EOF'
+          {
+            "appId": "com.ailefaiz.takip",
+            "appName": "Aile Finans",
+            "webDir": "dist",
+            "server": { "androidScheme": "https" }
+          }
+          EOF
+          npm init -y
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
+          npx cap add android
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+
+      - name: Uygulama ikonunu oluştur
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y librsvg2-bin
+          mkdir -p assets
+          rsvg-convert -w 1024 -h 1024 icon.svg -o assets/icon.png
+          cp assets/icon.png assets/icon-foreground.png
+          npx --yes @capacitor/assets generate --android --iconBackgroundColor '#0f172a'
+
+      - name: Capacitor senkronize et
+        run: npx cap sync android
+
+      - name: Android APK Derle (Gradle)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../AileFinans.apk
+
+      - name: GitHub Release olarak yayınla
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Aile Finans v${{ github.run_number }}
+          files: AileFinans.apk
+          make_latest: true
