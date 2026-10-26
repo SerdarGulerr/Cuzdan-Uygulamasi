@@ -1,3 +1,8 @@
+# Gizli imza anahtarı (GitHub Secrets'ta tutulmalı)
+debug.keystore
+*.keystore
+*.jks
+
 # Node & build geçici dosyaları
 node_modules/
 dist/

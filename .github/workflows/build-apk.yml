@@ -27,32 +27,18 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Sabit İmza Anahtarını Yükle
+      - name: Sabit İmza Anahtarını Yükle (Secrets)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           mkdir -p ~/.android
-          if [ -f "debug.keystore" ]; then
-            cp debug.keystore ~/.android/debug.keystore
-            echo "Sabit imza anahtarı depodaki debug.keystore dosyasından yüklendi."
-          elif [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-            echo "Sabit anahtar Secrets'tan yüklendi."
-          else
-            echo "::warning::KEYSTORE_BASE64 secret veya debug.keystore yok! Yeni anahtar üretildi."
-            keytool -genkeypair -v -keystore ~/.android/debug.keystore \
-              -storepass android -keypass android -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-            mkdir -p keyout && cp ~/.android/debug.keystore keyout/
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret bulunamadı! Farklı imzalı APK üretmemek için derleme durduruldu."
+            exit 1
           fi
-
-      - name: Yeni anahtarı indirilebilir yap (sadece ilk kurulumda)
-        if: ${{ hashFiles('keyout/debug.keystore') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: IMZA-ANAHTARI
-          path: keyout/debug.keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+          echo "Sabit anahtar Secrets'tan yüklendi. SHA-256 parmak izi:"
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android | grep "SHA256" || true
 
       - name: Web dosyalarını hazırla ve Capacitor kur
         run: |
