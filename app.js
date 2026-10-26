@@ -1298,9 +1298,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Service Worker Registration for PWA / Offline
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const verLbl = document.getElementById('appVersionLabel');
+  if (verLbl && window.APP_VERSION) verLbl.textContent = 'Mevcut sürüm: v' + window.APP_VERSION;
+  if (isNative) setTimeout(() => checkForAppUpdate(true), 3000);
   if ('serviceWorker' in navigator && !isNative) {
     navigator.serviceWorker.register('sw.js').catch(err => {
       console.log('ServiceWorker not registered in local file preview:', err);
     });
   }
 });
+
+// --- Uygulama İçi Güncelleme (GitHub Releases) ---
+async function checkForAppUpdate(silent) {
+  const repo = window.APP_REPO;
+  const current = Number(window.APP_VERSION || 0);
+  if (!repo) { if (!silent) alert('Güncelleme kontrolü sadece GitHub\'dan derlenen APK içinde çalışır.'); return; }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Sunucu yanıtı: ' + res.status);
+    const rel = await res.json();
+    const latest = Number(String(rel.tag_name || '').replace(/\D/g, '')) || 0;
+    const asset = (rel.assets || []).find(a => a.name.endsWith('.apk'));
+    if (latest > current && asset) {
+      if (confirm(`🚀 Yeni sürüm var! (v${current} → v${latest})\n\nŞimdi indirilsin mi?\n\nİndirme bitince bildirime dokunup "Yükle" deyin. Verileriniz korunur.`)) {
+        window.location.href = asset.browser_download_url;
+      }
+    } else if (!silent) {
+      alert(`✅ Uygulamanız güncel (v${current}).`);
+    }
+  } catch (err) {
+    if (!silent) alert('Güncelleme kontrol edilemedi. İnternet bağlantınızı kontrol edin.\n' + err.message);
+  }
+}
