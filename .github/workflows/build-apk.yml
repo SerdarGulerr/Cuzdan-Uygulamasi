@@ -1,0 +1,85 @@
+name: Android APK Derleyici
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # İlk derlemede imza anahtarını depoya kaydedebilmek için
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Java JDK 21 Kurulumu (Capacitor 7 için gerekli)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Sabit imza anahtarı (güncellemede veri kaybını önler)
+        run: |
+          mkdir -p ~/.android android-key
+          if [ ! -f android-key/debug.keystore ]; then
+            echo "Anahtar yok, ilk kez oluşturuluyor..."
+            keytool -genkeypair -v -keystore android-key/debug.keystore \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add android-key/debug.keystore
+            git commit -m "Sabit APK imza anahtarı eklendi [skip ci]"
+            git push
+          fi
+          cp android-key/debug.keystore ~/.android/debug.keystore
+
+      - name: Web dosyalarını hazırla ve Capacitor kur
+        run: |
+          mkdir -p dist
+          cp index.html style.css wallet.css app.js wallet.js icon.svg manifest.json sw.js dist/
+          cat > capacitor.config.json << 'EOF'
+          {
+            "appId": "com.ailefaiz.takip",
+            "appName": "Aile Finans",
+            "webDir": "dist",
+            "server": { "androidScheme": "https" }
+          }
+          EOF
+          npm init -y
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
+          npx cap add android
+
+      - name: Uygulama ikonunu oluştur
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y librsvg2-bin
+          mkdir -p assets
+          rsvg-convert -w 1024 -h 1024 icon.svg -o assets/icon.png
+          cp assets/icon.png assets/icon-foreground.png
+          npx --yes @capacitor/assets generate --android --iconBackgroundColor '#0f172a'
+
+      - name: Capacitor senkronize et
+        run: npx cap sync android
+
+      - name: Android APK Derle (Gradle)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: APK Dosyasını İndirilebilir Yap
+        uses: actions/upload-artifact@v4
+        with:
+          name: AileFinans-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
