@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <!-- Circle Glow -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#gold)" stroke-width="8" stroke-dasharray="16 12" opacity="0.4"/>
+  <!-- Safe Vault / Piggy Bank / Growth Chart Icon -->
+  <path d="M140 370 L210 290 L280 330 L370 210" fill="none" stroke="url(#emerald)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="370" cy="210" r="16" fill="#34d399"/>
+  <!-- Lira / Money Sign -->
+  <text x="256" y="220" font-family="system-ui, -apple-system, sans-serif" font-size="140" font-weight="900" fill="url(#gold)" text-anchor="middle" dominant-baseline="central">₺</text>
+  <!-- Family dots -->
+  <circle cx="196" cy="410" r="18" fill="#60a5fa"/>
+  <circle cx="256" cy="410" r="22" fill="#f472b6"/>
+  <circle cx="316" cy="410" r="15" fill="#a78bfa"/>
+</svg>
