@@ -12,8 +12,8 @@
   <title>Aile Günlük Faiz & Kasa Takip</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
-  <link rel="stylesheet" href="style.css?v=20261026_v10">
-  <link rel="stylesheet" href="wallet.css?v=20261026_v10">
+  <link rel="stylesheet" href="style.css?v=20261027_v12">
+  <link rel="stylesheet" href="wallet.css?v=20261027_v13">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -679,7 +679,7 @@
   <dialog class="app-modal" id="modalWalletTx">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>İşlem Ekle</h3>
+        <h3 id="modalWalletTxTitle">İşlem Ekle</h3>
         <button type="button" class="modal-close" onclick="closeModal('modalWalletTx')">&times;</button>
       </div>
 
@@ -693,8 +693,77 @@
         <div class="form-group">
           <label>Tutar (₺)</label>
           <div class="input-with-affix">
-            <input type="number" id="inputWalletAmount" step="0.01" min="0.01" placeholder="0,00" required autofocus>
+            <input type="number" id="inputWalletAmount" step="0.01" min="0.01" placeholder="0,00" required autofocus oninput="updateInstallmentCalculation()">
             <span class="affix">₺</span>
+          </div>
+        </div>
+
+        <!-- Taksit Seçeneği Kartı -->
+        <div class="form-group" id="walletInstallmentToggleSection">
+          <div class="installment-toggle-card" id="installmentToggleCard">
+            <div class="installment-toggle-header" onclick="toggleWalletInstallmentFromHeader(event)">
+              <div class="installment-toggle-left">
+                <span class="installment-icon">💳</span>
+                <div class="installment-text-group">
+                  <span class="installment-title">Taksitli İşlem</span>
+                  <span class="installment-sub" id="installmentSubDesc">Taksitlendirme kapalı (Tek çekim)</span>
+                </div>
+              </div>
+              <label class="installment-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="checkWalletIsInstallment" onchange="toggleWalletInstallmentSection()">
+                <span class="installment-slider"></span>
+              </label>
+            </div>
+
+            <!-- Taksit Ayarları Paneli -->
+            <div id="walletInstallmentDetails" class="installment-details-panel" style="display: none;">
+              <div class="installment-grid">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.78rem;">Taksit Sayısı</label>
+                  <select id="selectWalletInstallmentCount" class="app-select" onchange="updateInstallmentCalculation()">
+                    <option value="2">2 Taksit</option>
+                    <option value="3" selected>3 Taksit</option>
+                    <option value="4">4 Taksit</option>
+                    <option value="5">5 Taksit</option>
+                    <option value="6">6 Taksit</option>
+                    <option value="7">7 Taksit</option>
+                    <option value="8">8 Taksit</option>
+                    <option value="9">9 Taksit</option>
+                    <option value="10">10 Taksit</option>
+                    <option value="11">11 Taksit</option>
+                    <option value="12">12 Taksit</option>
+                    <option value="18">18 Taksit</option>
+                    <option value="24">24 Taksit</option>
+                    <option value="36">36 Taksit</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.78rem;">Tutar Türü</label>
+                  <select id="selectWalletInstallmentAmountType" class="app-select" onchange="updateInstallmentCalculation()">
+                    <option value="total" selected>Girilen: Toplam Tutar</option>
+                    <option value="monthly">Girilen: Aylık Taksit</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Canlı Özet Kutusu -->
+              <div class="installment-summary-box">
+                <div class="inst-summary-col">
+                  <span class="inst-lbl">Aylık Taksit</span>
+                  <strong class="inst-val" id="lblInstallmentMonthlyAmount">0,00 ₺</strong>
+                </div>
+                <div class="inst-summary-divider"></div>
+                <div class="inst-summary-col">
+                  <span class="inst-lbl">Toplam Tutar</span>
+                  <strong class="inst-val" id="lblInstallmentTotalAmount">0,00 ₺</strong>
+                </div>
+                <div class="inst-summary-divider"></div>
+                <div class="inst-summary-col">
+                  <span class="inst-lbl">Bitiş Tarihi</span>
+                  <strong class="inst-val" id="lblInstallmentEndDate">-</strong>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -720,8 +789,8 @@
         <div class="form-group" id="walletSubCatSection" style="display: none;"></div>
 
         <div class="form-group">
-          <label>Tarih</label>
-          <input type="date" id="inputWalletTxDate" required>
+          <label id="lblWalletTxDate">Tarih</label>
+          <input type="date" id="inputWalletTxDate" required onchange="updateInstallmentCalculation()">
         </div>
 
         <div class="form-group">
@@ -731,9 +800,25 @@
 
         <div class="modal-footer">
           <button type="button" class="btn-cancel" onclick="closeModal('modalWalletTx')">İptal</button>
-          <button type="submit" class="btn-submit">Kaydet</button>
+          <button type="submit" class="btn-submit" id="btnWalletTxSubmit">Kaydet</button>
         </div>
       </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL: İŞLEM SİLME / TAKSİT SİLME ONAYI -->
+  <dialog class="app-modal" id="modalWalletTxDelete">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="modalWalletTxDeleteTitle">🗑️ İşlemi Sil</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalWalletTxDelete')">&times;</button>
+      </div>
+      <div id="modalWalletTxDeleteBody" style="padding: 10px 0; font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+        <!-- Dinamik içerik -->
+      </div>
+      <div class="modal-footer" id="modalWalletTxDeleteFooter" style="flex-wrap: wrap; gap: 8px;">
+        <!-- Dinamik butonlar -->
+      </div>
     </div>
   </dialog>
 
@@ -908,6 +993,22 @@
           </select>
         </div>
 
+        <!-- Kredi Kartı Hesap Kesim Günü & Otomatik Borç Hesaplama -->
+        <div class="form-group" id="groupAccountBillingDay" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="inputAccountBillingDay" style="margin-bottom: 0;">Hesap Kesim Günü (Ayın Kaçı)</label>
+            <span class="badge" style="font-size: 0.68rem; background: rgba(244, 63, 94, 0.15); color: #ff859b; padding: 2px 7px; border-radius: 6px; font-weight: 700;">1 - 31 Arası</span>
+          </div>
+          <div class="input-with-affix">
+            <input type="number" id="inputAccountBillingDay" min="1" max="31" placeholder="Örn: 15" oninput="handleAccountBillingDayChange()">
+            <span class="affix">. Gün</span>
+          </div>
+          <small class="form-help-text">Ekstrenin kesildiği ayın gününü girin. Son kesimden bugüne harcamalarınız otomatik toplanıp borç olarak yazılır.</small>
+
+          <!-- Kesimden bugüne harcama ve borç özeti kartı -->
+          <div id="creditCardCutoffSummary" class="credit-cutoff-card" style="display: none;"></div>
+        </div>
+
         <div class="form-group">
           <label>İkon / Emoji</label>
           <div class="emoji-picker-row" id="accountIconPicker">
@@ -973,9 +1074,9 @@
     }
   </script>
   <script src="xlsx.full.min.js"></script>
-  <script src="excel-sync.js?v=20261026_v1"></script>
+  <script src="excel-sync.js?v=20261027_v12"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
-  <script src="app.js?v=20261026_v9"></script>
-  <script src="wallet.js?v=20261026_v9"></script>
+  <script src="app.js?v=20261027_v12"></script>
+  <script src="wallet.js?v=20261027_v13"></script>
 </body>
 </html>

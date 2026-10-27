@@ -7,7 +7,7 @@ const DEFAULT_WALLET_STATE = {
   accounts: [
     { id: 'acc_cash', name: 'Nakit (Cüzdan)', type: 'cash', icon: '💵', balance: 1750 },
     { id: 'acc_bank', name: 'Banka Hesabı (Vadesiz)', type: 'bank', icon: '🏦', balance: 24500 },
-    { id: 'acc_credit', name: 'Kredi Kartı', type: 'credit', icon: '💳', balance: -3200 },
+    { id: 'acc_credit', name: 'Kredi Kartı', type: 'credit', icon: '💳', balance: -3200, billingDay: 15 },
     { id: 'acc_savings', name: 'Birikim / Altın', type: 'savings', icon: '💰', balance: 35000 }
   ],
   categories: {
@@ -40,6 +40,7 @@ let currentTxType = 'expense'; // 'expense' | 'income' | 'transfer'
 let selectedCategoryId = 'cat_market';
 let selectedSubCategoryId = '';
 let currentCategoryMgrType = 'expense'; // 'expense' | 'income'
+let editingWalletTxId = null; // Aktif düzenlenen işlemin ID'si
 
 // --- Yardımcı Tarih ve Para Formatlama ---
 function formatWalletTL(amount) {
@@ -369,13 +370,28 @@ function renderDailyView(txs) {
           <div class="wallet-tx-left">
             <div class="tx-cat-icon">${icon}</div>
             <div class="tx-desc-box">
-              <span class="tx-cat-name">${catName} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
+              <span class="tx-cat-name">${catName} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
               <span class="tx-account-name">${accName}</span>
             </div>
           </div>
           <div class="wallet-tx-right">
             <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(t.amount)}</span>
-            <button class="btn-del" onclick="deleteWalletTx('${t.id}')" title="Sil">&times;</button>
+            <div class="wallet-tx-actions">
+              <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi Düzenle" aria-label="Düzenle">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button type="button" class="btn-tx-action btn-tx-delete" onclick="deleteWalletTx('${t.id}')" title="İşlemi Sil" aria-label="Sil">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -467,8 +483,30 @@ function filterCalendarDay(day) {
     const cls = t.type === 'income' ? 'income' : (t.type === 'expense' ? 'expense' : 'transfer');
     html += `
       <div class="wallet-tx-row" style="background:var(--bg-card); border-radius:8px; margin-bottom:6px;">
-        <span style="font-size:0.85rem; font-weight:700;">${t.note || 'İşlem'} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}</span>
-        <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(t.amount)}</span>
+        <div class="wallet-tx-left">
+          <div class="tx-desc-box">
+            <span style="font-size:0.85rem; font-weight:700;">${t.note || 'İşlem'} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}</span>
+          </div>
+        </div>
+        <div class="wallet-tx-right">
+          <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(t.amount)}</span>
+          <div class="wallet-tx-actions">
+            <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi Düzenle" aria-label="Düzenle">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button type="button" class="btn-tx-action btn-tx-delete" onclick="deleteWalletTx('${t.id}')" title="İşlemi Sil" aria-label="Sil">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
     `;
   });
@@ -585,7 +623,10 @@ function renderAccountsView() {
           <div class="account-icon">${acc.icon || '💳'}</div>
           <div class="account-title-box">
             <h4>${acc.name}</h4>
-            <span class="account-type-tag">${getAccountTypeLabel(acc.type)}</span>
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+              <span class="account-type-tag">${getAccountTypeLabel(acc.type)}</span>
+              ${acc.type === 'credit' && acc.billingDay ? `<span class="account-cutoff-pill">📅 Kesim: Ayın ${acc.billingDay}'i</span>` : ''}
+            </div>
           </div>
         </div>
         <div class="account-right-box">
@@ -614,6 +655,214 @@ function getAccountTypeLabel(type) {
   return 'Hesap';
 }
 
+// --- Kredi Kartı Hesap Kesim Tarihi & Otomatik Borç Hesaplama Yardımcıları ---
+function getCreditCardCutoffInfo(billingDay) {
+  const day = parseInt(billingDay);
+  if (!day || day < 1 || day > 31) return null;
+
+  const now = new Date();
+  const todayYear = now.getFullYear();
+  const todayMonth = now.getMonth(); // 0-11
+  const todayDate = now.getDate();
+
+  let cutoffYear = todayYear;
+  let cutoffMonth = todayMonth;
+
+  // Eğer bugünün günü kesim gününden küçükse, en son kesim bir önceki ay gerçekleşmiştir
+  if (todayDate < day) {
+    cutoffMonth--;
+    if (cutoffMonth < 0) {
+      cutoffMonth = 11;
+      cutoffYear--;
+    }
+  }
+
+  // Kesim ayındaki maksimum gün sayısı (Şubat, 30 çeken aylar kontrolü)
+  const maxDaysInCutoff = new Date(cutoffYear, cutoffMonth + 1, 0).getDate();
+  const actualCutoffDay = Math.min(day, maxDaysInCutoff);
+
+  // Bir sonraki hesap kesim tarihi
+  let nextMonth = cutoffMonth + 1;
+  let nextYear = cutoffYear;
+  if (nextMonth > 11) {
+    nextMonth = 0;
+    nextYear++;
+  }
+  const maxDaysInNext = new Date(nextYear, nextMonth + 1, 0).getDate();
+  const actualNextDay = Math.min(day, maxDaysInNext);
+
+  const pad = n => String(n).padStart(2, '0');
+  const lastCutoffStr = `${cutoffYear}-${pad(cutoffMonth + 1)}-${pad(actualCutoffDay)}`;
+  const nextCutoffStr = `${nextYear}-${pad(nextMonth + 1)}-${pad(actualNextDay)}`;
+  const todayStr = `${todayYear}-${pad(todayMonth + 1)}-${pad(todayDate)}`;
+
+  return {
+    cutoffYear,
+    cutoffMonth,
+    actualCutoffDay,
+    lastCutoffStr,
+    nextCutoffStr,
+    todayStr
+  };
+}
+
+function formatTurkishDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  const y = parts[0];
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  return `${d} ${getMonthNameTR(m)} ${y}`;
+}
+
+function calculateCreditCardPeriodDebt(accId, billingDay) {
+  const info = getCreditCardCutoffInfo(billingDay);
+  if (!info) return null;
+
+  let totalSpent = 0;
+  let totalPayments = 0;
+  const periodTxs = [];
+
+  const txs = (walletState && walletState.transactions) || [];
+
+  // Son hesap kesim tarihinden bugüne kadar olan harcamaları topla
+  txs.forEach(tx => {
+    // Tarih son hesap kesim tarihi ile bir sonraki hesap kesim tarihi / bugün aralığında mı?
+    if (tx.date >= info.lastCutoffStr && tx.date <= info.todayStr) {
+      if (tx.fromAccountId === accId && tx.type === 'expense') {
+        totalSpent += tx.amount;
+        periodTxs.push(tx);
+      } else if (tx.fromAccountId === accId && tx.type === 'transfer') {
+        // Karttan nakit avans veya transfer
+        totalSpent += tx.amount;
+        periodTxs.push(tx);
+      } else if (tx.toAccountId === accId && tx.type === 'transfer') {
+        // Borç ödeme transferi
+        totalPayments += tx.amount;
+        periodTxs.push(tx);
+      } else if (tx.fromAccountId === accId && tx.type === 'income') {
+        // Karta yapılan iade / ekstre indirimi
+        totalPayments += tx.amount;
+        periodTxs.push(tx);
+      }
+    }
+  });
+
+  totalSpent = Math.round(totalSpent * 100) / 100;
+  totalPayments = Math.round(totalPayments * 100) / 100;
+  const netDebt = Math.max(0, Math.round((totalSpent - totalPayments) * 100) / 100);
+
+  return {
+    info,
+    totalSpent,
+    totalPayments,
+    netDebt,
+    periodTxs
+  };
+}
+
+function updateCreditCardCutoffPreview(accId, billingDay, autoApplyBalance = true) {
+  const container = document.getElementById('creditCardCutoffSummary');
+  if (!container) return;
+
+  const day = parseInt(billingDay);
+  if (!day || day < 1 || day > 31) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  const result = calculateCreditCardPeriodDebt(accId, day);
+  if (!result) {
+    container.style.display = 'none';
+    return;
+  }
+
+  const { info, totalSpent, totalPayments, netDebt, periodTxs } = result;
+
+  // Otomatik bakiye alanına borç olarak yazma (kredi kartı borcu eksi bakiye temsil edilir)
+  if (autoApplyBalance) {
+    const balanceInput = document.getElementById('inputAccountBalance');
+    if (balanceInput) {
+      balanceInput.value = netDebt === 0 ? '0' : (-netDebt).toFixed(2);
+    }
+  }
+
+  let html = `
+    <div class="cutoff-header">
+      <span class="cutoff-badge">💳 Dönem Borç Hesabı</span>
+      <span class="cutoff-date-info">Son Kesim: <strong>${formatTurkishDate(info.lastCutoffStr)}</strong></span>
+    </div>
+    <div class="cutoff-body">
+      <div class="cutoff-stat-row">
+        <span>Kesimden Bugüne Harcanan:</span>
+        <strong class="cutoff-spent-amount">${formatWalletTL(totalSpent)}</strong>
+      </div>
+      ${totalPayments > 0 ? `
+      <div class="cutoff-stat-row" style="color: var(--emerald);">
+        <span>Yapılan Ödeme / İade:</span>
+        <span>-${formatWalletTL(totalPayments)}</span>
+      </div>
+      ` : ''}
+      <div class="cutoff-divider"></div>
+      <div class="cutoff-stat-row cutoff-total-row">
+        <span>Toplu Borç Tutarı:</span>
+        <strong class="cutoff-debt-amount">${formatWalletTL(netDebt)}</strong>
+      </div>
+      <div class="cutoff-auto-applied-note">
+        <span>✓ Borç tutarı (-${formatWalletTL(netDebt)}) bakiye alanına yazıldı.</span>
+      </div>
+      <button type="button" class="cutoff-recalc-btn" onclick="applyCutoffDebtToBalance(${netDebt})">
+        🔄 Borcu Bakiyeye Tekrar Yaz
+      </button>
+    </div>
+  `;
+
+  if (periodTxs.length > 0) {
+    html += `
+      <details class="cutoff-tx-details">
+        <summary>📋 ${periodTxs.length} Adet Dönem İçi Hareketi İncele</summary>
+        <div class="cutoff-tx-list">
+          ${periodTxs.map(t => {
+            const isOutflow = t.type === 'expense' || (t.type === 'transfer' && t.fromAccountId === accId);
+            return `
+              <div class="cutoff-tx-item">
+                <span class="cutoff-tx-date">${t.date}</span>
+                <span class="cutoff-tx-note">${t.note || (t.type === 'transfer' ? 'Transfer' : 'Harcama')}</span>
+                <span class="cutoff-tx-val ${isOutflow ? 'negative' : 'positive'}">
+                  ${isOutflow ? '-' : '+'}${formatWalletTL(t.amount)}
+                </span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </details>
+    `;
+  } else {
+    html += `
+      <div class="cutoff-no-tx">Bu dönemde (son hesap kesimden bugüne) kayıtlı harcama bulunmuyor.</div>
+    `;
+  }
+
+  container.innerHTML = html;
+  container.style.display = 'flex';
+}
+
+function applyCutoffDebtToBalance(netDebt) {
+  const balanceInput = document.getElementById('inputAccountBalance');
+  if (balanceInput) {
+    balanceInput.value = netDebt === 0 ? '0' : (-netDebt).toFixed(2);
+    balanceInput.focus();
+  }
+}
+
+function handleAccountBillingDayChange() {
+  const accId = document.getElementById('inputAccountId').value;
+  const billingDay = parseInt(document.getElementById('inputAccountBillingDay').value);
+  updateCreditCardCutoffPreview(accId, billingDay, true);
+}
+
 // --- Hesap Ekleme & Düzenleme Fonksiyonları ---
 function openAddAccountModal() {
   const modal = document.getElementById('modalWalletAccount');
@@ -627,6 +876,13 @@ function openAddAccountModal() {
   document.getElementById('selectAccountType').value = 'bank';
   selectAccountIcon('🏦');
   document.getElementById('inputAccountBalance').value = '0';
+
+  const billingDayGroup = document.getElementById('groupAccountBillingDay');
+  if (billingDayGroup) billingDayGroup.style.display = 'none';
+  const billingDayInput = document.getElementById('inputAccountBillingDay');
+  if (billingDayInput) billingDayInput.value = '15';
+  const summaryEl = document.getElementById('creditCardCutoffSummary');
+  if (summaryEl) summaryEl.style.display = 'none';
 
   const delBtn = document.getElementById('btnDeleteAccount');
   if (delBtn) delBtn.style.display = 'none';
@@ -649,6 +905,21 @@ function openEditAccountModal(accId) {
   document.getElementById('selectAccountType').value = acc.type || 'bank';
   selectAccountIcon(acc.icon || '💳');
   document.getElementById('inputAccountBalance').value = acc.balance;
+
+  const billingDayGroup = document.getElementById('groupAccountBillingDay');
+  const billingDayInput = document.getElementById('inputAccountBillingDay');
+  const summaryEl = document.getElementById('creditCardCutoffSummary');
+
+  if (acc.type === 'credit') {
+    const billingDay = acc.billingDay || 15;
+    if (billingDayGroup) billingDayGroup.style.display = 'block';
+    if (billingDayInput) billingDayInput.value = billingDay;
+    updateCreditCardCutoffPreview(acc.id, billingDay, true);
+  } else {
+    if (billingDayGroup) billingDayGroup.style.display = 'none';
+    if (billingDayInput) billingDayInput.value = '15';
+    if (summaryEl) summaryEl.style.display = 'none';
+  }
 
   const delBtn = document.getElementById('btnDeleteAccount');
   if (delBtn) delBtn.style.display = 'inline-flex';
@@ -676,6 +947,21 @@ function handleAccountTypeChange(type) {
   else if (type === 'credit') defaultIcon = '💳';
   else if (type === 'savings') defaultIcon = '💰';
   selectAccountIcon(defaultIcon);
+
+  const billingDayGroup = document.getElementById('groupAccountBillingDay');
+  const billingDayInput = document.getElementById('inputAccountBillingDay');
+  const summaryEl = document.getElementById('creditCardCutoffSummary');
+
+  if (type === 'credit') {
+    if (billingDayGroup) billingDayGroup.style.display = 'block';
+    const dayVal = (billingDayInput && billingDayInput.value) ? parseInt(billingDayInput.value) : 15;
+    if (billingDayInput && !billingDayInput.value) billingDayInput.value = '15';
+    const currentAccId = document.getElementById('inputAccountId').value;
+    updateCreditCardCutoffPreview(currentAccId, dayVal, true);
+  } else {
+    if (billingDayGroup) billingDayGroup.style.display = 'none';
+    if (summaryEl) summaryEl.style.display = 'none';
+  }
 }
 
 function handleAccountFormSubmit(e) {
@@ -685,6 +971,8 @@ function handleAccountFormSubmit(e) {
   const type = document.getElementById('selectAccountType').value;
   const icon = document.getElementById('inputAccountIcon').value || '💳';
   const balance = parseFloat(document.getElementById('inputAccountBalance').value) || 0;
+  const billingDayInput = document.getElementById('inputAccountBillingDay');
+  const billingDay = (type === 'credit' && billingDayInput) ? (parseInt(billingDayInput.value) || 15) : null;
 
   if (!name) return;
 
@@ -696,6 +984,7 @@ function handleAccountFormSubmit(e) {
       acc.type = type;
       acc.icon = icon;
       acc.balance = balance;
+      acc.billingDay = billingDay;
     }
   } else {
     // Yeni hesap oluştur
@@ -704,7 +993,8 @@ function handleAccountFormSubmit(e) {
       name: name,
       type: type,
       icon: icon,
-      balance: balance
+      balance: balance,
+      billingDay: billingDay
     };
     walletState.accounts.push(newAcc);
   }
@@ -741,10 +1031,118 @@ function openAddAccountPrompt() {
   openAddAccountModal();
 }
 
-// --- İşlem Ekleme / Silme Formu (Modal) ---
+// --- Taksit Hesaplama & Tarih Yardımcıları ---
+function getInstallmentDates(baseDateStr, count) {
+  const dates = [];
+  const parts = (baseDateStr || new Date().toISOString().split('T')[0]).split('-').map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2] || 1;
+
+  for (let i = 0; i < count; i++) {
+    const totalMonths = (m - 1) + i;
+    const targetYear = y + Math.floor(totalMonths / 12);
+    const targetMonth = (totalMonths % 12) + 1;
+    const maxDays = new Date(targetYear, targetMonth, 0).getDate();
+    const targetDay = Math.min(d, maxDays);
+    dates.push(`${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`);
+  }
+  return dates;
+}
+
+function toggleWalletInstallmentFromHeader(e) {
+  if (e && (e.target.tagName === 'INPUT' || e.target.closest('.installment-switch'))) return;
+  const chk = document.getElementById('checkWalletIsInstallment');
+  if (chk) {
+    chk.checked = !chk.checked;
+    toggleWalletInstallmentSection();
+  }
+}
+
+function toggleWalletInstallmentSection() {
+  const chk = document.getElementById('checkWalletIsInstallment');
+  const isInst = !!(chk && chk.checked);
+  const dateLabel = document.getElementById('lblWalletTxDate');
+  if (dateLabel) {
+    dateLabel.textContent = isInst ? 'İlk Taksit Tarihi' : 'Tarih';
+  }
+  updateInstallmentCalculation();
+}
+
+function updateInstallmentCalculation() {
+  const isInst = document.getElementById('checkWalletIsInstallment')?.checked;
+  const card = document.getElementById('installmentToggleCard');
+  const details = document.getElementById('walletInstallmentDetails');
+  const subDesc = document.getElementById('installmentSubDesc');
+  const dateInput = document.getElementById('inputWalletTxDate');
+  const amountInput = document.getElementById('inputWalletAmount');
+  const countSelect = document.getElementById('selectWalletInstallmentCount');
+  const typeSelect = document.getElementById('selectWalletInstallmentAmountType');
+
+  if (!card || !details) return;
+
+  if (!isInst) {
+    card.classList.remove('active');
+    details.style.display = 'none';
+    if (subDesc) subDesc.textContent = 'Taksitlendirme kapalı (Tek çekim)';
+    return;
+  }
+
+  card.classList.add('active');
+  details.style.display = 'block';
+
+  const count = parseInt(countSelect?.value || '3');
+  const amountType = typeSelect?.value || 'total';
+  const val = parseFloat(amountInput?.value || 0) || 0;
+
+  let totalAmount = 0;
+  let monthlyAmount = 0;
+
+  if (amountType === 'total') {
+    totalAmount = val;
+    monthlyAmount = count > 0 ? (val / count) : 0;
+  } else {
+    monthlyAmount = val;
+    totalAmount = val * count;
+  }
+
+  const lblMonthly = document.getElementById('lblInstallmentMonthlyAmount');
+  const lblTotal = document.getElementById('lblInstallmentTotalAmount');
+  const lblEnd = document.getElementById('lblInstallmentEndDate');
+
+  if (lblMonthly) lblMonthly.textContent = formatWalletTL(monthlyAmount);
+  if (lblTotal) lblTotal.textContent = formatWalletTL(totalAmount);
+
+  const baseDateStr = dateInput?.value || new Date().toISOString().split('T')[0];
+  const dates = getInstallmentDates(baseDateStr, count);
+  const lastDateStr = dates[dates.length - 1];
+  if (lblEnd && lastDateStr) {
+    const p = lastDateStr.split('-');
+    const mIdx = parseInt(p[1]) - 1;
+    lblEnd.textContent = `${getMonthNameTR(mIdx)} ${p[0]}`;
+  }
+
+  if (subDesc) {
+    subDesc.textContent = `${count} ay x ${formatWalletTL(monthlyAmount)} (Toplam: ${formatWalletTL(totalAmount)})`;
+  }
+}
+
+// --- İşlem Ekleme / Düzenleme / Silme Formu (Modal) ---
 function openAddWalletTxModal() {
+  editingWalletTxId = null;
   const modal = document.getElementById('modalWalletTx');
   if (!modal) return;
+
+  const titleEl = document.getElementById('modalWalletTxTitle');
+  if (titleEl) titleEl.textContent = 'İşlem Ekle';
+  const submitBtn = document.getElementById('btnWalletTxSubmit');
+  if (submitBtn) submitBtn.textContent = 'Kaydet';
+
+  const oldBanner = document.getElementById('walletTxEditInstallmentBanner');
+  if (oldBanner) oldBanner.remove();
+
+  const instSection = document.getElementById('walletInstallmentToggleSection');
+  if (instSection) instSection.style.display = 'block';
 
   setTxType('expense'); // Default expense
   selectedSubCategoryId = '';
@@ -758,25 +1156,115 @@ function openAddWalletTxModal() {
   const noteInput = document.getElementById('inputWalletNote');
   if (noteInput) noteInput.value = '';
 
+  // Taksit alanlarını sıfırla
+  const chkInst = document.getElementById('checkWalletIsInstallment');
+  if (chkInst) chkInst.checked = false;
+  const countSelect = document.getElementById('selectWalletInstallmentCount');
+  if (countSelect) countSelect.value = '3';
+  const typeSelect = document.getElementById('selectWalletInstallmentAmountType');
+  if (typeSelect) typeSelect.value = 'total';
+  const dateLabel = document.getElementById('lblWalletTxDate');
+  if (dateLabel) dateLabel.textContent = 'Tarih';
+  updateInstallmentCalculation();
+
   populateWalletAccountSelectors();
+  modal.showModal();
+}
+
+function openEditWalletTxModal(txId) {
+  const tx = walletState.transactions.find(t => t.id === txId);
+  if (!tx) return;
+
+  editingWalletTxId = txId;
+  const modal = document.getElementById('modalWalletTx');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('modalWalletTxTitle');
+  if (titleEl) titleEl.textContent = 'İşlemi Düzenle';
+  const submitBtn = document.getElementById('btnWalletTxSubmit');
+  if (submitBtn) submitBtn.textContent = 'Değişiklikleri Kaydet';
+
+  // Taksit bilgilendirme ve bölüm yönetimi
+  const oldBanner = document.getElementById('walletTxEditInstallmentBanner');
+  if (oldBanner) oldBanner.remove();
+
+  const instSection = document.getElementById('walletInstallmentToggleSection');
+  if (instSection) instSection.style.display = 'none';
+
+  if (tx.installment) {
+    const form = document.getElementById('formWalletTx');
+    if (form) {
+      const banner = document.createElement('div');
+      banner.id = 'walletTxEditInstallmentBanner';
+      banner.className = 'installment-edit-notice';
+      banner.innerHTML = `
+        <span class="inst-notice-icon">💳</span>
+        <div>Bu işlem <strong>${tx.installment.current}/${tx.installment.total} Taksit</strong> planına aittir. Yapılan değişiklikler bu taksit satırını güncelleyecektir.</div>
+      `;
+      form.insertBefore(banner, form.firstChild);
+    }
+  }
+
+  // İşlem türünü ayarla
+  setTxType(tx.type);
+
+  // Tutar
+  const amountInput = document.getElementById('inputWalletAmount');
+  if (amountInput) amountInput.value = tx.amount;
+
+  // Hesapları doldur ve seç
+  populateWalletAccountSelectors();
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  if (fromSelect && tx.fromAccountId) {
+    fromSelect.value = tx.fromAccountId;
+  }
+  const toSelect = document.getElementById('selectWalletToAccount');
+  if (toSelect && tx.toAccountId) {
+    toSelect.value = tx.toAccountId;
+  }
+
+  // Kategori & Alt başlık (transfer değilse)
+  if (tx.type !== 'transfer') {
+    selectedCategoryId = tx.categoryId || (tx.type === 'expense' ? 'cat_market' : 'cat_salary');
+    selectedSubCategoryId = tx.subCategory || '';
+    renderCategoryGrid(tx.type);
+  }
+
+  // Tarih
+  const dateInput = document.getElementById('inputWalletTxDate');
+  if (dateInput) dateInput.value = tx.date;
+
+  // Not
+  const noteInput = document.getElementById('inputWalletNote');
+  if (noteInput) noteInput.value = tx.note || '';
+
   modal.showModal();
 }
 
 function setTxType(type) {
   currentTxType = type;
+  ['txTypeBtn_expense', 'txTypeBtn_income', 'txTypeBtn_transfer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
   document.querySelectorAll('.tx-type-opt').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById(`txTypeBtn_${type}`);
   if (btn) btn.classList.add('active');
 
   const catSection = document.getElementById('walletCatSection');
   const transferSection = document.getElementById('walletTransferSection');
+  const instSection = document.getElementById('walletInstallmentToggleSection');
 
   if (type === 'transfer') {
     if (catSection) catSection.style.display = 'none';
     if (transferSection) transferSection.style.display = 'block';
+    if (instSection) instSection.style.display = 'none';
   } else {
     if (catSection) catSection.style.display = 'block';
     if (transferSection) transferSection.style.display = 'none';
+    if (instSection) {
+      instSection.style.display = editingWalletTxId ? 'none' : 'block';
+    }
     renderCategoryGrid(type);
   }
 }
@@ -909,9 +1397,10 @@ function handleWalletTxSubmit(e) {
   const noteInput = document.getElementById('inputWalletNote');
   const fromSelect = document.getElementById('selectWalletFromAccount');
   const toSelect = document.getElementById('selectWalletToAccount');
+  const isInstallment = document.getElementById('checkWalletIsInstallment')?.checked && currentTxType !== 'transfer';
 
-  const amount = parseFloat(amountInput.value);
-  if (!amount || amount <= 0 || !dateInput.value) return;
+  const inputAmount = parseFloat(amountInput.value);
+  if (!inputAmount || inputAmount <= 0 || !dateInput.value) return;
 
   const fromAccountId = fromSelect.value;
   const toAccountId = currentTxType === 'transfer' ? toSelect.value : '';
@@ -921,34 +1410,157 @@ function handleWalletTxSubmit(e) {
     return;
   }
 
-  const newTx = {
-    id: 'wtx_' + Date.now(),
-    type: currentTxType,
-    amount: amount,
-    fromAccountId: fromAccountId,
-    toAccountId: toAccountId,
-    categoryId: currentTxType !== 'transfer' ? selectedCategoryId : '',
-    subCategory: currentTxType !== 'transfer' ? selectedSubCategoryId : '',
-    date: dateInput.value,
-    note: noteInput.value.trim()
-  };
-
-  // Hesap bakiyelerini güncelle
-  const fromAcc = walletState.accounts.find(a => a.id === fromAccountId);
-  if (fromAcc) {
-    if (currentTxType === 'expense' || currentTxType === 'transfer') {
-      fromAcc.balance -= amount;
-    } else if (currentTxType === 'income') {
-      fromAcc.balance += amount;
+  // Düzenleme Modu (Mevcut İşlemi Güncelle)
+  if (editingWalletTxId) {
+    const tx = walletState.transactions.find(t => t.id === editingWalletTxId);
+    if (!tx) {
+      editingWalletTxId = null;
+      return;
     }
+
+    // 1. Önceki işlemin hesap bakiyeleri üzerindeki etkisini geri al
+    const oldFromAcc = walletState.accounts.find(a => a.id === tx.fromAccountId);
+    if (oldFromAcc) {
+      if (tx.type === 'expense' || tx.type === 'transfer') {
+        oldFromAcc.balance += tx.amount;
+      } else if (tx.type === 'income') {
+        oldFromAcc.balance -= tx.amount;
+      }
+    }
+    if (tx.type === 'transfer' && tx.toAccountId) {
+      const oldToAcc = walletState.accounts.find(a => a.id === tx.toAccountId);
+      if (oldToAcc) {
+        oldToAcc.balance -= tx.amount;
+      }
+    }
+
+    // 2. Yeni değerleri güncelle
+    tx.type = currentTxType;
+    tx.amount = inputAmount;
+    tx.fromAccountId = fromAccountId;
+    tx.toAccountId = (currentTxType === 'transfer' ? toAccountId : '');
+    tx.categoryId = (currentTxType !== 'transfer' ? selectedCategoryId : '');
+    tx.subCategory = (currentTxType !== 'transfer' ? selectedSubCategoryId : '');
+    tx.date = dateInput.value;
+    tx.note = noteInput.value.trim();
+
+    // 3. Yeni değerleri hesap bakiyelerine uygula
+    const newFromAcc = walletState.accounts.find(a => a.id === fromAccountId);
+    if (newFromAcc) {
+      if (currentTxType === 'expense' || currentTxType === 'transfer') {
+        newFromAcc.balance -= inputAmount;
+      } else if (currentTxType === 'income') {
+        newFromAcc.balance += inputAmount;
+      }
+    }
+    if (currentTxType === 'transfer') {
+      const newToAcc = walletState.accounts.find(a => a.id === toAccountId);
+      if (newToAcc) {
+        newToAcc.balance += inputAmount;
+      }
+    }
+
+    // Tarihe göre sırala
+    walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    editingWalletTxId = null;
+    const oldBanner = document.getElementById('walletTxEditInstallmentBanner');
+    if (oldBanner) oldBanner.remove();
+
+    saveWalletState();
+    renderWalletUI();
+
+    const modal = document.getElementById('modalWalletTx');
+    if (modal) modal.close();
+    return;
   }
 
-  if (currentTxType === 'transfer') {
-    const toAcc = walletState.accounts.find(a => a.id === toAccountId);
-    if (toAcc) toAcc.balance += amount;
+  const fromAcc = walletState.accounts.find(a => a.id === fromAccountId);
+
+  if (isInstallment) {
+    const countSelect = document.getElementById('selectWalletInstallmentCount');
+    const typeSelect = document.getElementById('selectWalletInstallmentAmountType');
+    const count = parseInt(countSelect?.value || '3');
+    const amountType = typeSelect?.value || 'total';
+
+    let totalAmount = 0;
+    if (amountType === 'total') {
+      totalAmount = inputAmount;
+    } else {
+      totalAmount = Math.round(inputAmount * count * 100) / 100;
+    }
+
+    const baseMonthly = Math.floor((totalAmount / count) * 100) / 100;
+    const remainder = Math.round((totalAmount - (baseMonthly * count)) * 100) / 100;
+
+    const installmentGroupId = 'inst_' + Date.now();
+    const installmentDates = getInstallmentDates(dateInput.value, count);
+
+    // Hesap bakiyesini güncelle
+    if (fromAcc) {
+      if (currentTxType === 'expense') {
+        fromAcc.balance -= totalAmount;
+      } else if (currentTxType === 'income') {
+        fromAcc.balance += totalAmount;
+      }
+    }
+
+    // Her taksit için işlem üret (Tarihe göre sıralı kalması için geriye doğru unshift veya push ve sort)
+    const newTxs = [];
+    for (let i = 1; i <= count; i++) {
+      const instAmount = (i === 1 ? Math.round((baseMonthly + remainder) * 100) / 100 : baseMonthly);
+      newTxs.push({
+        id: 'wtx_' + Date.now() + '_' + i,
+        type: currentTxType,
+        amount: instAmount,
+        fromAccountId: fromAccountId,
+        toAccountId: '',
+        categoryId: selectedCategoryId,
+        subCategory: selectedSubCategoryId,
+        date: installmentDates[i - 1],
+        note: noteInput.value.trim(),
+        installment: {
+          groupId: installmentGroupId,
+          current: i,
+          total: count,
+          totalAmount: totalAmount
+        }
+      });
+    }
+
+    // Yeni taksitleri mevcut işlemlere ekle ve tarihe göre sırala
+    walletState.transactions.push(...newTxs);
+    walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } else {
+    // Standart Tek Çekim İşlem
+    const newTx = {
+      id: 'wtx_' + Date.now(),
+      type: currentTxType,
+      amount: inputAmount,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
+      categoryId: currentTxType !== 'transfer' ? selectedCategoryId : '',
+      subCategory: currentTxType !== 'transfer' ? selectedSubCategoryId : '',
+      date: dateInput.value,
+      note: noteInput.value.trim()
+    };
+
+    if (fromAcc) {
+      if (currentTxType === 'expense' || currentTxType === 'transfer') {
+        fromAcc.balance -= inputAmount;
+      } else if (currentTxType === 'income') {
+        fromAcc.balance += inputAmount;
+      }
+    }
+
+    if (currentTxType === 'transfer') {
+      const toAcc = walletState.accounts.find(a => a.id === toAccountId);
+      if (toAcc) toAcc.balance += inputAmount;
+    }
+
+    walletState.transactions.unshift(newTx);
   }
 
-  walletState.transactions.unshift(newTx);
   saveWalletState();
   renderWalletUI();
 
@@ -957,31 +1569,97 @@ function handleWalletTxSubmit(e) {
 }
 
 function deleteWalletTx(txId) {
-  if (!confirm('Bu işlemi silmek istediğinize emin misiniz?')) return;
+  const tx = walletState.transactions.find(t => t.id === txId);
+  if (!tx) return;
 
-  const idx = walletState.transactions.findIndex(t => t.id === txId);
-  if (idx < 0) return;
+  const modal = document.getElementById('modalWalletTxDelete');
+  const titleEl = document.getElementById('modalWalletTxDeleteTitle');
+  const bodyEl = document.getElementById('modalWalletTxDeleteBody');
+  const footerEl = document.getElementById('modalWalletTxDeleteFooter');
 
-  const tx = walletState.transactions[idx];
+  if (!modal || !bodyEl || !footerEl) {
+    if (confirm('Bu işlemi silmek istediğinize emin misiniz?')) {
+      executeDeleteTx(txId, 'single');
+    }
+    return;
+  }
 
-  // Hesap bakiyesini tersine çevir
-  const fromAcc = walletState.accounts.find(a => a.id === tx.fromAccountId);
-  if (fromAcc) {
-    if (tx.type === 'expense' || tx.type === 'transfer') {
-      fromAcc.balance += tx.amount;
-    } else if (tx.type === 'income') {
-      fromAcc.balance -= tx.amount;
+  if (tx.installment) {
+    if (titleEl) titleEl.innerHTML = '💳 Taksitli İşlem Silme';
+    bodyEl.innerHTML = `
+      <p style="margin-bottom: 8px;">Bu kayıt <strong>${tx.installment.current}/${tx.installment.total} Taksit</strong> planına aittir.</p>
+      <div style="background: rgba(255,255,255,0.05); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px;">
+        <div style="margin-bottom: 4px;"><strong>Tutar:</strong> ${formatWalletTL(tx.amount)}</div>
+        <div style="margin-bottom: 4px;"><strong>Tarih:</strong> ${tx.date}</div>
+        ${tx.note ? `<div><strong>Açıklama:</strong> ${tx.note}</div>` : ''}
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-dim); margin: 0;">Nasıl silmek istersiniz?</p>
+    `;
+    footerEl.innerHTML = `
+      <button type="button" class="btn-cancel" onclick="closeModal('modalWalletTxDelete')">Vazgeç</button>
+      <button type="button" class="btn-submit" style="background: #3b82f6;" onclick="executeDeleteTx('${txId}', 'single')">Sadece Bu Taksiti Sil</button>
+      <button type="button" class="btn-submit" style="background: linear-gradient(135deg, #ef4444, #dc2626);" onclick="executeDeleteTx('${txId}', 'all')">Tüm Taksitleri Sil (${tx.installment.total} Ay)</button>
+    `;
+  } else {
+    if (titleEl) titleEl.innerHTML = '🗑️ İşlemi Sil';
+    bodyEl.innerHTML = `
+      <p style="margin-bottom: 8px;">Bu işlemi silmek istediğinize emin misiniz?</p>
+      <div style="background: rgba(255,255,255,0.05); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+        <div style="margin-bottom: 4px;"><strong>Tutar:</strong> ${formatWalletTL(tx.amount)}</div>
+        <div style="margin-bottom: 4px;"><strong>Tarih:</strong> ${tx.date}</div>
+        ${tx.note ? `<div><strong>Açıklama:</strong> ${tx.note}</div>` : ''}
+      </div>
+    `;
+    footerEl.innerHTML = `
+      <button type="button" class="btn-cancel" onclick="closeModal('modalWalletTxDelete')">Vazgeç</button>
+      <button type="button" class="btn-submit" style="background: linear-gradient(135deg, #ef4444, #dc2626);" onclick="executeDeleteTx('${txId}', 'single')">Evet, Sil</button>
+    `;
+  }
+
+  modal.showModal();
+}
+
+function executeDeleteTx(txId, mode) {
+  const tx = walletState.transactions.find(t => t.id === txId);
+  if (!tx) return;
+
+  if (mode === 'all' && tx.installment?.groupId) {
+    const groupId = tx.installment.groupId;
+    const groupTxs = walletState.transactions.filter(t => t.installment?.groupId === groupId);
+
+    // Her taksit için bakiyeyi tersine çevir
+    groupTxs.forEach(t => {
+      const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
+      if (fromAcc) {
+        if (t.type === 'expense' || t.type === 'transfer') fromAcc.balance += t.amount;
+        else if (t.type === 'income') fromAcc.balance -= t.amount;
+      }
+    });
+
+    // Grubun tüm işlemlerini sil
+    walletState.transactions = walletState.transactions.filter(t => t.installment?.groupId !== groupId);
+  } else {
+    // Sadece tek işlemi sil
+    const idx = walletState.transactions.findIndex(t => t.id === txId);
+    if (idx >= 0) {
+      const fromAcc = walletState.accounts.find(a => a.id === tx.fromAccountId);
+      if (fromAcc) {
+        if (tx.type === 'expense' || tx.type === 'transfer') fromAcc.balance += tx.amount;
+        else if (tx.type === 'income') fromAcc.balance -= tx.amount;
+      }
+      if (tx.type === 'transfer') {
+        const toAcc = walletState.accounts.find(a => a.id === tx.toAccountId);
+        if (toAcc) toAcc.balance -= tx.amount;
+      }
+      walletState.transactions.splice(idx, 1);
     }
   }
 
-  if (tx.type === 'transfer') {
-    const toAcc = walletState.accounts.find(a => a.id === tx.toAccountId);
-    if (toAcc) toAcc.balance -= tx.amount;
-  }
-
-  walletState.transactions.splice(idx, 1);
   saveWalletState();
   renderWalletUI();
+
+  const modal = document.getElementById('modalWalletTxDelete');
+  if (modal) modal.close();
 }
 
 // --- Kategori & Alt Başlık Yönetim Sistemi ---
@@ -1445,6 +2123,18 @@ function deleteSubcategory(catId, subName, type) {
 document.addEventListener('DOMContentLoaded', () => {
   loadWalletState();
   populateCategoryIconGrid();
+
+  // İşlem modalı kapandığında düzenleme durumunu temizle
+  const modalWalletTx = document.getElementById('modalWalletTx');
+  if (modalWalletTx) {
+    modalWalletTx.addEventListener('close', () => {
+      editingWalletTxId = null;
+      const oldBanner = document.getElementById('walletTxEditInstallmentBanner');
+      if (oldBanner) oldBanner.remove();
+      const instSection = document.getElementById('walletInstallmentToggleSection');
+      if (instSection) instSection.style.display = 'block';
+    });
+  }
 
   // Son aktif modülü hatırla
   const savedMod = localStorage.getItem('active_suite_module');

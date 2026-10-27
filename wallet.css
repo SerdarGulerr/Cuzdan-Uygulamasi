@@ -448,6 +448,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .tx-cat-icon {
@@ -466,6 +468,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .tx-cat-name {
@@ -489,6 +492,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .wallet-tx-amount {
@@ -501,6 +505,83 @@
 .wallet-tx-amount.expense { color: var(--rose); }
 .wallet-tx-amount.income { color: var(--emerald); }
 .wallet-tx-amount.transfer { color: var(--blue); }
+
+/* --- Modern İşlem Butonları (Düzenle & Sil) --- */
+.wallet-tx-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-tx-action {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  backdrop-filter: blur(4px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-tx-action svg {
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.btn-tx-edit:hover,
+.btn-tx-edit:focus-visible {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #60a5fa;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.btn-tx-edit:active {
+  transform: scale(0.92);
+}
+
+.btn-tx-delete:hover,
+.btn-tx-delete:focus-visible {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #f87171;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.btn-tx-delete:active {
+  transform: scale(0.92);
+}
+
+/* Taksit Düzenleme Bilgilendirme Kartı */
+.installment-edit-notice {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(37, 99, 235, 0.06));
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  color: #93c5fd;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.45;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.installment-edit-notice .inst-notice-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
 
 /* Calendar View */
 .calendar-card {
@@ -920,6 +1001,175 @@
   margin-left: 4px;
 }
 
+/* Taksit Rozeti */
+.tx-installment-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 1px 7px;
+  border-radius: 6px;
+  margin-left: 4px;
+  letter-spacing: 0.02em;
+}
+
+/* Taksit Seçeneği Kartı ve Switch */
+.installment-toggle-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: all 0.25s ease;
+}
+
+.installment-toggle-card.active {
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
+}
+
+.installment-toggle-header,
+.installment-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+  width: 100%;
+}
+
+.installment-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.installment-icon {
+  font-size: 1.25rem;
+}
+
+.installment-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.installment-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.installment-sub {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  transition: color 0.2s ease;
+}
+
+.installment-toggle-card.active .installment-sub {
+  color: #fbbf24;
+}
+
+/* Modern iOS Style Switch */
+.installment-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.25s ease;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.installment-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.installment-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+
+.installment-switch input:checked + .installment-slider {
+  transform: translateX(20px);
+  background: #f59e0b;
+}
+
+.installment-toggle-card.active .installment-switch {
+  background: rgba(245, 158, 11, 0.3);
+}
+
+/* Taksit Ayar Paneli */
+.installment-details-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 0.2s ease;
+}
+
+.installment-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.installment-summary-box {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 4px;
+}
+
+.inst-summary-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.inst-lbl {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.inst-val {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fbbf24;
+  margin-top: 2px;
+}
+
+.inst-summary-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+
 .subcat-picker-wrap {
   margin-top: 10px;
   background: rgba(15, 23, 42, 0.6);
@@ -1303,4 +1553,201 @@
   color: #ffffff;
   transform: translateY(-1px);
 }
+
+/* Kredi Kartı Hesap Kesim & Borç Özeti Kartı */
+.credit-cutoff-card {
+  margin-top: 10px;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(17, 24, 39, 0.95) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(244, 63, 94, 0.08);
+}
+
+.cutoff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cutoff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #ff859b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cutoff-date-info {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.cutoff-date-info strong {
+  color: var(--text-main);
+}
+
+.cutoff-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cutoff-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.cutoff-spent-amount {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.cutoff-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 3px 0;
+}
+
+.cutoff-total-row {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.cutoff-debt-amount {
+  color: var(--rose);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.cutoff-auto-applied-note {
+  font-size: 0.72rem;
+  color: var(--emerald);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cutoff-recalc-btn {
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #ff859b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+  align-self: flex-start;
+}
+
+.cutoff-recalc-btn:hover {
+  background: rgba(244, 63, 94, 0.25);
+  color: #fff;
+}
+
+.cutoff-tx-details {
+  margin-top: 4px;
+}
+
+.cutoff-tx-details summary {
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.cutoff-tx-details summary:hover {
+  color: var(--text-main);
+}
+
+.cutoff-tx-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cutoff-tx-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.74rem;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.cutoff-tx-date {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.cutoff-tx-note {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+  padding: 0 4px;
+}
+
+.cutoff-tx-val.negative {
+  color: var(--rose);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.cutoff-tx-val.positive {
+  color: var(--emerald);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.cutoff-no-tx {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.account-cutoff-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  color: #ff859b;
+  border-radius: 10px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
 

@@ -113,6 +113,7 @@ function exportDataToExcel() {
     'Kategori',
     'Alt Kategori',
     'Açıklama / Not',
+    'Taksit',
     'Kayıt ID'
   ];
 
@@ -143,6 +144,7 @@ function exportDataToExcel() {
         cat ? cat.name : '',
         tx.subCategory || '',
         tx.note || '',
+        tx.installment ? `${tx.installment.current}/${tx.installment.total}` : '',
         tx.id || ''
       ]);
     });
@@ -150,8 +152,8 @@ function exportDataToExcel() {
     // Boş ise örnek rehber satırlar koy
     const todayTR = formatDateForExcel(getTodayDateString());
     const firstAcc = accounts[0] ? accounts[0].name : 'Banka Hesabı (Vadesiz)';
-    txRows.push([todayTR, 'Gider', 350.50, firstAcc, '', 'Market & Gıda', 'Migros', 'Örnek: Haftalık market alışverişi', '']);
-    txRows.push([todayTR, 'Gelir', 45000.00, firstAcc, '', 'Aylık Maaş', 'Ana Maaş', 'Örnek: Aylık net maaş', '']);
+    txRows.push([todayTR, 'Gider', 350.50, firstAcc, '', 'Market & Gıda', 'Migros', 'Örnek: Haftalık market alışverişi', '', '']);
+    txRows.push([todayTR, 'Gelir', 45000.00, firstAcc, '', 'Aylık Maaş', 'Ana Maaş', 'Örnek: Aylık net maaş', '', '']);
   }
 
   const wsTx = XLSX.utils.aoa_to_sheet([txHeaders, ...txRows]);
@@ -164,6 +166,7 @@ function exportDataToExcel() {
     { wch: 22 }, // Kategori
     { wch: 20 }, // Alt Kategori
     { wch: 35 }, // Açıklama
+    { wch: 12 }, // Taksit
     { wch: 20 }  // Kayıt ID
   ];
   XLSX.utils.book_append_sheet(wb, wsTx, 'Cüzdan_İşlemleri');
@@ -478,6 +481,23 @@ function importDataFromExcel(event) {
             }
           }
 
+          // Taksit verisi ayrıştırma
+          const taksitRaw = (row['Taksit'] || '').toString().trim();
+          let installmentData = null;
+          if (taksitRaw && taksitRaw.includes('/')) {
+            const p = taksitRaw.split('/');
+            const cur = parseInt(p[0]);
+            const tot = parseInt(p[1]);
+            if (!isNaN(cur) && !isNaN(tot)) {
+              installmentData = {
+                groupId: 'inst_import_' + (kayitId ? kayitId.split('_').slice(0, 2).join('_') : Date.now()),
+                current: cur,
+                total: tot,
+                totalAmount: amount * tot
+              };
+            }
+          }
+
           // Kayıt ID ile güncelle veya yeni ekle
           let existingTx = null;
           if (kayitId) {
@@ -493,6 +513,7 @@ function importDataFromExcel(event) {
             existingTx.categoryId = categoryId;
             existingTx.subCategory = subCatName;
             existingTx.note = note;
+            if (installmentData) existingTx.installment = installmentData;
             stats.walletUpdated++;
           } else {
             const newTx = {
@@ -504,7 +525,8 @@ function importDataFromExcel(event) {
               categoryId: categoryId,
               subCategory: subCatName,
               date: dateStr,
-              note: note
+              note: note,
+              installment: installmentData
             };
             walletState.transactions.push(newTx);
             stats.walletAdded++;
