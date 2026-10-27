@@ -36,9 +36,9 @@ jobs:
             echo "::error::KEYSTORE_BASE64 secret bulunamadı! Farklı imzalı APK üretmemek için derleme durduruldu."
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-          echo "Sabit anahtar Secrets'tan yüklendi. SHA-256 parmak izi:"
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android | grep "SHA256" || true
+          echo "$KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
+          echo "Sabit anahtar yüklendi. Keystore parmak izi denetleniyor:"
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android | grep "SHA256"
 
       - name: Web dosyalarını hazırla ve Capacitor kur
         run: |
@@ -56,8 +56,34 @@ jobs:
           npm init -y
           npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
           npx cap add android
+
+          # Sabit imza anahtarını doğrudan Android proje klasörüne kopyala
+          cp ~/.android/debug.keystore android/app/debug.keystore
+
+          # Sürüm bilgilerini build.gradle dosyasına işle
           sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
           sed -i "s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+
+          # Gradle'ın KESİNLİKLE bu anahtarı kullanmasını zorunlu kıl (signingConfigs injection)
+          python3 -c "
+          p = 'android/app/build.gradle'
+          with open(p, 'r') as f:
+              c = f.read()
+          signing_code = '''
+              signingConfigs {
+                  debug {
+                      storeFile file('debug.keystore')
+                      storePassword 'android'
+                      keyAlias 'androiddebugkey'
+                      keyPassword 'android'
+                  }
+              }
+          '''
+          c = c.replace('buildTypes {', signing_code + '\n    buildTypes {', 1)
+          c = c.replace('buildTypes {\n        release {', 'buildTypes {\n        debug {\n            signingConfig signingConfigs.debug\n        }\n        release {', 1)
+          with open(p, 'w') as f:
+              f.write(c)
+          "
 
       - name: Uygulama ikonunu oluştur
         continue-on-error: true
@@ -77,6 +103,17 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon
           cp app/build/outputs/apk/debug/app-debug.apk ../AileFinans.apk
+
+          # Üretilen APK'nın imzasını doğrula - Asla rastgele imzalı APK çıkmasına izin verme
+          echo "APK İmza Parmak İzi Doğrulanıyor..."
+          APK_SHA=$(keytool -printcert -jarfile ../AileFinans.apk | grep "SHA256" | head -n 1 | awk '{print $2}')
+          echo "Üretilen APK SHA-256: $APK_SHA"
+          EXPECTED_SHA="5C:83:64:46:7A:27:3A:14:8A:78:1F:09:1B:88:1D:FB:44:96:FC:F6:09:AB:2D:2D:D5:38:36:73:0A:D6:7D:A5"
+          if [ "$APK_SHA" != "$EXPECTED_SHA" ]; then
+            echo "::error::KRİTİK HATA: Üretilen APK beklenen sabit anahtar ile imzalanmadı! ($APK_SHA != $EXPECTED_SHA). Yayınlama durduruldu."
+            exit 1
+          fi
+          echo "DOĞRULAMA BAŞARILI: APK beklenen sabit anahtarla (${EXPECTED_SHA}) imzalandı."
 
       - name: GitHub Release olarak yayınla
         uses: softprops/action-gh-release@v2
