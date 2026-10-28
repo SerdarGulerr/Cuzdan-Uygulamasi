@@ -505,6 +505,23 @@ function importDataFromExcel(event) {
           }
 
           if (existingTx) {
+            // Önceki işlemin hesaplar üzerindeki bakiyesini geri al
+            const oldFrom = walletState.accounts.find(a => a.id === existingTx.fromAccountId);
+            if (oldFrom) {
+              if (existingTx.type === 'expense' || existingTx.type === 'transfer') {
+                oldFrom.balance = Math.round((oldFrom.balance + existingTx.amount) * 100) / 100;
+              } else if (existingTx.type === 'income') {
+                oldFrom.balance = Math.round((oldFrom.balance - existingTx.amount) * 100) / 100;
+              }
+            }
+            if (existingTx.type === 'transfer' && existingTx.toAccountId) {
+              const oldTo = walletState.accounts.find(a => a.id === existingTx.toAccountId);
+              if (oldTo) {
+                oldTo.balance = Math.round((oldTo.balance - existingTx.amount) * 100) / 100;
+              }
+            }
+
+            // Yeni değerleri kaydet
             existingTx.type = txType;
             existingTx.amount = amount;
             existingTx.date = dateStr;
@@ -514,6 +531,21 @@ function importDataFromExcel(event) {
             existingTx.subCategory = subCatName;
             existingTx.note = note;
             if (installmentData) existingTx.installment = installmentData;
+
+            // Yeni değerleri hesap bakiyesine uygula (Son tutar hesaplaması)
+            if (fromAcc) {
+              if (txType === 'expense' || txType === 'transfer') {
+                fromAcc.balance = Math.round((fromAcc.balance - amount) * 100) / 100;
+              } else if (txType === 'income') {
+                fromAcc.balance = Math.round((fromAcc.balance + amount) * 100) / 100;
+              }
+            }
+            if (txType === 'transfer') {
+              const toAccObj = walletState.accounts.find(a => a.id === toAccountId);
+              if (toAccObj) {
+                toAccObj.balance = Math.round((toAccObj.balance + amount) * 100) / 100;
+              }
+            }
             stats.walletUpdated++;
           } else {
             const newTx = {
@@ -528,6 +560,22 @@ function importDataFromExcel(event) {
               note: note,
               installment: installmentData
             };
+
+            // Yeni işlem tutarını ilgili hesap bakiyesine yansıtarak son tutarı hesapla
+            if (fromAcc) {
+              if (txType === 'expense' || txType === 'transfer') {
+                fromAcc.balance = Math.round((fromAcc.balance - amount) * 100) / 100;
+              } else if (txType === 'income') {
+                fromAcc.balance = Math.round((fromAcc.balance + amount) * 100) / 100;
+              }
+            }
+            if (txType === 'transfer') {
+              const toAccObj = walletState.accounts.find(a => a.id === toAccountId);
+              if (toAccObj) {
+                toAccObj.balance = Math.round((toAccObj.balance + amount) * 100) / 100;
+              }
+            }
+
             walletState.transactions.push(newTx);
             stats.walletAdded++;
           }
@@ -644,9 +692,10 @@ function importDataFromExcel(event) {
       let msg = '🎉 Excel Verileri Başarıyla İçe Aktarıldı ve Güncellendi!\n\n';
       if (stats.walletAdded > 0 || stats.walletUpdated > 0) {
         msg += `• Cüzdan İşlemleri: ${stats.walletAdded} yeni eklendi, ${stats.walletUpdated} güncellendi.\n`;
+        msg += `• Hesap Bakiyeleri: Excel hareketleri hesaplanarak tüm hesapların son tutarları güncellendi.\n`;
       }
       if (stats.accountsUpdated > 0) {
-        msg += `• Hesap & Bakiye: ${stats.accountsUpdated} hesap güncellendi.\n`;
+        msg += `• Hesap & Bakiye: ${stats.accountsUpdated} hesap tanımları güncellendi.\n`;
       }
       if (stats.newCategories > 0) {
         msg += `• Yeni Kategoriler: ${stats.newCategories} yeni başlık otomatik oluşturuldu.\n`;

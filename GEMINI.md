@@ -1,4 +1,4 @@
-# Aile Faiz & Kasa Takip (Cüzdanım) - Proje ve Geliştirme Kuralları
+# Aile Finansı - Proje ve Geliştirme Kuralları
 
 Bu kurallar projede çalışan tüm yapay zeka asistanları (Gemini, Claude vb.) için bağlayıcıdır ve varsayılan olarak kesinlikle değiştirilmemelidir.
 

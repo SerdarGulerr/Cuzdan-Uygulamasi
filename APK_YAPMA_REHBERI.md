@@ -1,11 +1,11 @@
-# 📱 Aile Faiz & Kasa Takip Uygulaması - Kurulum ve APK Rehberi
+# 📱 Aile Finansı Uygulaması - Kurulum ve APK Rehberi
 
-Bu uygulama; bankada tek bir vadeli/günlük mevduat hesabında duran **Sizin, Kızınızın ve Eşinizin** paralarını ayrı ayrı takip etmek, günlük bileşik faizi hesaplamak ve girdiğiniz faiz oranını yeni bir oran girene kadar gün gün otomatik işletmek için özel olarak geliştirilmiştir.
+Bu uygulama; aile bütçenizi, gelir-gider cüzdanınızı ve bankada ortak vadeli/günlük mevduat hesabında duran **Sizin, Kızınızın ve Eşinizin** paralarını ayrı ayrı takip etmek, günlük bileşik faizi hesaplamak için özel olarak geliştirilmiştir.
 
 ---
 
 ## 🚀 1. Bilgisayarda Hemen Denemek ve Kullanmak İçin
-Masaüstünüzdeki **`FaizHesaplayici`** klasörünün içindeki **`baslat.bat`** dosyasına çift tıklayın:
+Masaüstünüzdeki **`Aile Finansı`** klasörünün içindeki **`baslat.bat`** dosyasına çift tıklayın:
 - Tarayıcınızda uygulama mobil uygulama görünümüyle hemen açılacaktır.
 - İstediğiniz zaman doğrudan `index.html` dosyasını tarayıcınıza sürükleyerek de açabilirsiniz.
 
@@ -28,7 +28,7 @@ Projenizin içine `.github/workflows/build-apk.yml` Android derleme motoru eklen
 
 #### 2. Adım: Dosyaları Depoya Yükleyin
 1. Açılan sayfada **"uploading an existing file"** (veya üstteki **"Add file" > "Upload files"**) seçeneğine tıklayın.
-2. Masaüstünüzdeki **`FaizHesaplayici`** klasörünü açın.
+2. Masaüstünüzdeki **`Aile Finansı`** klasörünü açın.
 3. Klasör içindeki tüm dosyaları (özellikle `.github`, `index.html`, `style.css`, `wallet.css`, `app.js`, `wallet.js`, `icon.svg`, `manifest.json`, `sw.js`) seçip tarayıcıdaki kutunun içine sürükleyip bırakın.
 4. Dosyalar yüklendikten sonra sayfanın altındaki yeşil **"Commit changes"** butonuna tıklayın.
 
@@ -47,10 +47,10 @@ Projenizin içine `.github/workflows/build-apk.yml` Android derleme motoru eklen
 
 ### ⚡ Yöntem B: Online Web2APK Dönüştürücüler (30 Saniyede APK Alma)
 Bilgisayarınızda karmaşık Android Studio veya SDK kurmaya gerek kalmadan:
-1. `FaizHesaplayici` klasöründeki dosyaları sağ tıklayıp **.ZIP** haline getirin.
+1. `Aile Finansı` klasöründeki dosyaları sağ tıklayıp **.ZIP** haline getirin.
 2. [Web2Apk](https://www.web2apk.com/) veya [AppsGeyser](https://appsgeyser.com/) gibi ücretsiz HTML-to-APK platformlarından birini açın.
 3. "HTML / Zip Archive" seçeneğini seçip zip dosyanızı yükleyin.
-4. "Uygulama Adı: Aile Faiz Takip" yazıp **Generate APK** butonuna basın.
+4. "Uygulama Adı: Aile Finansı" yazıp **Generate APK** butonuna basın.
 5. İndirdiğiniz `.apk` dosyasını WhatsApp veya kablo ile telefonunuza atıp açın.
 
 ---

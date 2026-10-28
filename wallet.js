@@ -514,6 +514,41 @@ function filterCalendarDay(day) {
 }
 
 // 3. ANALİZ & İSTATİSTİK GÖRÜNÜMÜ
+let expandedStatsCategories = new Set();
+let expandedStatsSubCategories = new Set();
+
+function toggleStatsCategoryExpand(catId) {
+  if (expandedStatsCategories.has(catId)) {
+    expandedStatsCategories.delete(catId);
+  } else {
+    expandedStatsCategories.add(catId);
+  }
+  const data = getFilteredWalletData();
+  renderStatsView(data.monthTxs, data.totalExpense);
+}
+
+function toggleAllStatsCategories(catIds) {
+  const allOpen = catIds.every(id => expandedStatsCategories.has(id));
+  if (allOpen) {
+    expandedStatsCategories.clear();
+  } else {
+    catIds.forEach(id => expandedStatsCategories.add(id));
+  }
+  const data = getFilteredWalletData();
+  renderStatsView(data.monthTxs, data.totalExpense);
+}
+
+function toggleStatsSubCategoryTxList(event, subKey) {
+  if (event) event.stopPropagation();
+  if (expandedStatsSubCategories.has(subKey)) {
+    expandedStatsSubCategories.delete(subKey);
+  } else {
+    expandedStatsSubCategories.add(subKey);
+  }
+  const data = getFilteredWalletData();
+  renderStatsView(data.monthTxs, data.totalExpense);
+}
+
 function renderStatsView(txs, totalExpense) {
   const container = document.getElementById('subView_stats');
   if (!container) return;
@@ -530,17 +565,29 @@ function renderStatsView(txs, totalExpense) {
 
   // Kategori bazlı topla
   const catTotals = {};
+  const catTxsMap = {};
   expenses.forEach(t => {
     catTotals[t.categoryId] = (catTotals[t.categoryId] || 0) + t.amount;
+    if (!catTxsMap[t.categoryId]) catTxsMap[t.categoryId] = [];
+    catTxsMap[t.categoryId].push(t);
   });
 
   const sortedCatIds = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+  const allExpanded = sortedCatIds.length > 0 && sortedCatIds.every(id => expandedStatsCategories.has(id));
 
   let html = `
     <div class="stats-card">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:10px;">
-        <h4 style="font-size:0.95rem; font-weight:800; color:#fff;">Aylık Gider Dağılımı</h4>
-        <span style="font-size:0.85rem; font-weight:800; color:var(--rose);">Toplam: -${formatWalletTL(totalExpense)}</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:10px; gap:8px; flex-wrap:wrap;">
+        <div>
+          <h4 style="font-size:0.95rem; font-weight:800; color:#fff;">Aylık Gider Dağılımı</h4>
+          <span style="font-size:0.7rem; color:var(--text-dim);">Alt başlık grafiği için kategoriye dokunun</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="btn-stats-expand-all" onclick='toggleAllStatsCategories(${JSON.stringify(sortedCatIds)})'>
+            ${allExpanded ? '🔼 Tümünü Kapat' : '🔽 Tümünü Aç'}
+          </button>
+          <span style="font-size:0.85rem; font-weight:800; color:var(--rose);">-${formatWalletTL(totalExpense)}</span>
+        </div>
       </div>
       <div class="category-bar-list">
   `;
@@ -549,39 +596,132 @@ function renderStatsView(txs, totalExpense) {
     const cat = walletState.categories.expense.find(c => c.id === catId) || { name: 'Diğer', icon: '📦', color: '#64748b' };
     const amount = catTotals[catId];
     const pct = ((amount / totalExpense) * 100).toFixed(1);
+    const catTxs = catTxsMap[catId] || [];
+    const isExpanded = expandedStatsCategories.has(catId);
 
-    // Alt başlık dağılımı
-    const subTotals = {};
-    let hasSub = false;
-    expenses.filter(t => t.categoryId === catId && t.subCategory).forEach(t => {
-      subTotals[t.subCategory] = (subTotals[t.subCategory] || 0) + t.amount;
-      hasSub = true;
+    // Alt başlık dağılımı (Alt başlığı olmayanları "Genel / Belirtilmemiş" altında topla)
+    const subMap = {};
+    catTxs.forEach(t => {
+      const label = (t.subCategory && t.subCategory.trim()) ? t.subCategory.trim() : 'Genel (Alt Başlıksız)';
+      if (!subMap[label]) {
+        subMap[label] = { amount: 0, count: 0, txs: [], isUnassigned: !(t.subCategory && t.subCategory.trim()) };
+      }
+      subMap[label].amount += t.amount;
+      subMap[label].count += 1;
+      subMap[label].txs.push(t);
     });
 
-    let subBreakdownHtml = '';
-    if (hasSub) {
-      const sortedSubs = Object.keys(subTotals).sort((a, b) => subTotals[b] - subTotals[a]);
-      subBreakdownHtml = `<div class="subcat-breakdown-row">`;
-      sortedSubs.forEach(sName => {
-        subBreakdownHtml += `<span class="subcat-breakdown-pill">${sName}: -${formatWalletTL(subTotals[sName])}</span>`;
+    const sortedSubNames = Object.keys(subMap).sort((a, b) => subMap[b].amount - subMap[a].amount);
+
+    // Kapalıyken kısa özet rozetleri
+    let collapsedPreviewHtml = '';
+    if (!isExpanded && sortedSubNames.length > 0) {
+      collapsedPreviewHtml = `<div class="subcat-breakdown-row">`;
+      sortedSubNames.slice(0, 4).forEach(sName => {
+        const sData = subMap[sName];
+        const sPct = ((sData.amount / amount) * 100).toFixed(0);
+        collapsedPreviewHtml += `<span class="subcat-breakdown-pill">${sName} <strong style="color:#cbd5e1;">%${sPct}</strong></span>`;
       });
-      subBreakdownHtml += `</div>`;
+      if (sortedSubNames.length > 4) {
+        collapsedPreviewHtml += `<span class="subcat-breakdown-pill">+${sortedSubNames.length - 4} diğer</span>`;
+      }
+      collapsedPreviewHtml += `</div>`;
+    }
+
+    // Açıkken detaylı alt başlık grafik paneli
+    let expandedPanelHtml = '';
+    if (isExpanded) {
+      expandedPanelHtml = `
+        <div class="subcat-drilldown-panel" onclick="event.stopPropagation()">
+          <div class="subcat-drilldown-header">
+            <span>📊 <strong>${cat.name}</strong> Alt Başlık Dağılımı</span>
+            <span class="subcat-drilldown-meta">${sortedSubNames.length} Alt Başlık • ${catTxs.length} İşlem</span>
+          </div>
+          <div class="subcat-chart-list">
+      `;
+
+      sortedSubNames.forEach((sName, idx) => {
+        const sData = subMap[sName];
+        const subPctOfCat = amount > 0 ? ((sData.amount / amount) * 100).toFixed(1) : '0.0';
+        const subPctOfTotal = totalExpense > 0 ? ((sData.amount / totalExpense) * 100).toFixed(1) : '0.0';
+        const subUniqueKey = `${catId}__${sName}`;
+        const isSubTxOpen = expandedStatsSubCategories.has(subUniqueKey);
+
+        let subTxRowsHtml = '';
+        if (isSubTxOpen) {
+          const sortedSubTxs = [...sData.txs].sort((a, b) => b.date.localeCompare(a.date));
+          subTxRowsHtml = `<div class="subcat-tx-mini-list">`;
+          sortedSubTxs.forEach(tx => {
+            const acc = walletState.accounts.find(a => a.id === tx.fromAccountId);
+            const accLabel = acc ? acc.name : '';
+            subTxRowsHtml += `
+              <div class="subcat-tx-mini-row">
+                <div class="subcat-tx-mini-left">
+                  <span class="subcat-tx-mini-date">📅 ${formatTurkishDate(tx.date)}</span>
+                  ${accLabel ? `<span class="subcat-tx-mini-acc">• ${accLabel}</span>` : ''}
+                  ${tx.note ? `<span class="subcat-tx-mini-note">(${tx.note})</span>` : ''}
+                </div>
+                <span class="subcat-tx-mini-amount">-${formatWalletTL(tx.amount)}</span>
+              </div>
+            `;
+          });
+          subTxRowsHtml += `</div>`;
+        }
+
+        expandedPanelHtml += `
+          <div class="subcat-chart-item ${isSubTxOpen ? 'sub-open' : ''}" onclick="toggleStatsSubCategoryTxList(event, '${subUniqueKey.replace(/'/g, "\\'")}')">
+            <div class="subcat-chart-top">
+              <div class="subcat-chart-title-wrap">
+                <span class="subcat-rank-badge" style="background:${cat.color}22; color:${cat.color}; border-color:${cat.color}44;">#${idx + 1}</span>
+                <span class="subcat-chart-name">${sName}</span>
+                <span class="subcat-chart-count">${sData.count} işlem</span>
+              </div>
+              <div class="subcat-chart-values">
+                <span class="subcat-chart-pct" style="color:${cat.color};">%${subPctOfCat}</span>
+                <span class="subcat-chart-amount">-${formatWalletTL(sData.amount)}</span>
+                <span class="subcat-tx-chevron ${isSubTxOpen ? 'open' : ''}" title="İşlemleri Gör">▾</span>
+              </div>
+            </div>
+            <div class="subcat-track">
+              <div class="subcat-fill" style="width: ${subPctOfCat}%; background: ${cat.color};"></div>
+            </div>
+            <div class="subcat-chart-submeta">
+              <span>Kategori içi payı: <strong>%${subPctOfCat}</strong></span>
+              <span>Genel gider payı: <strong>%${subPctOfTotal}</strong></span>
+            </div>
+            ${subTxRowsHtml}
+          </div>
+        `;
+      });
+
+      expandedPanelHtml += `
+          </div>
+        </div>
+      `;
     }
 
     html += `
-      <div class="category-bar-item">
+      <div class="category-bar-item expandable ${isExpanded ? 'expanded' : ''}" onclick="toggleStatsCategoryExpand('${catId}')" style="${isExpanded ? `border-color: ${cat.color}55;` : ''}">
         <div class="cat-bar-header">
           <span class="cat-bar-name">
-            <span>${cat.icon}</span>
-            <span>${cat.name}</span>
-            <small style="color:var(--text-dim);">(%${pct})</small>
+            <span class="cat-bar-icon-box" style="background:${cat.color}20; border-color:${cat.color}40;">${cat.icon}</span>
+            <span class="cat-bar-title-group">
+              <span class="cat-bar-title-text">${cat.name} <small style="color:var(--text-dim); font-weight:700;">(%${pct})</small></span>
+              <span class="cat-bar-sub-hint">${sortedSubNames.length} alt başlık • ${catTxs.length} işlem</span>
+            </span>
           </span>
-          <span class="cat-bar-val" style="color:#ffffff;">-${formatWalletTL(amount)}</span>
+          <div class="cat-bar-right">
+            <span class="cat-bar-val" style="color:#ffffff;">-${formatWalletTL(amount)}</span>
+            <span class="cat-expand-chevron ${isExpanded ? 'open' : ''}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </span>
+          </div>
         </div>
         <div class="cat-track">
           <div class="cat-fill" style="width: ${pct}%; background: ${cat.color};"></div>
         </div>
-        ${subBreakdownHtml}
+        ${collapsedPreviewHtml}
+        ${expandedPanelHtml}
       </div>
     `;
   });
@@ -617,27 +757,35 @@ function renderAccountsView() {
   `;
 
   walletState.accounts.forEach(acc => {
+    const stats = getAccountMovementStats(acc.id);
     html += `
-      <div class="account-card" onclick="openEditAccountModal('${acc.id}')" title="Hesabı düzenlemek için tıklayın">
+      <div class="account-card" onclick="openAccountDetailModal('${acc.id}')" title="Bu hesaba ait tüm hareketleri ve detayları görmek için tıklayın">
         <div class="account-info">
           <div class="account-icon">${acc.icon || '💳'}</div>
           <div class="account-title-box">
             <h4>${acc.name}</h4>
-            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
               <span class="account-type-tag">${getAccountTypeLabel(acc.type)}</span>
               ${acc.type === 'credit' && acc.billingDay ? `<span class="account-cutoff-pill">📅 Kesim: Ayın ${acc.billingDay}'i</span>` : ''}
+              <span class="account-movement-chip">📋 ${stats.txCount} Hareket</span>
             </div>
           </div>
         </div>
         <div class="account-right-box">
           <div class="account-balance-box">
+            <span style="font-size: 0.66rem; color: var(--text-dim); text-align: right; display: block; margin-bottom: 1px;">Son Tutar</span>
             <div class="account-balance" style="color: ${acc.balance < 0 ? 'var(--rose)' : '#fff'};">
               ${formatWalletTL(acc.balance)}
             </div>
           </div>
-          <button type="button" class="btn-account-edit" onclick="event.stopPropagation(); openEditAccountModal('${acc.id}')" title="Hesabı Düzenle">
-            ✏️ Düzenle
-          </button>
+          <div class="account-actions-stack">
+            <button type="button" class="btn-account-edit" onclick="event.stopPropagation(); openAccountDetailModal('${acc.id}')" title="Hareketleri Gör">
+              📋 Hareketler
+            </button>
+            <button type="button" class="btn-account-edit" onclick="event.stopPropagation(); openEditAccountModal('${acc.id}')" title="Hesabı Düzenle">
+              ✏️ Düzenle
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -927,6 +1075,349 @@ function openEditAccountModal(accId) {
   modal.showModal();
 }
 
+// --- Hesap Hareketleri & Detay Modalı Durum ve Fonksiyonları ---
+let activeAccountDetailId = null;
+let activeAccountDetailFilter = 'all';
+
+function getAccountMovementStats(accId) {
+  const txs = (walletState && walletState.transactions) || [];
+  const accountTxs = txs.filter(t => t.fromAccountId === accId || t.toAccountId === accId);
+
+  let totalIn = 0;
+  let totalOut = 0;
+
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = String(now.getMonth() + 1).padStart(2, '0');
+  const curMonthPrefix = `${curY}-${curM}`;
+
+  let monthIn = 0;
+  let monthOut = 0;
+  let monthCount = 0;
+
+  accountTxs.forEach(t => {
+    const isThisMonth = t.date && t.date.startsWith(curMonthPrefix);
+    if (isThisMonth) monthCount++;
+
+    if (t.type === 'expense' && t.fromAccountId === accId) {
+      totalOut += t.amount;
+      if (isThisMonth) monthOut += t.amount;
+    } else if (t.type === 'transfer' && t.fromAccountId === accId) {
+      totalOut += t.amount;
+      if (isThisMonth) monthOut += t.amount;
+    } else if (t.type === 'income' && t.fromAccountId === accId) {
+      totalIn += t.amount;
+      if (isThisMonth) monthIn += t.amount;
+    } else if (t.type === 'transfer' && t.toAccountId === accId) {
+      totalIn += t.amount;
+      if (isThisMonth) monthIn += t.amount;
+    }
+  });
+
+  totalIn = Math.round(totalIn * 100) / 100;
+  totalOut = Math.round(totalOut * 100) / 100;
+  const netDiff = Math.round((totalIn - totalOut) * 100) / 100;
+
+  return {
+    accountTxs,
+    txCount: accountTxs.length,
+    totalIn,
+    totalOut,
+    netDiff,
+    monthIn: Math.round(monthIn * 100) / 100,
+    monthOut: Math.round(monthOut * 100) / 100,
+    monthNet: Math.round((monthIn - monthOut) * 100) / 100,
+    monthCount
+  };
+}
+
+function openAccountDetailModal(accId, filterType = 'all') {
+  const modal = document.getElementById('modalAccountDetail');
+  if (!modal) return;
+
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+
+  activeAccountDetailId = accId;
+  activeAccountDetailFilter = filterType;
+
+  // Başlık ve İkon
+  const iconEl = document.getElementById('accountDetailIcon');
+  if (iconEl) iconEl.textContent = acc.icon || '💳';
+  const titleEl = document.getElementById('accountDetailTitle');
+  if (titleEl) titleEl.textContent = acc.name;
+  const typeBadgeEl = document.getElementById('accountDetailTypeBadge');
+  if (typeBadgeEl) typeBadgeEl.textContent = getAccountTypeLabel(acc.type);
+
+  const cutoffBadgeEl = document.getElementById('accountDetailCutoffBadge');
+  if (cutoffBadgeEl) {
+    if (acc.type === 'credit' && acc.billingDay) {
+      cutoffBadgeEl.textContent = `📅 Kesim: Ayın ${acc.billingDay}'i`;
+      cutoffBadgeEl.style.display = 'inline-flex';
+    } else {
+      cutoffBadgeEl.style.display = 'none';
+    }
+  }
+
+  // İstatistikleri hesapla
+  const stats = getAccountMovementStats(accId);
+
+  // Kredi kartı için hesap kesim borç analizi
+  let creditInfoHtml = '';
+  if (acc.type === 'credit') {
+    const billingDay = acc.billingDay || 15;
+    const creditDebtData = calculateCreditCardPeriodDebt(accId, billingDay);
+    if (creditDebtData) {
+      creditInfoHtml = `
+        <div class="account-credit-info-card">
+          <div>
+            <strong>📅 Hesap Kesim:</strong> Son Kesim: ${formatTurkishDate(creditDebtData.info.lastCutoffStr)}
+          </div>
+          <div>
+            <strong>Dönem İçi Harcanan:</strong> <span style="color:var(--rose); font-weight:700;">${formatWalletTL(creditDebtData.totalSpent)}</span>
+            ${creditDebtData.totalPayments > 0 ? ` | <strong>Ödenen:</strong> <span style="color:var(--emerald); font-weight:700;">${formatWalletTL(creditDebtData.totalPayments)}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Özet / Son Tutar Hero Kartı
+  const statsContainer = document.getElementById('accountDetailStatsContainer');
+  if (statsContainer) {
+    const isDebt = acc.balance < 0;
+    statsContainer.innerHTML = `
+      <div class="account-stat-hero">
+        <div class="account-stat-hero-top">
+          <div>
+            <div class="account-stat-hero-label">Hesaplanan Son Tutar / Bakiye</div>
+            <div class="account-stat-hero-amount" style="color: ${isDebt ? 'var(--rose)' : 'var(--emerald)'};">
+              ${formatWalletTL(acc.balance)}
+            </div>
+          </div>
+          <span class="account-type-tag" style="font-size:0.75rem;">${isDebt ? 'Borçlu Durum' : 'Pozitif Varlık'}</span>
+        </div>
+
+        <div class="account-stat-grid">
+          <div class="account-mini-stat">
+            <span class="account-mini-stat-label">Toplam Giriş</span>
+            <span class="account-mini-stat-val income">+${formatWalletTL(stats.totalIn)}</span>
+          </div>
+          <div class="account-mini-stat">
+            <span class="account-mini-stat-label">Toplam Çıkış</span>
+            <span class="account-mini-stat-val expense">-${formatWalletTL(stats.totalOut)}</span>
+          </div>
+          <div class="account-mini-stat">
+            <span class="account-mini-stat-label">Toplam Hareket</span>
+            <span class="account-mini-stat-val count">${stats.txCount} İşlem</span>
+          </div>
+        </div>
+        ${creditInfoHtml}
+      </div>
+    `;
+  }
+
+  // Hızlı Eylemler Çubuğu
+  const actionsBar = document.getElementById('accountDetailActionButtons');
+  if (actionsBar) {
+    actionsBar.innerHTML = `
+      <button type="button" class="btn-acc-action primary" onclick="openAddTxForAccount('${acc.id}')">
+        ➕ İşlem Ekle
+      </button>
+      <button type="button" class="btn-acc-action" onclick="openEditAccountModal('${acc.id}')">
+        ✏️ Hesabı Düzenle
+      </button>
+      <button type="button" class="btn-acc-action recalc full-span" onclick="syncAccountBalanceWithMovements('${acc.id}')" title="İşlem hareketlerini toplayıp bakiyeyi eşitler">
+        🔄 Bakiyeyi Hareketlere Göre Eşitle
+      </button>
+    `;
+  }
+
+  // Filtreler
+  renderAccountTxFilters(acc, stats, filterType);
+
+  // Hareketler Listesi
+  renderAccountTxList(acc, stats, filterType);
+
+  modal.showModal();
+}
+
+function renderAccountTxFilters(acc, stats, activeFilter) {
+  const filterBar = document.getElementById('accountTxFilterBar');
+  if (!filterBar) return;
+
+  const expCount = stats.accountTxs.filter(t => t.type === 'expense' && t.fromAccountId === acc.id).length;
+  const incCount = stats.accountTxs.filter(t => (t.type === 'income' && t.fromAccountId === acc.id) || (t.type === 'transfer' && t.toAccountId === acc.id)).length;
+  const transCount = stats.accountTxs.filter(t => t.type === 'transfer').length;
+
+  filterBar.innerHTML = `
+    <button type="button" class="acc-filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'all')">
+      Tümü (${stats.txCount})
+    </button>
+    <button type="button" class="acc-filter-chip ${activeFilter === 'month' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'month')">
+      Bu Ay (${stats.monthCount})
+    </button>
+    <button type="button" class="acc-filter-chip ${activeFilter === 'expense' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'expense')">
+      Giderler (${expCount})
+    </button>
+    <button type="button" class="acc-filter-chip ${activeFilter === 'income' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'income')">
+      Gelirler / Giriş (${incCount})
+    </button>
+    <button type="button" class="acc-filter-chip ${activeFilter === 'transfer' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'transfer')">
+      Transferler (${transCount})
+    </button>
+  `;
+}
+
+function filterAccountDetail(accId, filterType) {
+  activeAccountDetailFilter = filterType;
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const stats = getAccountMovementStats(accId);
+  renderAccountTxFilters(acc, stats, filterType);
+  renderAccountTxList(acc, stats, filterType);
+}
+
+function renderAccountTxList(acc, stats, filterType) {
+  const listEl = document.getElementById('accountDetailTxList');
+  if (!listEl) return;
+
+  const now = new Date();
+  const curMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  let filtered = [...stats.accountTxs];
+  if (filterType === 'month') {
+    filtered = filtered.filter(t => t.date && t.date.startsWith(curMonthPrefix));
+  } else if (filterType === 'expense') {
+    filtered = filtered.filter(t => t.type === 'expense' && t.fromAccountId === acc.id);
+  } else if (filterType === 'income') {
+    filtered = filtered.filter(t => (t.type === 'income' && t.fromAccountId === acc.id) || (t.type === 'transfer' && t.toAccountId === acc.id));
+  } else if (filterType === 'transfer') {
+    filtered = filtered.filter(t => t.type === 'transfer');
+  }
+
+  // Tarihe göre sırala
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div class="account-empty-state">
+        <div style="font-size: 1.8rem; margin-bottom: 6px;">📂</div>
+        <div>Bu filtreye uygun kayıtlı işlem hareketi bulunamadı.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const expCats = (walletState.categories && walletState.categories.expense) || [];
+  const incCats = (walletState.categories && walletState.categories.income) || [];
+  const allCats = [...expCats, ...incCats];
+
+  let html = '';
+  filtered.forEach(t => {
+    let icon = '💵';
+    let catTitle = 'İşlem';
+    let isOutflow = false;
+
+    if (t.type === 'transfer') {
+      icon = '🔄';
+      const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
+      const toAcc = walletState.accounts.find(a => a.id === t.toAccountId);
+      if (t.fromAccountId === acc.id) {
+        isOutflow = true;
+        catTitle = `Transfer ➔ ${toAcc ? toAcc.name : 'Hesap'}`;
+      } else {
+        isOutflow = false;
+        catTitle = `Transfer 🠔 ${fromAcc ? fromAcc.name : 'Hesap'}`;
+      }
+    } else {
+      const catObj = allCats.find(c => c.id === t.categoryId);
+      if (catObj) {
+        icon = catObj.icon || '🏷️';
+        catTitle = catObj.name;
+      }
+      isOutflow = (t.type === 'expense');
+    }
+
+    const sign = isOutflow ? '-' : '+';
+    const amountCls = isOutflow ? 'expense' : 'income';
+
+    html += `
+      <div class="account-tx-card">
+        <div class="account-tx-left">
+          <div class="account-tx-icon">${icon}</div>
+          <div class="account-tx-info">
+            <span class="account-tx-title">${catTitle}</span>
+            <div class="account-tx-sub">
+              <span>📅 ${formatTurkishDate(t.date)}</span>
+              ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
+              ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}
+              ${t.note ? `<span style="color:var(--text-muted);">(${t.note})</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="account-tx-right">
+          <span class="account-tx-amount ${amountCls}">
+            ${sign}${formatWalletTL(t.amount)}
+          </span>
+          <div class="wallet-tx-actions">
+            <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="Düzenle">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button type="button" class="btn-tx-action btn-tx-delete" onclick="deleteWalletTx('${t.id}')" title="Sil">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  listEl.innerHTML = html;
+}
+
+function openAddTxForAccount(accId) {
+  openAddWalletTxModal();
+  setTimeout(() => {
+    const fromSelect = document.getElementById('selectWalletFromAccount');
+    if (fromSelect && accId) fromSelect.value = accId;
+  }, 50);
+}
+
+function syncAccountBalanceWithMovements(accId) {
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+
+  const stats = getAccountMovementStats(accId);
+  let newBalance = 0;
+
+  if (acc.type === 'credit') {
+    const netDebt = Math.max(0, Math.round((stats.totalOut - stats.totalIn) * 100) / 100);
+    newBalance = netDebt === 0 ? 0 : -netDebt;
+  } else {
+    newBalance = stats.netDiff;
+  }
+
+  acc.balance = newBalance;
+  saveWalletState();
+  renderWalletUI();
+  refreshAccountDetailModal();
+  alert(`✓ "${acc.name}" hesabının bakiyesi kayıtlı tüm hareketler hesaplanarak ${formatWalletTL(newBalance)} olarak eşitlendi.`);
+}
+
+function refreshAccountDetailModal() {
+  const modal = document.getElementById('modalAccountDetail');
+  if (modal && modal.open && activeAccountDetailId) {
+    openAccountDetailModal(activeAccountDetailId, activeAccountDetailFilter || 'all');
+  }
+}
+
 function selectAccountIcon(icon) {
   const input = document.getElementById('inputAccountIcon');
   if (input) input.value = icon;
@@ -1024,6 +1515,7 @@ function handleDeleteCurrentAccount() {
   saveWalletState();
   renderWalletUI();
   closeModal('modalWalletAccount');
+  closeModal('modalAccountDetail');
 }
 
 // Eski çağrılar için geriye dönük uyumluluk
@@ -1469,6 +1961,7 @@ function handleWalletTxSubmit(e) {
 
     saveWalletState();
     renderWalletUI();
+    refreshAccountDetailModal();
 
     const modal = document.getElementById('modalWalletTx');
     if (modal) modal.close();
@@ -1563,6 +2056,7 @@ function handleWalletTxSubmit(e) {
 
   saveWalletState();
   renderWalletUI();
+  refreshAccountDetailModal();
 
   const modal = document.getElementById('modalWalletTx');
   if (modal) modal.close();
@@ -1657,6 +2151,7 @@ function executeDeleteTx(txId, mode) {
 
   saveWalletState();
   renderWalletUI();
+  refreshAccountDetailModal();
 
   const modal = document.getElementById('modalWalletTxDelete');
   if (modal) modal.close();

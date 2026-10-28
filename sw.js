@@ -1,5 +1,5 @@
 // %100 Çevrimdışı (Offline-First) Service Worker
-const CACHE_NAME = 'faiz-takip-offline-v6';
+const CACHE_NAME = 'aile-finansi-offline-v8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

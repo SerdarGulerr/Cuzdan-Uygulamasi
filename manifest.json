@@ -1,7 +1,7 @@
 {
-  "name": "Aile Faiz & Kasa Takip",
-  "short_name": "Faiz Takip",
-  "description": "Aile bireylerinin ortak banka hesabındaki günlük faiz ve anapara dağılımını hesaplayan uygulama",
+  "name": "Aile Finansı",
+  "short_name": "Aile Finansı",
+  "description": "Aile bütçesi, gelir-gider cüzdanı ve günlük faiz/kasa takip uygulaması",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#090d16",

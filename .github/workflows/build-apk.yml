@@ -48,7 +48,7 @@ jobs:
           cat > capacitor.config.json << 'EOF'
           {
             "appId": "com.ailefaiz.takip",
-            "appName": "Aile Finans",
+            "appName": "Aile Finansı",
             "webDir": "dist",
             "server": { "androidScheme": "https" }
           }
@@ -119,6 +119,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: Aile Finans v${{ github.run_number }}
+          name: Aile Finansı v${{ github.run_number }}
           files: AileFinans.apk
           make_latest: true
