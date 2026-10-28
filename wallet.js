@@ -159,25 +159,40 @@ function saveWalletState() {
   localStorage.setItem('cuzdan_manager_data_v1', JSON.stringify(walletState));
 }
 
-// --- Modül Değiştirme (Sol Menüden Faiz <-> Cüzdan) ---
+// --- Modül Değiştirme (Sol Menüden Faiz <-> Cüzdan <-> Bordro) ---
 function switchMainModule(modName) {
   const modFaiz = document.getElementById('moduleFaiz');
   const modWallet = document.getElementById('moduleWallet');
+  const modBordro = document.getElementById('moduleBordro');
   const itemFaiz = document.getElementById('drawerItemFaiz');
   const itemWallet = document.getElementById('drawerItemWallet');
+  const itemBordro = document.getElementById('drawerItemBordro');
+  const appContainer = document.querySelector('.app-container');
+
+  if (modFaiz) modFaiz.style.display = 'none';
+  if (modWallet) modWallet.style.display = 'none';
+  if (modBordro) modBordro.style.display = 'none';
+
+  if (itemFaiz) itemFaiz.classList.remove('active');
+  if (itemWallet) itemWallet.classList.remove('active');
+  if (itemBordro) itemBordro.classList.remove('active');
 
   if (modName === 'wallet') {
-    if (modFaiz) modFaiz.style.display = 'none';
     if (modWallet) modWallet.style.display = 'flex';
-    if (itemFaiz) itemFaiz.classList.remove('active');
     if (itemWallet) itemWallet.classList.add('active');
+    if (appContainer) appContainer.classList.remove('bordro-wide-active');
     localStorage.setItem('active_suite_module', 'wallet');
     renderWalletUI();
+  } else if (modName === 'bordro') {
+    if (modBordro) modBordro.style.display = 'flex';
+    if (itemBordro) itemBordro.classList.add('active');
+    if (appContainer && bordroWideMode) appContainer.classList.add('bordro-wide-active');
+    localStorage.setItem('active_suite_module', 'bordro');
+    if (typeof renderBordroModule === 'function') renderBordroModule();
   } else {
     if (modFaiz) modFaiz.style.display = 'flex';
-    if (modWallet) modWallet.style.display = 'none';
     if (itemFaiz) itemFaiz.classList.add('active');
-    if (itemWallet) itemWallet.classList.remove('active');
+    if (appContainer) appContainer.classList.remove('bordro-wide-active');
     localStorage.setItem('active_suite_module', 'faiz');
     if (typeof renderUI === 'function') renderUI();
   }
@@ -2617,6 +2632,7 @@ function deleteSubcategory(catId, subName, type) {
 // Sayfa yüklendiğinde başlat
 document.addEventListener('DOMContentLoaded', () => {
   loadWalletState();
+  loadBordroState();
   populateCategoryIconGrid();
 
   // İşlem modalı kapandığında düzenleme durumunu temizle
@@ -2635,5 +2651,1145 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedMod = localStorage.getItem('active_suite_module');
   if (savedMod === 'wallet') {
     switchMainModule('wallet');
+  } else if (savedMod === 'bordro') {
+    switchMainModule('bordro');
   }
 });
+
+// =========================================================================
+// MODÜL 3: MAAŞ & BORDRO EXCEL TABLOSU MOTORU (YATAY AY MATRİSİ)
+// Satırlar: 20 Kalem (Yemek Yardımı dahil)
+// Sütunlar: Yeniden Eskiye (En başta içinde olduğumuz ay/yıl)
+// =========================================================================
+
+const BORDRO_ROWS_DEF = [
+  { key: 'brutUcret', label: 'Brüt Ücret' },
+  { key: 'sosyalYardim', label: 'Sosyal Yardım' },
+  { key: 'ikramiyeYardimi', label: 'İkramiye Yardımı' },
+  { key: 'yolYardimi', label: 'Yol Yardımı' },
+  { key: 'yemekYardimi', label: 'Yemek Yardımı' },
+  { key: 'ekstra', label: 'Ekstra' },
+  { key: 'sgkPrimEsasKazanc', label: 'SGK Prim Esas Kazanç' },
+  { key: 'sigortaPrimi', label: 'Sigorta Primi' },
+  { key: 'topGelVerMat', label: 'Top. Gel. Ver. Mat.' },
+  { key: 'avans', label: 'Avans' },
+  { key: 'bes', label: 'BES' },
+  { key: 'asgariUcrTopMat', label: 'Asgari Ücr. Top. Mat.' },
+  { key: 'asgariUcrVergi', label: 'Asgari Ücr. Vergi' },
+  { key: 'asgariSonTop', label: 'Asgari Son. Top.' },
+  { key: 'kesGelVer', label: 'Kes. Gel. Ver.' },
+  { key: 'damgaVer', label: 'Damga Ver.' },
+  { key: 'netOdenen', label: 'Net Ödenen', highlight: 'net' },
+  { key: 'agi', label: 'Agi' },
+  { key: 'toplam', label: 'Toplam', highlight: 'total' },
+  { key: 'calismaGunuBasi', label: 'Günlük Ortalama' }
+];
+
+const BORDRO_COLUMNS = [
+  { key: 'tarih', label: 'Tarih', isDate: true },
+  ...BORDRO_ROWS_DEF
+];
+
+// Resmi Gelir Vergisi Dilimleri (Gelir Vergisi Kanunu 103. Madde Ücret Tarifesi) ve Brüt Asgari Ücretler
+// 2022 ve 2023 yıllarında 2 sefer zam yapıldığı için 1. Dönem (Ocak-Haziran) ve 2. Dönem (Temmuz-Aralık) olarak tanımlanır.
+const DEFAULT_TAX_CONFIG = {
+  2021: {
+    minWageGross: 3577.50,
+    brackets: [
+      { rate: 15, min: 0, max: 24000 },
+      { rate: 20, min: 24000, max: 53000 },
+      { rate: 27, min: 53000, max: 190000 },
+      { rate: 35, min: 190000, max: 650000 },
+      { rate: 40, min: 650000, max: null }
+    ]
+  },
+  2022: {
+    hasTwoPeriods: true,
+    minWageGross1: 5004.00,  // 1. Dönem (Ocak - Haziran 2022)
+    minWageGross2: 6471.00,  // 2. Dönem (Temmuz - Aralık 2022)
+    minWageGross: 5004.00,
+    brackets: [
+      { rate: 15, min: 0, max: 32000 },
+      { rate: 20, min: 32000, max: 70000 },
+      { rate: 27, min: 70000, max: 250000 },
+      { rate: 35, min: 250000, max: 880000 },
+      { rate: 40, min: 880000, max: null }
+    ]
+  },
+  2023: {
+    hasTwoPeriods: true,
+    minWageGross1: 10008.00, // 1. Dönem (Ocak - Haziran 2023)
+    minWageGross2: 13414.50, // 2. Dönem (Temmuz - Aralık 2023)
+    minWageGross: 10008.00,
+    brackets: [
+      { rate: 15, min: 0, max: 70000 },
+      { rate: 20, min: 70000, max: 150000 },
+      { rate: 27, min: 150000, max: 550000 },
+      { rate: 35, min: 550000, max: 1900000 },
+      { rate: 40, min: 1900000, max: null }
+    ]
+  },
+  2024: {
+    minWageGross: 20002.50,
+    brackets: [
+      { rate: 15, min: 0, max: 110000 },
+      { rate: 20, min: 110000, max: 230000 },
+      { rate: 27, min: 230000, max: 870000 },
+      { rate: 35, min: 870000, max: 3000000 },
+      { rate: 40, min: 3000000, max: null }
+    ]
+  },
+  2025: {
+    minWageGross: 26005.50,
+    brackets: [
+      { rate: 15, min: 0, max: 158000 },
+      { rate: 20, min: 158000, max: 330000 },
+      { rate: 27, min: 330000, max: 1200000 },
+      { rate: 35, min: 1200000, max: 4300000 },
+      { rate: 40, min: 4300000, max: null }
+    ]
+  },
+  2026: {
+    minWageGross: 33000.00,
+    brackets: [
+      { rate: 15, min: 0, max: 210000 },
+      { rate: 20, min: 210000, max: 450000 },
+      { rate: 27, min: 450000, max: 1600000 },
+      { rate: 35, min: 1600000, max: 5800000 },
+      { rate: 40, min: 5800000, max: null }
+    ]
+  }
+};
+
+let bordroState = { periods: {}, taxConfig: null, manualOverrides: {}, lockedMonths: {} };
+let bordroWideMode = true;
+let selectedSummaryYear = new Date().getFullYear();
+let activeTaxModalYear = new Date().getFullYear();
+
+// Ocak 2021'den mevcut yılın Aralık ayına kadar olan ayları YENİDEN ESKİYE (Azalan) sırala
+function generateBordroMonthList() {
+  const currentYear = new Date().getFullYear();
+  const startYear = 2021;
+  const list = [];
+
+  for (let y = currentYear; y >= startYear; y--) {
+    for (let m = 11; m >= 0; m--) {
+      const mStr = String(m + 1).padStart(2, '0');
+      const key = `${y}-${mStr}`;
+      const label = `${getMonthNameTR(m)} ${y}`;
+      list.push({ key, label, year: y, monthIndex: m });
+    }
+  }
+  return list;
+}
+
+// Kronolojik (Ocak 2021 -> Aralık 2026) sıralı liste (Hesaplama motoru için ileriye doğru akış)
+function generateBordroChronologicalMonthList() {
+  const currentYear = new Date().getFullYear();
+  const startYear = 2021;
+  const list = [];
+
+  for (let y = startYear; y <= currentYear; y++) {
+    for (let m = 0; m < 12; m++) {
+      const mStr = String(m + 1).padStart(2, '0');
+      const key = `${y}-${mStr}`;
+      const label = `${getMonthNameTR(m)} ${y}`;
+      list.push({ key, label, year: y, monthIndex: m });
+    }
+  }
+  return list;
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// İçinde olduğumuz ay ve sonrası mı kontrolü
+function isProjectedPeriod(periodKey) {
+  const currentKey = getCurrentMonthKey();
+  return periodKey >= currentKey;
+}
+
+function loadBordroState() {
+  try {
+    const raw = localStorage.getItem('bordro_tablo_data_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        bordroState = parsed;
+        if (!bordroState.periods) bordroState.periods = {};
+        if (!bordroState.manualOverrides) bordroState.manualOverrides = {};
+        if (!bordroState.lockedMonths) bordroState.lockedMonths = {};
+        // Toplam ve Günlük Ortalama formülsel özet alanlarıdır; açılışta eski kilitli override'ları temizle
+        if (bordroState.manualOverrides) {
+          Object.keys(bordroState.manualOverrides).forEach(k => {
+            if (bordroState.manualOverrides[k]) {
+              delete bordroState.manualOverrides[k].toplam;
+              delete bordroState.manualOverrides[k].calismaGunuBasi;
+            }
+          });
+        }
+        // Önceki -damgaVerVal formülünden kalan toplam değerlerini güncelle (Avans + Net Ödenen + AGİ)
+        if (bordroState.periods) {
+          Object.keys(bordroState.periods).forEach(k => {
+            const p = bordroState.periods[k];
+            if (p) {
+              const y = parseInt(k.split('-')[0], 10);
+              const av = Number(p.avans) || 0;
+              const net = Number(p.netOdenen) || 0;
+              const agi = Number(p.agi) || 0;
+              const dv = Number(p.damgaVer) || 0;
+              const oldDoubleDeducted = Math.round((av + net + (y === 2021 ? agi : 0) - dv) * 100) / 100;
+              if (p.toplam === oldDoubleDeducted && dv > 0) {
+                p.toplam = Math.round((av + net + (y === 2021 ? agi : 0)) * 100) / 100;
+                let days = new Date(y, parseInt(k.split('-')[1], 10), 0).getDate();
+                if (k === '2021-01') days = 7;
+                p.calismaGunuBasi = Math.round((p.toplam / (days || 30)) * 100) / 100;
+              }
+            }
+          });
+        }
+        if (!bordroState.taxConfig) {
+          bordroState.taxConfig = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG));
+        } else {
+          // Eksik veya eski 2022/2023 çift dönem tanımları varsa tamamla
+          [2021, 2022, 2023, 2024, 2025, 2026].forEach(y => {
+            if (!bordroState.taxConfig[y]) {
+              bordroState.taxConfig[y] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[y]));
+            } else if ((y === 2022 || y === 2023) && (!bordroState.taxConfig[y].minWageGross1 || !bordroState.taxConfig[y].minWageGross2)) {
+              bordroState.taxConfig[y].hasTwoPeriods = true;
+              bordroState.taxConfig[y].minWageGross1 = DEFAULT_TAX_CONFIG[y].minWageGross1;
+              bordroState.taxConfig[y].minWageGross2 = DEFAULT_TAX_CONFIG[y].minWageGross2;
+            }
+          });
+        }
+      } else {
+        initDefaultBordroState();
+      }
+    } else {
+      initDefaultBordroState();
+    }
+  } catch (e) {
+    console.error('Bordro verisi yüklenemedi:', e);
+    initDefaultBordroState();
+  }
+}
+
+function initDefaultBordroState() {
+  bordroState = {
+    periods: {},
+    manualOverrides: {},
+    lockedMonths: {},
+    taxConfig: JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG))
+  };
+  saveBordroState();
+}
+
+function saveBordroState() {
+  localStorage.setItem('bordro_tablo_data_v1', JSON.stringify(bordroState));
+}
+
+function formatBordroNum(val) {
+  const n = Number(val) || 0;
+  return new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(n);
+}
+
+function parseBordroInputNum(str) {
+  if (typeof str === 'number') return isNaN(str) ? 0 : str;
+  if (!str) return 0;
+  let s = String(str).replace(/[^\d.,-]/g, '').trim();
+  if (!s) return 0;
+  if (s.includes(',') && s.includes('.')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes(',')) {
+    s = s.replace(',', '.');
+  }
+  const num = parseFloat(s);
+  return isNaN(num) ? 0 : Math.round(num * 100) / 100;
+}
+
+// -------------------------------------------------------------------------
+// VERGİ DİLİMİ ORANI BULUCU (Madde 11 & 13)
+// Matrah hangi aralığa denk geliyorsa o aralığın oranını döner
+// -------------------------------------------------------------------------
+function getTaxRateForAmount(year, amount) {
+  if (!bordroState.taxConfig) bordroState.taxConfig = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG));
+  const yearCfg = bordroState.taxConfig[year] || bordroState.taxConfig[2026] || DEFAULT_TAX_CONFIG[2026];
+  const brackets = yearCfg.brackets || [];
+
+  for (const b of brackets) {
+    const min = Number(b.min) || 0;
+    const max = b.max !== null && b.max !== undefined && b.max !== '' ? Number(b.max) : Infinity;
+    if (amount >= min && amount < max) {
+      return Number(b.rate) || 15;
+    }
+  }
+  return 15;
+}
+
+function getMinWageGrossForYear(year, monthIndex = 0) {
+  if (!bordroState.taxConfig) bordroState.taxConfig = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG));
+  const yearCfg = bordroState.taxConfig[year] || bordroState.taxConfig[2026] || DEFAULT_TAX_CONFIG[2026];
+
+  if (yearCfg.hasTwoPeriods || year === 2022 || year === 2023) {
+    // 0..5 (Ocak-Haziran) -> 1. Dönem
+    // 6..11 (Temmuz-Aralık) -> 2. Dönem
+    if (monthIndex >= 6) {
+      return Number(yearCfg.minWageGross2 || yearCfg.minWageGross || 0);
+    } else {
+      return Number(yearCfg.minWageGross1 || yearCfg.minWageGross || 0);
+    }
+  }
+
+  return Number(yearCfg.minWageGross || 0);
+}
+
+// -------------------------------------------------------------------------
+// FORMÜL HESAPLAMA MOTORU (MADDELER 1 - 18)
+// Kronolojik sırayla (Ocak 2021 -> Ara 2026) kümülatif ve zincirleme hesaplar
+// Manuel revize edilmiş (override) değerler korunur.
+// -------------------------------------------------------------------------
+function recalculateBordroEngine(forceRecomputeAll = false) {
+  if (!bordroState.periods) bordroState.periods = {};
+  if (!bordroState.manualOverrides) bordroState.manualOverrides = {};
+  if (!bordroState.lockedMonths) bordroState.lockedMonths = {};
+
+  const chronoMonths = generateBordroChronologicalMonthList();
+
+  let prevMonthData = null;
+  let yearCumulatives = {}; // { 2021: { topGelVerMat: 0, asgariUcrStep: 0 }, ... }
+
+  chronoMonths.forEach(m => {
+    const key = m.key;
+    const year = m.year;
+    const monthIdx = m.monthIndex; // 0: Ocak, ..., 11: Aralık
+
+    if (!bordroState.periods[key]) bordroState.periods[key] = {};
+    const p = bordroState.periods[key];
+    const overrides = bordroState.manualOverrides[key] || {};
+    const isLocked = !!(bordroState.lockedMonths && bordroState.lockedMonths[key]);
+
+    // Yıl başı kümülatif sıfırlama (Her Ocak)
+    if (monthIdx === 0) {
+      yearCumulatives[year] = {
+        topGelVerMat: 0,
+        asgariUcrStep: 0
+      };
+    }
+    if (!yearCumulatives[year]) {
+      yearCumulatives[year] = { topGelVerMat: 0, asgariUcrStep: 0 };
+    }
+
+    // EĞER BU AY KULLANICI TARAFINDAN ONAYLANIP KİLİTLENDİYSE:
+    // "Otomatik Hesapla" veya başka hiçbir motor hesaplaması bu ayın rakamlarına ASLA müdahale etmez!
+    if (isLocked) {
+      yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
+      prevMonthData = p;
+      return;
+    }
+
+    if (forceRecomputeAll) {
+      delete overrides.sgkPrimEsasKazanc;
+      delete overrides.sigortaPrimi;
+      delete overrides.topGelVerMat;
+      delete overrides.avans;
+      delete overrides.bes;
+      delete overrides.asgariUcrVergi;
+      delete overrides.asgariSonTop;
+      delete overrides.kesGelVer;
+      delete overrides.damgaVer;
+      delete overrides.netOdenen;
+      delete overrides.toplam;
+      delete overrides.calismaGunuBasi;
+    }
+
+    // 1. Madde: Brüt ücret ve Sosyal yardım bir önceki aydan devredilir
+    // Eğer kullanıcı o ay için elle bir değer girmediyse (override yoksa), doğrudan bir önceki ayın değerini alır.
+    if (!overrides.brutUcret) {
+      if (prevMonthData && (Number(prevMonthData.brutUcret) || 0) > 0) {
+        p.brutUcret = Number(prevMonthData.brutUcret) || 0;
+      }
+    }
+    if (!overrides.sosyalYardim) {
+      if (prevMonthData && (Number(prevMonthData.sosyalYardim) || 0) > 0) {
+        p.sosyalYardim = Number(prevMonthData.sosyalYardim) || 0;
+      }
+    }
+
+    // 2. Madde: İkramiye 3 ayda bir (Mart: 2, Haziran: 5, Eylül: 8, Aralık: 11)
+    // Bir önceki 3 ayın brüt ücreti ortalaması kadar olur (Elle revize edilmediyse)
+    const isBonusMonth = (monthIdx === 2 || monthIdx === 5 || monthIdx === 8 || monthIdx === 11);
+    if (!overrides.ikramiyeYardimi) {
+      if (isBonusMonth) {
+        // Mart: Ocak, Şubat, Mart brüt ortalaması
+        const m1Key = `${year}-${String(monthIdx - 1).padStart(2, '0')}`;
+        const m2Key = `${year}-${String(monthIdx).padStart(2, '0')}`;
+        const b1 = bordroState.periods[m1Key] ? Number(bordroState.periods[m1Key].brutUcret) || 0 : Number(p.brutUcret) || 0;
+        const b2 = bordroState.periods[m2Key] ? Number(bordroState.periods[m2Key].brutUcret) || 0 : Number(p.brutUcret) || 0;
+        const b3 = Number(p.brutUcret) || 0;
+        p.ikramiyeYardimi = Math.round(((b1 + b2 + b3) / 3) * 100) / 100;
+      } else {
+        p.ikramiyeYardimi = 0;
+      }
+    }
+
+    // 3. Madde: Yol yardımı ve Ekstra tamamen manueldir
+    p.yolYardimi = Number(p.yolYardimi) || 0;
+    p.ekstra = Number(p.ekstra) || 0;
+
+    // 4. Madde: Yemek yardımı
+    p.yemekYardimi = Number(p.yemekYardimi) || 0;
+
+    const brutVal = Number(p.brutUcret) || 0;
+    const sosyalVal = Number(p.sosyalYardim) || 0;
+    const ikramiyeVal = Number(p.ikramiyeYardimi) || 0;
+    const yolVal = Number(p.yolYardimi) || 0;
+    const yemekVal = Number(p.yemekYardimi) || 0;
+    const ekstraVal = Number(p.ekstra) || 0;
+
+    // 5. Madde: SGK Prim Esas Kazanç = Brüt + Sosyal + İkramiye + Yol + Yemek + Ekstra
+    if (!overrides.sgkPrimEsasKazanc) {
+      p.sgkPrimEsasKazanc = Math.round((brutVal + sosyalVal + ikramiyeVal + yolVal + yemekVal + ekstraVal) * 100) / 100;
+    }
+    const sgkVal = Number(p.sgkPrimEsasKazanc) || 0;
+
+    // 6. Madde: Sigorta Primi = (SGK Prim Esas Kazanç - Yemek Yardımı) * %15
+    if (!overrides.sigortaPrimi) {
+      const sigortaBaz = Math.max(0, sgkVal - yemekVal);
+      p.sigortaPrimi = Math.round((sigortaBaz * 0.15) * 100) / 100;
+    }
+    const sigortaVal = Number(p.sigortaPrimi) || 0;
+
+    // 7. Madde: Top. Gel. Ver. Mat. = Aynı yıl önceki ay TopGelVerMat + SGK - Yemek - Sigorta
+    if (!overrides.topGelVerMat) {
+      const oncekiMatrah = yearCumulatives[year].topGelVerMat;
+      const buAykiKazancMatrahi = Math.max(0, sgkVal - yemekVal - sigortaVal);
+      p.topGelVerMat = Math.round((oncekiMatrah + buAykiKazancMatrahi) * 100) / 100;
+    }
+    yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
+    const topGelVerMatVal = Number(p.topGelVerMat) || 0;
+
+    // 8. Madde: Avans = İkramiyeli aylarda %60, İkramiyesiz aylarda %40 (Brüt ücret üzerinden)
+    if (!overrides.avans) {
+      const avansOrani = isBonusMonth ? 0.60 : 0.40;
+      p.avans = Math.round((brutVal * avansOrani) * 100) / 100;
+    }
+    const avansVal = Number(p.avans) || 0;
+
+    // 9. Madde: BES = SGK Prim Esas Kazanç * %3 (Sadece Ocak 2021 - Eylül 2024 arası, sonrasında 0)
+    if (!overrides.bes) {
+      if (key >= '2021-01' && key <= '2024-09') {
+        p.bes = Math.round((sgkVal * 0.03) * 100) / 100;
+      } else {
+        p.bes = 0;
+      }
+    }
+    const besVal = Number(p.bes) || 0;
+
+    // 10. Madde: Asgari Ücret Toplam Matrah
+    // Normal yıllarda Ocak taban değeri katlanarak artar (Ocak: 1x, Şub: 2x...)
+    // 2022 ve 2023 yıllarında iki sefer zam olduğu için:
+    // Ocak-Haziran arası Ocak taban değeriyle (1x, 2x.. 6x)
+    // Temmuz-Aralık arası Temmuz ayında belirlenen yeni taban değer eklenerek kümülatif katlanarak devam eder:
+    // Temmuz: HaziranDeğeri + 1*TemmuzTaban, Ağustos: HaziranDeğeri + 2*TemmuzTaban...
+    const ocakKey = `${year}-01`;
+    const temmuzKey = `${year}-07`;
+    const ocakMatrahTaban = bordroState.periods[ocakKey] ? (Number(bordroState.periods[ocakKey].asgariUcrTopMat) || 0) : 0;
+    const temmuzMatrahTaban = bordroState.periods[temmuzKey] ? (Number(bordroState.periods[temmuzKey].asgariUcrTopMat) || 0) : ocakMatrahTaban;
+
+    const isDoubleMinWageYear = (year === 2022 || year === 2023);
+
+    if (monthIdx === 0 && p.asgariUcrTopMat === undefined) {
+      p.asgariUcrTopMat = 0;
+    }
+
+    if (!overrides.asgariUcrTopMat && monthIdx > 0) {
+      if (isDoubleMinWageYear) {
+        if (monthIdx < 6) {
+          // 1. Dönem (Şubat - Haziran): OcakTaban * (monthIdx + 1)
+          p.asgariUcrTopMat = Math.round((ocakMatrahTaban * (monthIdx + 1)) * 100) / 100;
+        } else {
+          // 2. Dönem (Temmuz - Aralık):
+          // Haziran sonu birikmiş matrah: 6 * ocakMatrahTaban
+          // Temmuz ve sonrası eklenen kısım: (monthIdx - 5) * temmuzMatrahTaban
+          const haziranBirikmis = ocakMatrahTaban * 6;
+          const temmuzEk = temmuzMatrahTaban * (monthIdx - 5);
+          p.asgariUcrTopMat = Math.round((haziranBirikmis + temmuzEk) * 100) / 100;
+        }
+      } else {
+        // Standart Yıllar
+        p.asgariUcrTopMat = Math.round((ocakMatrahTaban * (monthIdx + 1)) * 100) / 100;
+      }
+    }
+    const asgariUcrTopMatVal = Number(p.asgariUcrTopMat) || 0;
+
+    // 11. Madde: Asgari Ücret Vergi
+    // Asgari ücret toplam matrahı hangi vergi dilimine denk geliyorsa o oranla çarpılır
+    if (!overrides.asgariUcrVergi) {
+      const asgariTaxRate = getTaxRateForAmount(year, asgariUcrTopMatVal);
+      p.asgariUcrVergi = Math.round((asgariUcrTopMatVal * (asgariTaxRate / 100)) * 100) / 100;
+    }
+
+    // 12. Madde: Asgari Son. Top. = Toplam Gelir Vergisi Matrahı - Asgari Ücret Toplam Matrah
+    if (!overrides.asgariSonTop) {
+      p.asgariSonTop = Math.round((topGelVerMatVal - asgariUcrTopMatVal) * 100) / 100;
+    }
+
+    // 13. Madde: Kes. Gel. Ver. (Kesilecek Gelir Vergisi)
+    // 11. maddenin aynısı ancak baz aldığı değer Toplam Gelir Vergisi Matrahıdır
+    if (!overrides.kesGelVer) {
+      const gelTaxRate = getTaxRateForAmount(year, topGelVerMatVal);
+      p.kesGelVer = Math.round((topGelVerMatVal * (gelTaxRate / 100)) * 100) / 100;
+    }
+    const kesGelVerVal = Number(p.kesGelVer) || 0;
+
+    // 14. Madde: Damga Vergisi = (SGK Prim Esas Kazanç - Brüt Asgari Ücret) * 0.00759
+    // Eğer SGK Prim Esas Kazanç brüt asgari ücretten küçük veya eşitse damga vergisi 0 olur.
+    if (!overrides.damgaVer || forceRecomputeAll) {
+      const brutAsgari = getMinWageGrossForYear(year, monthIdx);
+      if (sgkVal > 0) {
+        const damgaMatrahi = Math.max(0, sgkVal - brutAsgari);
+        p.damgaVer = Math.round((damgaMatrahi * 0.00759) * 100) / 100;
+      } else {
+        p.damgaVer = 0;
+      }
+    }
+    const damgaVerVal = Number(p.damgaVer) || 0;
+
+    // 15. Madde: Net Ödenen = SGK Prim Esas Kazanç - Sigorta - Avans - BES - Kes. Gel. Ver. - Damga Ver.
+    if (!overrides.netOdenen || forceRecomputeAll) {
+      p.netOdenen = Math.round((sgkVal - sigortaVal - avansVal - besVal - kesGelVerVal - damgaVerVal) * 100) / 100;
+    }
+    const netOdenenVal = Number(p.netOdenen) || 0;
+
+    // 16. Madde: Agi sadece 2021 yılında olur ve elle girilir, sonrasında 0
+    if (year !== 2021) {
+      p.agi = 0;
+    } else {
+      p.agi = Number(p.agi) || 0;
+    }
+    const agiVal = Number(p.agi) || 0;
+
+    // 17. Madde: Toplam hesabı
+    // Formül: Toplam = Avans + Net Ödenen (+ Agi sadece 2021'de)
+    if (!overrides.toplam || forceRecomputeAll) {
+      if (year === 2021) {
+        p.toplam = Math.round((avansVal + netOdenenVal + agiVal) * 100) / 100;
+      } else {
+        p.toplam = Math.round((avansVal + netOdenenVal) * 100) / 100;
+      }
+    }
+    const toplamVal = Number(p.toplam) || 0;
+
+    // 18. Madde: Günlük Ortalama (Eski adıyla Çalışma Günü Başı)
+    // Toplam / o aydaki gün sayısı (Sadece Ocak 2021'de 7'ye bölünür)
+    if (!overrides.calismaGunuBasi || forceRecomputeAll) {
+      let gunSayisi = new Date(year, monthIdx + 1, 0).getDate();
+      if (key === '2021-01') {
+        gunSayisi = 7;
+      }
+      p.calismaGunuBasi = Math.round((toplamVal / (gunSayisi || 30)) * 100) / 100;
+    }
+
+    prevMonthData = p;
+  });
+
+  saveBordroState();
+
+  if (typeof renderBordroTableBody === 'function' && document.getElementById('bordroTableBody')) {
+    const months = generateBordroMonthList();
+    renderBordroTableBody(months);
+    updateAllRowSums();
+    renderBordroSummaryCards();
+  }
+}
+
+function toggleBordroWideMode() {
+  bordroWideMode = !bordroWideMode;
+  const appContainer = document.querySelector('.app-container');
+  const btn = document.getElementById('btnBordroWideMode');
+  if (appContainer) {
+    if (bordroWideMode) appContainer.classList.add('bordro-wide-active');
+    else appContainer.classList.remove('bordro-wide-active');
+  }
+  if (btn) {
+    btn.innerHTML = bordroWideMode
+      ? '<span>⛶</span> <span class="hide-on-mobile">Daralt</span>'
+      : '<span>⛶</span> <span class="hide-on-mobile">Geniş Görünüm</span>';
+  }
+}
+
+function renderBordroModule() {
+  loadBordroState();
+  recalculateBordroEngine(false);
+
+  const months = generateBordroMonthList();
+
+  populateBordroYearSelects(months);
+  renderBordroTableHeader(months);
+  renderBordroTableBody(months);
+  renderBordroSummaryCards();
+}
+
+function populateBordroYearSelects(months) {
+  const jumpSelect = document.getElementById('selectBordroYearJump');
+  const filterSelect = document.getElementById('selectBordroFilterYear');
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from(new Set(months.map(m => m.year))).sort((a, b) => b - a);
+
+  if (jumpSelect) {
+    jumpSelect.innerHTML = years.map(y => `
+      <option value="${y}" ${y === currentYear ? 'selected' : ''}>${y} Yılı</option>
+    `).join('');
+  }
+
+  if (filterSelect) {
+    filterSelect.innerHTML = years.map(y => `
+      <option value="${y}" ${y === selectedSummaryYear ? 'selected' : ''}>${y}</option>
+    `).join('');
+  }
+}
+
+function changeBordroSummaryYear(year) {
+  selectedSummaryYear = parseInt(year, 10);
+  renderBordroSummaryCards();
+}
+
+function scrollToBordroYear(year) {
+  // Yeniden eskiye sıralı olduğu için o yılın en son ayı (Aralık) en soldadır
+  const targetKey = `${year}-12`;
+  const th = document.getElementById(`bordroHeaderMonth_${targetKey}`) || document.getElementById(`bordroHeaderMonth_${year}-01`);
+  if (th) {
+    th.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+}
+
+function scrollToCurrentMonthBordro() {
+  const currentKey = getCurrentMonthKey();
+  const th = document.getElementById(`bordroHeaderMonth_${currentKey}`);
+  if (th) {
+    th.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    th.classList.add('pulse-highlight');
+    setTimeout(() => th.classList.remove('pulse-highlight'), 1800);
+  }
+}
+
+function renderBordroTableHeader(months) {
+  const tr = document.getElementById('bordroTableHeaderRow');
+  if (!tr) return;
+
+  const currentKey = getCurrentMonthKey();
+
+  // Sol sabit başlıklar: Satır No, Bordro Kalemi, Kümülatif Toplam
+  let html = `
+    <th class="col-row-num" style="min-width: 40px; width: 40px;">#</th>
+    <th class="col-sticky-param" style="min-width: 185px; width: 185px; text-align: left;">Bordro Kalemi</th>
+    <th class="col-sticky-param-total" style="min-width: 120px; width: 120px; text-align: right;">TOPLAM</th>
+  `;
+
+  // Aylar Sağa Doğru (Yeniden Eskiye: En solda içinde olduğumuz ay/yıl)
+  months.forEach(m => {
+    const isCurrent = m.key === currentKey;
+    const isProjected = isProjectedPeriod(m.key);
+    const isLocked = !!(bordroState.lockedMonths && bordroState.lockedMonths[m.key]);
+
+    let thClass = 'bordro-month-col-th';
+    if (isCurrent) thClass += ' current-month-col';
+    if (isProjected) thClass += ' projected-month-col';
+    if (isLocked) thClass += ' month-locked-col';
+
+    html += `
+      <th id="bordroHeaderMonth_${m.key}" class="${thClass}" title="${m.label} ${isLocked ? '(Onaylandı & Kilitli)' : isProjected ? '(Tahmini Dönem)' : '(Gerçekleşen Dönem)'}">
+        <span class="bordro-month-th-year">${m.year}</span>
+        <span class="bordro-month-th-month">${getMonthNameTR(m.monthIndex)}</span>
+        ${isLocked ? '<span class="projected-tag-pill locked-tag-pill">🔒 ONAYLI</span>' : isCurrent ? '<span class="projected-tag-pill" style="background:#2563eb;color:#fff;border-color:#3b82f6;">ŞU AN</span>' : isProjected ? '<span class="projected-tag-pill">TAHMİNİ</span>' : ''}
+      </th>
+    `;
+  });
+
+  tr.innerHTML = html;
+}
+
+function renderBordroTableBody(months) {
+  const tbody = document.getElementById('bordroTableBody');
+  if (!tbody) return;
+
+  const periods = bordroState.periods || {};
+  const currentKey = getCurrentMonthKey();
+
+  const rowsHtml = BORDRO_ROWS_DEF.map((def, rIdx) => {
+    // Bu kalemin tüm aylar toplamı
+    let rowSum = 0;
+    months.forEach(m => {
+      const val = periods[m.key] ? Number(periods[m.key][def.key]) || 0 : 0;
+      rowSum += val;
+    });
+
+    let trClass = '';
+    if (def.highlight === 'net') trClass = 'bordro-highlight-net-row';
+    if (def.highlight === 'total') trClass = 'bordro-highlight-total-row';
+
+    let cellsHtml = `
+      <td class="cell-row-num">${rIdx + 1}</td>
+      <td class="cell-sticky-param" title="${def.label}">
+        <div class="bordro-param-title">${def.label}</div>
+      </td>
+      <td class="cell-sticky-param-total">
+        <strong class="bordro-row-sum-val" id="rowSum_${def.key}">${formatBordroNum(rowSum)} ₺</strong>
+      </td>
+    `;
+
+    // Aylar Sağa Doğru
+    months.forEach((m, cIdx) => {
+      const monthData = periods[m.key] || {};
+      const rawVal = monthData[def.key];
+      const hasVal = rawVal !== undefined && rawVal !== null && Number(rawVal) !== 0;
+      const displayVal = hasVal ? formatBordroNum(rawVal) : '';
+
+      const isCurrent = m.key === currentKey;
+      const isProjected = isProjectedPeriod(m.key);
+      const isLocked = !!(bordroState.lockedMonths && bordroState.lockedMonths[m.key]);
+
+      let tdClass = '';
+      if (isCurrent) tdClass += ' cell-current-month';
+      if (isProjected) tdClass += ' cell-projected-month';
+      if (isLocked) tdClass += ' cell-month-locked';
+
+      let inputClass = 'bordro-cell-input';
+      if (def.highlight === 'net') inputClass += ' highlight-net';
+      if (def.highlight === 'total') inputClass += ' highlight-total';
+      if (isLocked) inputClass += ' locked-month-input';
+
+      cellsHtml += `
+        <td class="${tdClass}">
+          <input
+            type="text"
+            class="${inputClass}"
+            data-period-key="${m.key}"
+            data-param-key="${def.key}"
+            data-row-idx="${rIdx}"
+            data-col-idx="${cIdx}"
+            value="${String(displayVal).replace(/"/g, '&quot;')}"
+            placeholder="-"
+            ${isLocked ? 'readonly tabindex="-1"' : ''}
+            onfocus="handleBordroCellFocus(this)"
+            onblur="handleBordroCellBlur(this)"
+            onkeydown="handleBordroCellKeyDown(event, this)"
+          >
+        </td>
+      `;
+    });
+
+    return `<tr class="${trClass}">${cellsHtml}</tr>`;
+  }).join('');
+
+  // Ay Onayı ve Kilit Satırı (Her Ayın Altında)
+  const lockedCount = months.filter(m => bordroState.lockedMonths && bordroState.lockedMonths[m.key]).length;
+
+  let lockRowHtml = `
+    <tr class="bordro-lock-action-row">
+      <td class="cell-row-num" style="color: #34d399; font-weight: 800; font-size: 0.85rem;">🔒</td>
+      <td class="cell-sticky-param">
+        <div class="bordro-param-title" style="color: #60a5fa; display: flex; align-items: center; justify-content: space-between;">
+          <span>Ay Onayı</span>
+          <small style="font-size: 0.65rem; color: var(--text-dim); font-weight: normal;">(Kilitle)</small>
+        </div>
+      </td>
+      <td class="cell-sticky-param-total" style="text-align: right; padding: 4px 8px;">
+        <span class="bordro-locked-summary-pill" id="bordroLockedMonthsCount">${lockedCount} / ${months.length} Onaylı</span>
+      </td>
+  `;
+
+  months.forEach(m => {
+    const isLocked = !!(bordroState.lockedMonths && bordroState.lockedMonths[m.key]);
+    const isCurrent = m.key === currentKey;
+    const isProjected = isProjectedPeriod(m.key);
+
+    let tdClass = 'cell-lock-btn-col';
+    if (isCurrent) tdClass += ' cell-current-month';
+    if (isProjected) tdClass += ' cell-projected-month';
+    if (isLocked) tdClass += ' cell-month-locked';
+
+    lockRowHtml += `
+      <td class="${tdClass}">
+        <button
+          type="button"
+          class="btn-bordro-lock ${isLocked ? 'is-locked' : 'is-unlocked'}"
+          onclick="toggleBordroMonthLock('${m.key}')"
+          title="${isLocked ? `${m.label} onaylandı ve kilitlendi. Kilidi açmak için tıklayın.` : `${m.label} verilerini onayla ve otomatik hesaplamalara karşı kilitle`}"
+        >
+          ${isLocked ? '<span>🔒</span> Onaylandı' : '<span>🔓</span> Onayla'}
+        </button>
+      </td>
+    `;
+  });
+
+  lockRowHtml += `</tr>`;
+
+  tbody.innerHTML = rowsHtml + lockRowHtml;
+}
+
+function toggleBordroMonthLock(periodKey) {
+  if (!bordroState.lockedMonths) bordroState.lockedMonths = {};
+  const currentlyLocked = !!bordroState.lockedMonths[periodKey];
+  bordroState.lockedMonths[periodKey] = !currentlyLocked;
+  saveBordroState();
+
+  const months = generateBordroMonthList();
+  renderBordroTableHeader(months);
+  renderBordroTableBody(months);
+  updateAllRowSums();
+  renderBordroSummaryCards();
+}
+
+function handleBordroCellFocus(inputEl) {
+  const periodKey = inputEl.getAttribute('data-period-key');
+  const isLocked = !!(bordroState.lockedMonths && bordroState.lockedMonths[periodKey]);
+  if (isLocked) {
+    inputEl.blur();
+    return;
+  }
+
+  const paramKey = inputEl.getAttribute('data-param-key');
+  const periods = bordroState.periods || {};
+  const num = (periods[periodKey] && periods[periodKey][paramKey] !== undefined)
+    ? Number(periods[periodKey][paramKey]) || 0
+    : 0;
+
+  inputEl.value = num === 0 ? '' : String(num).replace('.', ',');
+  inputEl.setAttribute('data-initial-val', inputEl.value.trim());
+  setTimeout(() => inputEl.select(), 10);
+}
+
+function handleBordroCellBlur(inputEl) {
+  const periodKey = inputEl.getAttribute('data-period-key');
+  const isLocked = !!(bordroState.lockedMonths && bordroState.lockedMonths[periodKey]);
+  if (isLocked) return;
+
+  const paramKey = inputEl.getAttribute('data-param-key');
+  const rawText = inputEl.value.trim();
+  const initialVal = (inputEl.getAttribute('data-initial-val') || '').trim();
+  const parsed = parseBordroInputNum(inputEl.value);
+
+  if (!bordroState.periods) bordroState.periods = {};
+  if (!bordroState.periods[periodKey]) bordroState.periods[periodKey] = {};
+  if (!bordroState.manualOverrides) bordroState.manualOverrides = {};
+  if (!bordroState.manualOverrides[periodKey]) bordroState.manualOverrides[periodKey] = {};
+
+  // Eğer kullanıcı hücreyi boş bıraktıysa override kilidini kaldır
+  if (rawText === '' || rawText === '-') {
+    delete bordroState.manualOverrides[periodKey][paramKey];
+    delete bordroState.periods[periodKey][paramKey];
+  } else {
+    // Kullanıcı hücreye bir değer girdiyse override olarak kaydet
+    bordroState.manualOverrides[periodKey][paramKey] = true;
+    bordroState.periods[periodKey][paramKey] = parsed;
+  }
+
+  // Eğer kullanıcı doğrudan Toplam veya Günlük Ortalama hücresini elle düzenlemiyorsa,
+  // bu hücrelerdeki eski override kilitlerini kaldır ki formül motoru her zaman güncel kalsın
+  if (paramKey !== 'toplam') {
+    delete bordroState.manualOverrides[periodKey].toplam;
+    delete bordroState.manualOverrides[periodKey].calismaGunuBasi;
+  }
+
+  saveBordroState();
+
+  // Formülleri tekrar çalıştırıp zincirleme etkileri güncelle
+  recalculateBordroEngine(false);
+
+  // Tabloyu ve özet kartlarını tazele
+  const months = generateBordroMonthList();
+  renderBordroTableBody(months);
+  updateAllRowSums();
+  renderBordroSummaryCards();
+}
+
+function updateAllRowSums() {
+  const periods = bordroState.periods || {};
+  BORDRO_ROWS_DEF.forEach(def => {
+    let total = 0;
+    Object.values(periods).forEach(p => {
+      if (p && p[def.key] !== undefined) {
+        total += Number(p[def.key]) || 0;
+      }
+    });
+    const sumEl = document.getElementById(`rowSum_${def.key}`);
+    if (sumEl) sumEl.textContent = `${formatBordroNum(total)} ₺`;
+  });
+}
+
+function handleBordroCellKeyDown(e, inputEl) {
+  const rIdx = parseInt(inputEl.getAttribute('data-row-idx'), 10);
+  const cIdx = parseInt(inputEl.getAttribute('data-col-idx'), 10);
+  const totalRows = BORDRO_ROWS_DEF.length;
+  const months = generateBordroMonthList();
+  const totalCols = months.length;
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    inputEl.blur();
+    if (rIdx + 1 < totalRows) focusBordroCell(rIdx + 1, cIdx);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (rIdx + 1 < totalRows) focusBordroCell(rIdx + 1, cIdx);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (rIdx - 1 >= 0) focusBordroCell(rIdx - 1, cIdx);
+  } else if (e.key === 'ArrowRight' && (inputEl.selectionStart === inputEl.value.length || inputEl.value === '')) {
+    if (cIdx + 1 < totalCols) {
+      e.preventDefault();
+      focusBordroCell(rIdx, cIdx + 1);
+    }
+  } else if (e.key === 'ArrowLeft' && inputEl.selectionStart === 0) {
+    if (cIdx - 1 >= 0) {
+      e.preventDefault();
+      focusBordroCell(rIdx, cIdx - 1);
+    }
+  } else if (e.key === 'Escape') {
+    inputEl.blur();
+  }
+}
+
+function focusBordroCell(rIdx, cIdx) {
+  const target = document.querySelector(`.bordro-cell-input[data-row-idx="${rIdx}"][data-col-idx="${cIdx}"]`);
+  if (target) target.focus();
+}
+
+// -------------------------------------------------------------------------
+// ÜST ÖZET KARTLARI (YILLIK SEÇİM VE GERÇEKLEŞEN HESAPLAMA)
+// "içinde olduğumuz yıl için kartlarda sadece gerçekleşen değerler yani
+// içinde olduğumuz aydan bir önceki aya kadar olan kısım baz alınmalı"
+// -------------------------------------------------------------------------
+function renderBordroSummaryCards() {
+  const periods = bordroState.periods || {};
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthIdx = now.getMonth(); // 0-based
+
+  const targetYear = selectedSummaryYear;
+  const isSelectedCurrentYear = (targetYear === currentYear);
+
+  // Baz alınacak ayları belirle
+  // Geçmiş yıllar için 12 ayın tamamı gerçekleşmiştir.
+  // İçinde olduğumuz yıl için: 0'dan currentMonthIdx - 1'e kadar (örneğin Ekim ise Eylül sonuna kadar)
+  const maxMonthIdx = isSelectedCurrentYear ? (currentMonthIdx - 1) : 11;
+
+  let totalBrut = 0;
+  let totalNet = 0;
+  let validMonthsCount = 0;
+
+  for (let m = 0; m <= maxMonthIdx; m++) {
+    const mStr = String(m + 1).padStart(2, '0');
+    const key = `${targetYear}-${mStr}`;
+    const p = periods[key];
+    if (p) {
+      totalBrut += Number(p.brutUcret) || 0;
+      totalNet += Number(p.netOdenen) || 0;
+    }
+    validMonthsCount++;
+  }
+
+  const avgBrut = validMonthsCount > 0 ? (totalBrut / validMonthsCount) : 0;
+  const avgNet = validMonthsCount > 0 ? (totalNet / validMonthsCount) : 0;
+
+  const elCount = document.getElementById('bordroSumCount');
+  const elBrut = document.getElementById('bordroSumBrut');
+  const elNet = document.getElementById('bordroSumNet');
+  const elAvgBrut = document.getElementById('bordroSumAvgBrut');
+  const elAvgNet = document.getElementById('bordroSumAvgNet');
+
+  if (elCount) {
+    if (validMonthsCount === 0) {
+      elCount.textContent = `${targetYear} (Henüz Veri Yok)`;
+    } else {
+      const lastMonthName = getMonthNameTR(Math.max(0, validMonthsCount - 1));
+      elCount.textContent = isSelectedCurrentYear
+        ? `Oca - ${lastMonthName} (${validMonthsCount} Ay Gerçekleşen)`
+        : `${targetYear} Tam Yıl (12 Ay)`;
+    }
+  }
+
+  if (elBrut) elBrut.textContent = formatWalletTL(totalBrut);
+  if (elNet) elNet.textContent = formatWalletTL(totalNet);
+  if (elAvgBrut) elAvgBrut.textContent = formatWalletTL(avgBrut);
+  if (elAvgNet) elAvgNet.textContent = formatWalletTL(avgNet);
+}
+
+// -------------------------------------------------------------------------
+// VERGİ DİLİMLERİ & BRÜT ASGARİ ÜCRET MODALI YÖNETİMİ
+// -------------------------------------------------------------------------
+function openTaxBracketsModal() {
+  loadBordroState();
+  if (!bordroState.taxConfig) {
+    bordroState.taxConfig = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG));
+  }
+
+  renderTaxYearTabs();
+  renderTaxBracketsForYear(activeTaxModalYear);
+
+  const modal = document.getElementById('modalTaxBrackets');
+  if (modal) modal.showModal();
+}
+
+function renderTaxYearTabs() {
+  const container = document.getElementById('taxBracketYearTabs');
+  if (!container) return;
+
+  const years = [2021, 2022, 2023, 2024, 2025, 2026];
+  container.innerHTML = years.map(y => `
+    <button type="button" class="tax-year-tab-btn ${y === activeTaxModalYear ? 'active' : ''}" onclick="selectTaxModalYear(${y})">
+      ${y} Yılı
+    </button>
+  `).join('');
+}
+
+function selectTaxModalYear(year) {
+  activeTaxModalYear = year;
+  renderTaxYearTabs();
+  renderTaxBracketsForYear(year);
+}
+
+function renderTaxBracketsForYear(year) {
+  const cfg = bordroState.taxConfig[year] || DEFAULT_TAX_CONFIG[year] || DEFAULT_TAX_CONFIG[2026];
+  const isTwoPeriodYear = (cfg.hasTwoPeriods || year === 2022 || year === 2023);
+
+  const minWageContainer = document.getElementById('taxMinWageContainer');
+  if (minWageContainer) {
+    if (isTwoPeriodYear) {
+      // Çift Asgari Ücret Alanı (1. Dönem ve 2. Dönem)
+      minWageContainer.innerHTML = `
+        <div style="background: rgba(59, 130, 246, 0.08); padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.25);">
+          <div style="font-weight: 800; color: #93c5fd; font-size: 0.82rem; margin-bottom: 8px;">
+            <span>${year} Yılı Brüt Asgari Ücretleri (Çift Dönem Zamlı)</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="inputMinWageGross1" style="font-size: 0.73rem; color: #cbd5e1;">
+                1. Dönem (Ocak - Haziran)
+              </label>
+              <div class="input-with-affix">
+                <input type="number" step="0.01" id="inputMinWageGross1" value="${Number(cfg.minWageGross1 || cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageTwoPeriodsChange(${year}, 'minWageGross1', this.value)">
+                <span class="affix">₺</span>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="inputMinWageGross2" style="font-size: 0.73rem; color: #cbd5e1;">
+                2. Dönem (Temmuz - Aralık)
+              </label>
+              <div class="input-with-affix">
+                <input type="number" step="0.01" id="inputMinWageGross2" value="${Number(cfg.minWageGross2 || cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageTwoPeriodsChange(${year}, 'minWageGross2', this.value)">
+                <span class="affix">₺</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Tek Asgari Ücret Alanı
+      minWageContainer.innerHTML = `
+        <div class="form-group" style="background: rgba(59, 130, 246, 0.08); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.25); margin-bottom: 0;">
+          <label for="inputMinWageGross" style="font-weight: 700; color: #93c5fd; font-size: 0.8rem; display: flex; justify-content: space-between;">
+            <span>${year} Yılı Brüt Asgari Ücret Tutarı:</span>
+            <small style="color: var(--text-dim); font-weight: normal;">Damga Vergisi Muafiyeti İçin</small>
+          </label>
+          <div class="input-with-affix" style="margin-top: 4px;">
+            <input type="number" step="0.01" id="inputMinWageGross" value="${Number(cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageChange(this.value)">
+            <span class="affix">₺</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  const tbody = document.getElementById('taxBracketsTableBody');
+  if (!tbody) return;
+
+  const brackets = cfg.brackets || [];
+  tbody.innerHTML = brackets.map((b, idx) => `
+    <tr>
+      <td style="text-align: left; font-weight: 800; color: #fbbf24; padding: 6px 10px;">
+        %${b.rate}
+      </td>
+      <td style="padding: 4px 6px;">
+        <input
+          type="number"
+          step="1"
+          class="tax-bracket-input"
+          value="${b.min !== null && b.min !== undefined ? b.min : ''}"
+          placeholder="0"
+          onchange="handleBracketLimitChange(${year}, ${idx}, 'min', this.value)"
+        >
+      </td>
+      <td style="padding: 4px 6px;">
+        <input
+          type="number"
+          step="1"
+          class="tax-bracket-input"
+          value="${b.max !== null && b.max !== undefined ? b.max : ''}"
+          placeholder="Sınırsız (Üst dilim)"
+          onchange="handleBracketLimitChange(${year}, ${idx}, 'max', this.value)"
+        >
+      </td>
+    </tr>
+  `).join('');
+}
+
+function handleTaxMinWageTwoPeriodsChange(year, field, val) {
+  const num = parseFloat(val);
+  if (!bordroState.taxConfig[year]) {
+    bordroState.taxConfig[year] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[year] || DEFAULT_TAX_CONFIG[2026]));
+  }
+  bordroState.taxConfig[year][field] = isNaN(num) ? 0 : Math.round(num * 100) / 100;
+  bordroState.taxConfig[year].hasTwoPeriods = true;
+  saveBordroState();
+  recalculateBordroEngine(false);
+  renderBordroModule();
+}
+
+function handleTaxMinWageChange(val) {
+  const num = parseFloat(val);
+  if (!bordroState.taxConfig[activeTaxModalYear]) {
+    bordroState.taxConfig[activeTaxModalYear] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[activeTaxModalYear] || DEFAULT_TAX_CONFIG[2026]));
+  }
+  bordroState.taxConfig[activeTaxModalYear].minWageGross = isNaN(num) ? 0 : Math.round(num * 100) / 100;
+  saveBordroState();
+  recalculateBordroEngine(false);
+  renderBordroModule();
+}
+
+function handleBracketLimitChange(year, index, field, val) {
+  if (!bordroState.taxConfig[year]) {
+    bordroState.taxConfig[year] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[year] || DEFAULT_TAX_CONFIG[2026]));
+  }
+  const brackets = bordroState.taxConfig[year].brackets;
+  if (!brackets || !brackets[index]) return;
+
+  if (val === '' || val === null || val === undefined) {
+    brackets[index][field] = (field === 'max') ? null : 0;
+  } else {
+    brackets[index][field] = parseFloat(val) || 0;
+  }
+
+  saveBordroState();
+  recalculateBordroEngine(false);
+  renderBordroModule();
+}
+
+function resetTaxBracketsToOfficialDefaults() {
+  if (confirm(`${activeTaxModalYear} yılı için resmi varsayılan vergi dilimleri ve brüt asgari ücret yüklensin mi?`)) {
+    bordroState.taxConfig[activeTaxModalYear] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[activeTaxModalYear]));
+    saveBordroState();
+    renderTaxBracketsForYear(activeTaxModalYear);
+    recalculateBordroEngine(false);
+    renderBordroModule();
+  }
+}
+
+
+

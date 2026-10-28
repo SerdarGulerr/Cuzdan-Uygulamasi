@@ -262,10 +262,90 @@ function exportDataToExcel() {
     XLSX.utils.book_append_sheet(wb, wsRate, 'Faiz_Oranları_Geçmişi');
   }
 
+  // ==========================================
+  // SAYFA 6: Maaş & Bordro Tablosu (Yatay Matris: Satırlar Kalem, Sütunlar Aylar)
+  // ==========================================
+  if (typeof bordroState === 'undefined' && typeof loadBordroState === 'function') {
+    loadBordroState();
+  }
+  if (typeof BORDRO_ROWS_DEF !== 'undefined' && typeof generateBordroMonthList === 'function') {
+    const months = generateBordroMonthList();
+    const periods = (bordroState && bordroState.periods) || {};
+
+    const bordroHeaders = ['Bordro Kalemi', 'Toplam (TL)', ...months.map(m => m.label)];
+    const bordroRows = [];
+
+    BORDRO_ROWS_DEF.forEach(def => {
+      let rowSum = 0;
+      months.forEach(m => {
+        const val = periods[m.key] ? Number(periods[m.key][def.key]) || 0 : 0;
+        rowSum += val;
+      });
+
+      const rowArr = [def.label, rowSum];
+      months.forEach(m => {
+        const val = periods[m.key] ? Number(periods[m.key][def.key]) || 0 : 0;
+        rowArr.push(val);
+      });
+      bordroRows.push(rowArr);
+    });
+
+    const wsBordro = XLSX.utils.aoa_to_sheet([bordroHeaders, ...bordroRows]);
+    wsBordro['!cols'] = [
+      { wch: 26 }, // Kalem adı
+      { wch: 16 }, // Toplam
+      ...months.map(() => ({ wch: 14 })) // Aylar
+    ];
+    XLSX.utils.book_append_sheet(wb, wsBordro, 'Maaş_Bordro_Tablosu');
+  }
+
   // Dosyayı İndir
   const todayStr = getTodayDateString ? getTodayDateString() : new Date().toISOString().split('T')[0];
   const fileName = `AileFinans_Veriler_Sablon_${todayStr}.xlsx`;
   downloadExcelWorkbook(wb, fileName);
+}
+
+// --- Sadece Maaş & Bordro Tablosunu Excel (.xlsx) Olarak İndirme ---
+function exportBordroOnlyToExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Excel modülü (XLSX) yüklenemedi. Lütfen sayfayı yenileyin.');
+    return;
+  }
+  if (typeof loadBordroState === 'function' && (!bordroState || !bordroState.periods)) {
+    loadBordroState();
+  }
+  const wb = XLSX.utils.book_new();
+  const months = generateBordroMonthList();
+  const periods = (bordroState && bordroState.periods) || {};
+
+  const bordroHeaders = ['Bordro Kalemi', 'Toplam (TL)', ...months.map(m => m.label)];
+  const bordroRows = [];
+
+  BORDRO_ROWS_DEF.forEach(def => {
+    let rowSum = 0;
+    months.forEach(m => {
+      const val = periods[m.key] ? Number(periods[m.key][def.key]) || 0 : 0;
+      rowSum += val;
+    });
+
+    const rowArr = [def.label, rowSum];
+    months.forEach(m => {
+      const val = periods[m.key] ? Number(periods[m.key][def.key]) || 0 : 0;
+      rowArr.push(val);
+    });
+    bordroRows.push(rowArr);
+  });
+
+  const wsBordro = XLSX.utils.aoa_to_sheet([bordroHeaders, ...bordroRows]);
+  wsBordro['!cols'] = [
+    { wch: 26 },
+    { wch: 16 },
+    ...months.map(() => ({ wch: 14 }))
+  ];
+  XLSX.utils.book_append_sheet(wb, wsBordro, 'Maaş_Bordro_Tablosu');
+
+  const todayStr = typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0];
+  downloadExcelWorkbook(wb, `Maas_Bordro_Tablosu_${todayStr}.xlsx`);
 }
 
 // --- Excel Dosyası İndirme Yönlendiricisi (Web / PC / Native APK) ---
@@ -347,7 +427,9 @@ function importDataFromExcel(event) {
         accountsUpdated: 0,
         faizAdded: 0,
         faizUpdated: 0,
-        newCategories: 0
+        newCategories: 0,
+        bordroAdded: 0,
+        bordroUpdated: 0
       };
 
       // ----------------------------------------------------
@@ -679,13 +761,83 @@ function importDataFromExcel(event) {
       }
 
       // ----------------------------------------------------
+      // 4.5 ADIM: Maaş & Bordro Sekmesini İşleme (Yatay Matris veya Sütun Formatı)
+      // ----------------------------------------------------
+      let bordroSheetName = wb.SheetNames.find(s =>
+        s.toLowerCase().includes('bordro') || s.toLowerCase().includes('maaş') || s.toLowerCase().includes('maas')
+      );
+
+      if (bordroSheetName && typeof BORDRO_ROWS_DEF !== 'undefined') {
+        if (typeof loadBordroState === 'function' && (!bordroState || !bordroState.periods)) {
+          loadBordroState();
+        }
+        if (!bordroState.periods) bordroState.periods = {};
+
+        const bSheet = wb.Sheets[bordroSheetName];
+        const rawBordroRows = XLSX.utils.sheet_to_json(bSheet);
+        const months = typeof generateBordroMonthList === 'function' ? generateBordroMonthList() : [];
+
+        // Durum A: Yatay Matris Formatı (Her satır bir kalem, sütunlar aylar)
+        const isMatrixFormat = rawBordroRows.some(r => 'Bordro Kalemi' in r);
+
+        if (isMatrixFormat) {
+          rawBordroRows.forEach(row => {
+            const labelStr = (row['Bordro Kalemi'] || '').toString().trim();
+            const paramDef = BORDRO_ROWS_DEF.find(p => p.label.toLowerCase() === labelStr.toLowerCase());
+            if (!paramDef) return;
+
+            months.forEach(m => {
+              if (row[m.label] !== undefined) {
+                const val = parseExcelNumber(row[m.label]);
+                if (val !== 0) {
+                  if (!bordroState.periods[m.key]) bordroState.periods[m.key] = {};
+                  bordroState.periods[m.key][paramDef.key] = val;
+                  stats.bordroUpdated++;
+                }
+              }
+            });
+          });
+        } else {
+          // Durum B: Eski dikey format (Her satır bir ay/tarih, sütunlar kalemler)
+          rawBordroRows.forEach(row => {
+            const tarihRaw = row['Tarih'] || row['Dönem'];
+            if (!tarihRaw) return;
+
+            let periodKey = null;
+            const tStr = String(tarihRaw).trim();
+            const foundMonth = months.find(m => m.label.toLowerCase() === tStr.toLowerCase() || m.key === tStr);
+            if (foundMonth) {
+              periodKey = foundMonth.key;
+            } else {
+              const parsedD = parseExcelDate(tarihRaw);
+              if (parsedD && parsedD.length >= 7) {
+                periodKey = parsedD.substring(0, 7);
+              }
+            }
+
+            if (periodKey) {
+              if (!bordroState.periods[periodKey]) bordroState.periods[periodKey] = {};
+              BORDRO_ROWS_DEF.forEach(def => {
+                if (row[def.label] !== undefined) {
+                  bordroState.periods[periodKey][def.key] = parseExcelNumber(row[def.label]);
+                  stats.bordroUpdated++;
+                }
+              });
+            }
+          });
+        }
+      }
+
+      // ----------------------------------------------------
       // 5. ADIM: Verileri Kaydet ve UI'ı Güncelle
       // ----------------------------------------------------
       if (typeof saveWalletState === 'function') saveWalletState();
       if (typeof saveState === 'function') saveState();
+      if (typeof saveBordroState === 'function') saveBordroState();
 
       if (typeof renderWalletUI === 'function') renderWalletUI();
       if (typeof renderUI === 'function') renderUI();
+      if (typeof renderBordroModule === 'function') renderBordroModule();
       if (typeof renderSettings === 'function') renderSettings();
 
       // Bilgilendirme Raporu Göster
@@ -702,6 +854,9 @@ function importDataFromExcel(event) {
       }
       if (stats.faizAdded > 0 || stats.faizUpdated > 0) {
         msg += `• Faiz/Kasa Hareketleri: ${stats.faizAdded} eklendi, ${stats.faizUpdated} güncellendi.\n`;
+      }
+      if (stats.bordroAdded > 0 || stats.bordroUpdated > 0) {
+        msg += `• Maaş & Bordro Tablosu: ${stats.bordroAdded} satır eklendi, ${stats.bordroUpdated} satır güncellendi.\n`;
       }
 
       alert(msg);

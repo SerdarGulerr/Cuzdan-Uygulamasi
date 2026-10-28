@@ -12,8 +12,8 @@
   <title>Aile Finansı</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
-  <link rel="stylesheet" href="style.css?v=20261028_v15">
-  <link rel="stylesheet" href="wallet.css?v=20261028_v15">
+  <link rel="stylesheet" href="style.css?v=20261028_v17">
+  <link rel="stylesheet" href="wallet.css?v=20261028_v17">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -52,6 +52,15 @@
           <div class="drawer-item-desc">Harcamalar, takvim, bütçe & hesaplar</div>
         </div>
         <span class="drawer-badge new-tag">Yeni</span>
+      </button>
+
+      <button type="button" class="drawer-item" id="drawerItemBordro" onclick="switchMainModule('bordro')">
+        <div class="drawer-item-icon icon-bordro" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.1)); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">📊</div>
+        <div class="drawer-item-text">
+          <div class="drawer-item-title">Maaş & Bordro Tablosu</div>
+          <div class="drawer-item-desc">20 sütunlu Excel tarzı bordro çizelgesi</div>
+        </div>
+        <span class="drawer-badge new-tag" style="background: rgba(245, 158, 11, 0.25); color: #fbbf24; border-color: rgba(245, 158, 11, 0.35);">Tablo</span>
       </button>
 
       <div class="drawer-section-title" style="margin-top: 14px;">Genel Ayarlar</div>
@@ -385,6 +394,109 @@
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       </button>
     </div><!-- End #moduleWallet -->
+
+    <!-- MODÜL 3: MAAŞ & BORDRO TABLOSU (EXCEL TARZI 20 SÜTUNLU TABLO) -->
+    <div id="moduleBordro" class="app-module" style="display: none; flex-direction: column; gap: 14px;">
+      <!-- Bordro Header -->
+      <header class="wallet-header">
+        <div class="wallet-brand">
+          <button type="button" class="btn-drawer-toggle" onclick="openDrawer()" title="Uygulama Menüsü" aria-label="Menü">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div>
+            <h1 style="font-size: 1.2rem; font-weight: 800; color: #fff; margin: 0;">Maaş & Bordro Matrisi</h1>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Ocak 2021'den Güncel Yıl Sonuna Kadar Aylık Matris</p>
+          </div>
+        </div>
+        <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn-bordro-wide-toggle" id="btnBordroTaxBrackets" onclick="openTaxBracketsModal()" title="Gelir Vergisi Dilimleri & Asgari Ücret Tanımları" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            <span>⚖️</span> <span>Vergi Dilimleri</span>
+          </button>
+          <button type="button" class="btn-bordro-wide-toggle" id="btnBordroWideMode" onclick="toggleBordroWideMode()" title="Tam Ekran / Geniş Tablo Görünümü">
+            <span>⛶</span> <span class="hide-on-mobile">Geniş Görünüm</span>
+          </button>
+          <button type="button" class="icon-btn" onclick="openAppSettings()" title="Ayarlar & Araçlar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Bordro Özet Kartları (Yıllık Dönem Seçimli, Gerçekleşen Değerler) -->
+      <section class="bordro-summary-strip">
+        <div class="bordro-sum-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="b-sum-lbl">Dönem (Yıl)</span>
+            <select id="selectBordroFilterYear" class="bordro-year-picker-inline" onchange="changeBordroSummaryYear(this.value)">
+              <!-- JS doldurur -->
+            </select>
+          </div>
+          <strong class="b-sum-val" id="bordroSumCount" style="font-size: 0.84rem;">-</strong>
+        </div>
+        <div class="bordro-sum-box">
+          <span class="b-sum-lbl">Toplam Brüt Ücret</span>
+          <strong class="b-sum-val" id="bordroSumBrut">0,00 ₺</strong>
+        </div>
+        <div class="bordro-sum-box">
+          <span class="b-sum-lbl">Toplam Net Ücret</span>
+          <strong class="b-sum-val emerald" id="bordroSumNet">0,00 ₺</strong>
+        </div>
+        <div class="bordro-sum-box">
+          <span class="b-sum-lbl">Ortalama Brüt Ücret</span>
+          <strong class="b-sum-val" id="bordroSumAvgBrut">0,00 ₺</strong>
+        </div>
+        <div class="bordro-sum-box">
+          <span class="b-sum-lbl">Ortalama Net Ücret</span>
+          <strong class="b-sum-val amber" id="bordroSumAvgNet">0,00 ₺</strong>
+        </div>
+      </section>
+
+      <!-- Excel Toolbar (İşlem Çubuğu) -->
+      <div class="bordro-toolbar">
+        <div class="bordro-toolbar-left" style="display: flex; align-items: center; gap: 8px;">
+          <!-- Yıla Hızlı Git -->
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label for="selectBordroYearJump" style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700;">Yıla Git:</label>
+            <select id="selectBordroYearJump" class="app-select" style="padding: 5px 10px; font-size: 0.78rem; width: auto;" onchange="scrollToBordroYear(this.value)">
+              <!-- JS doldurur -->
+            </select>
+          </div>
+          <button type="button" class="btn-bordro-secondary" onclick="scrollToCurrentMonthBordro()">
+            <span>🎯</span> İçinde Olduğumuz Ay
+          </button>
+          <button type="button" class="btn-bordro-primary" onclick="recalculateBordroEngine(true)" title="Tüm formülleri sıfırdan hesapla ve boş/tahmini alanları otomatik doldur">
+            <span>⚡</span> Otomatik Hesapla
+          </button>
+        </div>
+        <div class="bordro-toolbar-right">
+          <button type="button" class="btn-bordro-excel" onclick="exportBordroOnlyToExcel()" title="Sadece Bu Bordro Tablosunu Excel (.xlsx) Olarak İndir">
+            <span>📥</span> Excel İndir
+          </button>
+          <label class="btn-bordro-excel upload" title="Excel (.xlsx) Dosyasından Bordro Tablosunu Yükle">
+            <span>📤</span> Excel Yükle
+            <input type="file" accept=".xlsx, .xls" onchange="importDataFromExcel(event)" style="display:none;">
+          </label>
+        </div>
+      </div>
+
+      <!-- Bilgi İpucu -->
+      <div class="bordro-hint-bar">
+        <span>💡 <b>Yeniden Eskiye Sıralama:</b> En solda içinde olduğumuz ay yer alır. <b>Turuncu/sarı arka planlı</b> aylar içinde olduğumuz ay ve sonrası (tahmini) dönemlerdir. Rakamlar otomatik formüllerle üretilir ancak hücreye dokunarak elle revize edebilirsiniz.</span>
+      </div>
+
+      <!-- Excel Benzeri Yatay & Dikey Kaydırılabilir Tablo Alanı -->
+      <div class="bordro-sheet-wrapper" id="bordroSheetWrapper">
+        <table class="bordro-excel-table bordro-transposed-table" id="bordroExcelTable">
+          <thead>
+            <tr id="bordroTableHeaderRow">
+              <!-- JS ile Tarih/Ay sütun başlıkları oluşturulur -->
+            </tr>
+          </thead>
+          <tbody id="bordroTableBody">
+            <!-- JS ile 19 kalem satırı ve her ayın hücresi oluşturulur -->
+          </tbody>
+        </table>
+      </div>
+    </div><!-- End #moduleBordro -->
   </div><!-- End .app-container -->
 
   <!-- MODAL 1: Para Ekle / Çek Modalı -->
@@ -691,6 +803,11 @@
 
       <form id="formWalletTx" onsubmit="handleWalletTxSubmit(event)">
         <div class="form-group">
+          <label id="lblWalletTxDate">Tarih</label>
+          <input type="date" id="inputWalletTxDate" required onchange="updateInstallmentCalculation()">
+        </div>
+
+        <div class="form-group">
           <label>Tutar (₺)</label>
           <div class="input-with-affix">
             <input type="number" id="inputWalletAmount" step="0.01" min="0.01" placeholder="0,00" required autofocus oninput="updateInstallmentCalculation()">
@@ -787,11 +904,6 @@
 
         <!-- Alt Başlık (Subcategory) Seçici -->
         <div class="form-group" id="walletSubCatSection" style="display: none;"></div>
-
-        <div class="form-group">
-          <label id="lblWalletTxDate">Tarih</label>
-          <input type="date" id="inputWalletTxDate" required onchange="updateInstallmentCalculation()">
-        </div>
 
         <div class="form-group">
           <label>Açıklama / Not (İsteğe bağlı)</label>
@@ -1079,6 +1191,58 @@
     </div>
   </dialog>
 
+  <!-- MODAL: VERGİ DİLİMLERİ VE ASGARİ ÜCRET MATRAHI DÜZENLEME -->
+  <dialog class="app-modal" id="modalTaxBrackets">
+    <div class="modal-content" style="max-width: 620px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">⚖️</span>
+          <h3 style="margin: 0;">Gelir Vergisi Dilimleri & Brüt Asgari Ücret</h3>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('modalTaxBrackets')">&times;</button>
+      </div>
+
+      <p class="modal-desc" style="margin-bottom: 12px; font-size: 0.78rem; line-height: 1.45;">
+        Yıllara göre gelir vergisi dilim sınırlarını ve o yılın geçerli <b>Brüt Asgari Ücret</b> tutarını belirleyin. Bordro hesaplamasında oranlar bu sınırlara göre otomatik uygulanır.
+      </p>
+
+      <!-- Yıl Seçim Butonları -->
+      <div class="tax-year-tabs" id="taxBracketYearTabs">
+        <!-- JS ile 2021, 2022, ..., 2026 butonları oluşturulur -->
+      </div>
+
+      <!-- Seçili Yılın Brüt Asgari Ücret Alanı -->
+      <div id="taxMinWageContainer" style="margin: 14px 0 12px 0;">
+        <!-- Tek veya Çift Asgari Ücret Alanı JS tarafından doldurulur -->
+      </div>
+
+      <!-- Vergi Dilimleri Tablosu (5 Satır: %15, %20, %27, %35, %40) -->
+      <div class="table-responsive" style="margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+        <table class="report-table" style="width: 100%; text-align: right; font-size: 0.8rem;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 8px 10px;">Vergi Oranı</th>
+              <th style="text-align: right; padding: 8px 10px;">Alt Sınır (₺)</th>
+              <th style="text-align: right; padding: 8px 10px;">Üst Sınır (₺)</th>
+            </tr>
+          </thead>
+          <tbody id="taxBracketsTableBody">
+            <!-- JS ile %15, %20, %27, %35, %40 satırları oluşturulur -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+        <button type="button" class="btn-secondary-full" onclick="resetTaxBracketsToOfficialDefaults()" style="width: auto; padding: 8px 14px; font-size: 0.78rem;">
+          🔄 Resmi Varsayılanları Yükle
+        </button>
+        <button type="button" class="btn-submit" onclick="closeModal('modalTaxBrackets')">
+          Tamam
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     // PWA Service Worker & Localhost Önbellek Yönetimi
     const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -1107,9 +1271,9 @@
     }
   </script>
   <script src="xlsx.full.min.js"></script>
-  <script src="excel-sync.js?v=20261027_v12"></script>
+  <script src="excel-sync.js?v=20261028_v17"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
-  <script src="app.js?v=20261028_v15"></script>
-  <script src="wallet.js?v=20261028_v15"></script>
+  <script src="app.js?v=20261028_v17"></script>
+  <script src="wallet.js?v=20261028_v17"></script>
 </body>
 </html>

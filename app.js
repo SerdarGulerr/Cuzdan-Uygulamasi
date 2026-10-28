@@ -640,9 +640,10 @@ function deleteMember(memberId) {
   }
 }
 
-// Backup & Restore (Tüm Sistem - Faiz + Cüzdan Tek Dosyada)
+// Backup & Restore (Tüm Sistem - Faiz + Cüzdan + Bordro Tek Dosyada)
 function exportDataBackup() {
   let currentWallet = null;
+  let currentBordro = null;
   try {
     if (typeof walletState !== 'undefined' && walletState) {
       currentWallet = walletState;
@@ -650,14 +651,21 @@ function exportDataBackup() {
       const rawW = localStorage.getItem('cuzdan_manager_data_v1');
       if (rawW) currentWallet = JSON.parse(rawW);
     }
+    if (typeof bordroState !== 'undefined' && bordroState) {
+      currentBordro = bordroState;
+    } else {
+      const rawB = localStorage.getItem('bordro_tablo_data_v1');
+      if (rawB) currentBordro = JSON.parse(rawB);
+    }
   } catch(e) {}
 
   const masterBackup = {
     appName: "AileFinansPortali",
-    version: 2,
+    version: 3,
     exportDate: new Date().toISOString(),
     faizData: appState,
-    walletData: currentWallet
+    walletData: currentWallet,
+    bordroData: currentBordro
   };
 
   const jsonText = JSON.stringify(masterBackup, null, 2);
@@ -691,8 +699,9 @@ function importDataBackup(e) {
       const imported = JSON.parse(evt.target.result);
       let faizRestored = false;
       let walletRestored = false;
+      let bordroRestored = false;
 
-      // 1. Yeni sürüm Master Backup (Faiz + Cüzdan birlikte)
+      // 1. Yeni sürüm Master Backup (Faiz + Cüzdan + Bordro birlikte)
       if (imported.faizData && imported.faizData.members) {
         appState = imported.faizData;
         saveState();
@@ -704,6 +713,13 @@ function importDataBackup(e) {
         }
         localStorage.setItem('cuzdan_manager_data_v1', JSON.stringify(imported.walletData));
         walletRestored = true;
+      }
+      if (imported.bordroData && Array.isArray(imported.bordroData.rows)) {
+        if (typeof bordroState !== 'undefined') {
+          bordroState = imported.bordroData;
+        }
+        localStorage.setItem('bordro_tablo_data_v1', JSON.stringify(imported.bordroData));
+        bordroRestored = true;
       }
 
       // 2. Eski sürüm sadece Faiz yedeği
@@ -722,15 +738,19 @@ function importDataBackup(e) {
         walletRestored = true;
       }
 
-      if (faizRestored || walletRestored) {
+      if (faizRestored || walletRestored || bordroRestored) {
         renderUI();
-        if (typeof renderWalletModule === 'function') {
-          renderWalletModule();
+        if (typeof renderWalletUI === 'function') {
+          renderWalletUI();
+        }
+        if (typeof renderBordroModule === 'function') {
+          renderBordroModule();
         }
         renderSettings();
         alert('✓ Yedek başarıyla geri yüklendi!\n' + 
               (faizRestored ? '• Faiz ve Kasa verileri aktarıldı.\n' : '') +
-              (walletRestored ? '• Gelir & Gider Cüzdan verileri aktarıldı.' : ''));
+              (walletRestored ? '• Gelir & Gider Cüzdan verileri aktarıldı.\n' : '') +
+              (bordroRestored ? '• Maaş & Bordro Tablosu verileri aktarıldı.' : ''));
       } else {
         alert('Geçersiz veya bozuk yedek dosyası formatı!');
       }
@@ -785,6 +805,7 @@ async function clearCookiesAndSiteData() {
     // 1. Kullanıcının girdiği finansal verileri garantiye al (Yedekle)
     const backupFaiz = localStorage.getItem('faiz_takip_data_v1');
     const backupWallet = localStorage.getItem('cuzdan_manager_data_v1');
+    const backupBordro = localStorage.getItem('bordro_tablo_data_v1');
     const backupActiveMod = localStorage.getItem('active_suite_module');
 
     // 2. Çerezleri (Cookies) temizle
@@ -812,6 +833,7 @@ async function clearCookiesAndSiteData() {
     // 6. Finansal verilerin localStorage'da eksiksiz durduğundan emin ol
     if (backupFaiz) localStorage.setItem('faiz_takip_data_v1', backupFaiz);
     if (backupWallet) localStorage.setItem('cuzdan_manager_data_v1', backupWallet);
+    if (backupBordro) localStorage.setItem('bordro_tablo_data_v1', backupBordro);
     if (backupActiveMod) localStorage.setItem('active_suite_module', backupActiveMod);
 
     // 7. Kullanıcıya bildirim ver ve taze sayfaya yönlendir

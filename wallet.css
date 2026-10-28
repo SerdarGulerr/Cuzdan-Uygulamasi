@@ -2439,4 +2439,672 @@
   font-weight: 700;
 }
 
+/* ===================================================
+   MODÜL 3: MAAŞ & BORDRO EXCEL TABLOSU (YATAY AY MATRİSİ)
+   =================================================== */
+
+/* Bordro modülü aktifken masaüstünde geniş tablo görünümü */
+.app-container.bordro-wide-active {
+  max-width: 98vw;
+  transition: max-width 0.25s ease;
+}
+
+.btn-bordro-wide-toggle {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 7px 11px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-bordro-wide-toggle:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none;
+  }
+}
+
+/* Bordro Özet Kartları */
+.bordro-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .bordro-summary-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .bordro-summary-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.bordro-year-picker-inline {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fbbf24;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bordro-year-picker-inline option {
+  background: #0f172a;
+  color: #fff;
+}
+
+/* Tahmini (İçinde Olduğumuz Ay ve Sonrası) Vurgu Stilleri */
+.bordro-month-col-th.projected-month-col {
+  background: #3b280c !important;
+  border-bottom: 2px solid #f59e0b !important;
+}
+
+.bordro-month-col-th.projected-month-col .bordro-month-th-year {
+  color: #fbbf24 !important;
+}
+
+.bordro-month-col-th.projected-month-col .bordro-month-th-month {
+  color: #fef08a !important;
+}
+
+.projected-tag-pill {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  background: rgba(245, 158, 11, 0.28);
+  color: #fbbf24;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.cell-projected-month {
+  background: rgba(245, 158, 11, 0.045);
+}
+
+.cell-projected-month input {
+  color: #fef08a;
+}
+
+.cell-projected-month input:focus {
+  background: #1f1609;
+}
+
+/* Vergi Dilimleri Modal Sekmeleri */
+.tax-year-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.tax-year-tab-btn {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.tax-year-tab-btn:hover {
+  background: var(--bg-card-hover);
+  color: #fff;
+}
+
+.tax-year-tab-btn.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #0b1120;
+  font-weight: 800;
+}
+
+.tax-bracket-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: right;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.tax-bracket-input:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tax-bracket-input:focus {
+  border-color: #f59e0b;
+  background: #09101d;
+}
+
+.bordro-sum-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.b-sum-lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.b-sum-val {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.b-sum-val.emerald {
+  color: var(--emerald);
+}
+
+.b-sum-val.amber {
+  color: #fbbf24;
+}
+
+/* Bordro Toolbar */
+.bordro-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.bordro-toolbar-left,
+.bordro-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-bordro-secondary {
+  background: rgba(59, 130, 246, 0.14);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-bordro-secondary:hover {
+  background: rgba(59, 130, 246, 0.24);
+  color: #fff;
+}
+
+.btn-bordro-excel {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-bordro-excel:hover {
+  background: rgba(16, 185, 129, 0.22);
+  color: #fff;
+}
+
+.btn-bordro-excel.upload {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+}
+
+.btn-bordro-excel.upload:hover {
+  background: rgba(168, 85, 247, 0.24);
+  color: #fff;
+}
+
+.bordro-hint-bar {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  padding: 8px 12px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+
+/* Excel Spreadsheet Wrapper */
+.bordro-sheet-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 75vh;
+  background: #0b1120;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bordro-excel-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sütun Başlıkları (Sticky Header) */
+.bordro-excel-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #172136;
+  color: #e2e8f0;
+  font-weight: 800;
+  font-size: 0.73rem;
+  padding: 8px 10px;
+  border-bottom: 2px solid rgba(245, 158, 11, 0.45);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  white-space: nowrap;
+  text-align: right;
+  user-select: none;
+}
+
+/* Sol Sabit Başlıklar */
+.bordro-excel-table thead th.col-row-num {
+  position: sticky;
+  left: 0;
+  z-index: 32;
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+  background: #111827;
+  color: var(--text-dim);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.bordro-excel-table thead th.col-sticky-param {
+  position: sticky;
+  left: 40px;
+  z-index: 31;
+  text-align: left;
+  min-width: 175px;
+  background: #172136;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.bordro-excel-table thead th.col-sticky-param-total {
+  position: sticky;
+  left: 215px;
+  z-index: 30;
+  text-align: right;
+  min-width: 120px;
+  background: #1a253c;
+  color: #fbbf24;
+  border-right: 2px solid rgba(245, 158, 11, 0.4);
+}
+
+/* Ay Sütun Başlıkları */
+.bordro-month-col-th {
+  min-width: 115px;
+  text-align: right;
+  padding: 8px 12px;
+}
+
+.bordro-month-th-year {
+  display: block;
+  font-size: 0.62rem;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.bordro-month-th-month {
+  display: block;
+  font-size: 0.77rem;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.bordro-month-col-th.current-month-col {
+  background: #1e3a8a !important;
+  border-bottom-color: #60a5fa !important;
+}
+
+.bordro-month-col-th.current-month-col .bordro-month-th-year {
+  color: #93c5fd;
+}
+
+.bordro-month-col-th.current-month-col .bordro-month-th-month {
+  color: #ffffff;
+}
+
+/* Ay Odaklama Animasyonu */
+.pulse-highlight {
+  animation: pulseColHighlight 1.8s ease;
+}
+
+@keyframes pulseColHighlight {
+  0% { background: #3b82f6; }
+  50% { background: #f59e0b; }
+  100% { background: #1e3a8a; }
+}
+
+/* Tablo Gövdesi */
+.bordro-excel-table tbody tr {
+  background: #0f172a;
+  transition: background 0.12s ease;
+}
+
+.bordro-excel-table tbody tr:nth-child(even) {
+  background: #111b30;
+}
+
+.bordro-excel-table tbody tr:hover {
+  background: #1a2744;
+}
+
+.bordro-excel-table tbody td {
+  padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  height: 38px;
+  vertical-align: middle;
+}
+
+/* Sabit Sol Hücreler */
+.bordro-excel-table tbody td.cell-row-num {
+  position: sticky;
+  left: 0;
+  z-index: 12;
+  background: #111827;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  user-select: none;
+}
+
+.bordro-excel-table tbody td.cell-sticky-param {
+  position: sticky;
+  left: 40px;
+  z-index: 11;
+  background: inherit;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0 10px;
+}
+
+.bordro-param-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.bordro-excel-table tbody td.cell-sticky-param-total {
+  position: sticky;
+  left: 215px;
+  z-index: 10;
+  background: #131c2e;
+  border-right: 2px solid rgba(245, 158, 11, 0.4);
+  padding: 0 10px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bordro-row-sum-val {
+  font-size: 0.78rem;
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+/* Vurgulu Satırlar */
+.bordro-highlight-net-row {
+  background: rgba(16, 185, 129, 0.09) !important;
+}
+
+.bordro-highlight-net-row .cell-sticky-param .bordro-param-title {
+  color: #34d399 !important;
+  font-weight: 800;
+}
+
+.bordro-highlight-net-row .cell-sticky-param-total .bordro-row-sum-val {
+  color: #34d399 !important;
+}
+
+.bordro-highlight-total-row {
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+
+.bordro-highlight-total-row .cell-sticky-param .bordro-param-title {
+  color: #fbbf24 !important;
+  font-weight: 800;
+}
+
+/* Güncel Ay Hücresi */
+.cell-current-month {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Hücre İçi Input */
+.bordro-cell-input {
+  width: 100%;
+  height: 38px;
+  min-width: 115px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0 9px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.12s ease, background 0.12s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.bordro-cell-input.highlight-net {
+  color: #34d399;
+  font-weight: 800;
+}
+
+.bordro-cell-input.highlight-total {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+.bordro-cell-input:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bordro-cell-input:focus {
+  background: #09101d;
+  border-color: #f59e0b;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.4);
+  color: #ffffff;
+}
+
+/* Ay Onayı ve Kilit Satırı & Butonları */
+.bordro-lock-action-row td {
+  position: sticky;
+  bottom: 0;
+  background: #0d1526;
+  border-top: 2px solid rgba(59, 130, 246, 0.25);
+  z-index: 10;
+}
+
+.bordro-lock-action-row td.cell-row-num {
+  left: 0;
+  z-index: 25;
+  background: #0d1526 !important;
+}
+
+.bordro-lock-action-row td.cell-sticky-param {
+  left: 40px;
+  z-index: 25;
+  background: #0d1526 !important;
+}
+
+.bordro-lock-action-row td.cell-sticky-param-total {
+  left: 215px;
+  z-index: 25;
+  background: #0d1526 !important;
+}
+
+.cell-lock-btn-col {
+  padding: 6px 4px !important;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.btn-bordro-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 92%;
+  min-width: 90px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.btn-bordro-lock.is-unlocked {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-bordro-lock.is-unlocked:hover {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-bordro-lock.is-locked {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+.btn-bordro-lock.is-locked:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+}
+
+/* Kilitli Ay Hücreleri ve Inputları */
+.cell-month-locked {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.bordro-cell-input.locked-month-input {
+  background: rgba(15, 23, 42, 0.45) !important;
+  color: #64748b !important;
+  cursor: not-allowed;
+  user-select: text;
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+.bordro-cell-input.locked-month-input:hover,
+.bordro-cell-input.locked-month-input:focus {
+  background: rgba(15, 23, 42, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.bordro-month-col-th.month-locked-col {
+  border-top: 3px solid #10b981 !important;
+}
+
+.locked-tag-pill {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border-color: #10b981 !important;
+  font-weight: 800;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.bordro-locked-summary-pill {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+
+
 
