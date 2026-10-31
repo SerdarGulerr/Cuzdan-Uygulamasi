@@ -2652,7 +2652,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // =========================================================================
 // MODÜL 3: MAAŞ & BORDRO EXCEL TABLOSU MOTORU (YATAY AY MATRİSİ)
-// Satırlar: 20 Kalem (Yemek Yardımı dahil)
+// Satırlar: 21 Kalem (Asgari Ücret ve Yemek Yardımı dahil)
 // Sütunlar: Yeniden Eskiye (En başta içinde olduğumuz ay/yıl)
 // =========================================================================
 
@@ -2668,6 +2668,7 @@ const BORDRO_ROWS_DEF = [
   { key: 'topGelVerMat', label: 'Top. Gel. Ver. Mat.' },
   { key: 'avans', label: 'Avans' },
   { key: 'bes', label: 'BES' },
+  { key: 'asgariUcret', label: 'Asgari Ücret' },
   { key: 'asgariUcrTopMat', label: 'Asgari Ücr. Top. Mat.' },
   { key: 'asgariUcrVergi', label: 'Asgari Ücr. Vergi' },
   { key: 'asgariSonTop', label: 'Asgari Son. Top.' },
@@ -2815,12 +2816,28 @@ function loadBordroState() {
         if (!bordroState.periods) bordroState.periods = {};
         if (!bordroState.manualOverrides) bordroState.manualOverrides = {};
         if (!bordroState.lockedMonths) bordroState.lockedMonths = {};
+        if (!bordroState.hiddenRows || !Array.isArray(bordroState.hiddenRows)) bordroState.hiddenRows = [];
         // Toplam ve Günlük Ortalama formülsel özet alanlarıdır; açılışta eski kilitli override'ları temizle
         if (bordroState.manualOverrides) {
           Object.keys(bordroState.manualOverrides).forEach(k => {
             if (bordroState.manualOverrides[k]) {
               delete bordroState.manualOverrides[k].toplam;
               delete bordroState.manualOverrides[k].calismaGunuBasi;
+              delete bordroState.manualOverrides[k].asgariUcrTopMat;
+              delete bordroState.manualOverrides[k].asgariUcrVergi;
+            }
+          });
+        }
+        // Eski veride asgariUcret alanı tanımlı değilse, Ocak ayındaki asgariUcrTopMat değerini asgariUcret olarak aktar
+        if (bordroState.periods) {
+          Object.keys(bordroState.periods).forEach(k => {
+            const p = bordroState.periods[k];
+            if (p && p.asgariUcret === undefined && p.asgariUcrTopMat !== undefined) {
+              const parts = k.split('-');
+              const mIdx = parseInt(parts[1], 10) - 1;
+              if (mIdx === 0 && Number(p.asgariUcrTopMat) > 0) {
+                p.asgariUcret = Number(p.asgariUcrTopMat);
+              }
             }
           });
         }
@@ -2875,6 +2892,7 @@ function initDefaultBordroState() {
     periods: {},
     manualOverrides: {},
     lockedMonths: {},
+    hiddenRows: [],
     taxConfig: JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG))
   };
   saveBordroState();
@@ -2971,17 +2989,18 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     if (monthIdx === 0) {
       yearCumulatives[year] = {
         topGelVerMat: 0,
-        asgariUcrStep: 0
+        asgariUcrTopMat: 0
       };
     }
     if (!yearCumulatives[year]) {
-      yearCumulatives[year] = { topGelVerMat: 0, asgariUcrStep: 0 };
+      yearCumulatives[year] = { topGelVerMat: 0, asgariUcrTopMat: 0 };
     }
 
     // EĞER BU AY KULLANICI TARAFINDAN ONAYLANIP KİLİTLENDİYSE:
     // "Otomatik Hesapla" veya başka hiçbir motor hesaplaması bu ayın rakamlarına ASLA müdahale etmez!
     if (isLocked) {
       yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
+      yearCumulatives[year].asgariUcrTopMat = Number(p.asgariUcrTopMat) || 0;
       prevMonthData = p;
       return;
     }
@@ -2992,6 +3011,7 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
       delete overrides.topGelVerMat;
       delete overrides.avans;
       delete overrides.bes;
+      delete overrides.asgariUcrTopMat;
       delete overrides.asgariUcrVergi;
       delete overrides.asgariSonTop;
       delete overrides.kesGelVer;
@@ -3084,48 +3104,27 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
     const besVal = Number(p.bes) || 0;
 
-    // 10. Madde: Asgari Ücret Toplam Matrah
-    // Normal yıllarda Ocak taban değeri katlanarak artar (Ocak: 1x, Şub: 2x...)
-    // 2022 ve 2023 yıllarında iki sefer zam olduğu için:
-    // Ocak-Haziran arası Ocak taban değeriyle (1x, 2x.. 6x)
-    // Temmuz-Aralık arası Temmuz ayında belirlenen yeni taban değer eklenerek kümülatif katlanarak devam eder:
-    // Temmuz: HaziranDeğeri + 1*TemmuzTaban, Ağustos: HaziranDeğeri + 2*TemmuzTaban...
-    const ocakKey = `${year}-01`;
-    const temmuzKey = `${year}-07`;
-    const ocakMatrahTaban = bordroState.periods[ocakKey] ? (Number(bordroState.periods[ocakKey].asgariUcrTopMat) || 0) : 0;
-    const temmuzMatrahTaban = bordroState.periods[temmuzKey] ? (Number(bordroState.periods[temmuzKey].asgariUcrTopMat) || 0) : ocakMatrahTaban;
-
-    const isDoubleMinWageYear = (year === 2022 || year === 2023);
-
-    if (monthIdx === 0 && p.asgariUcrTopMat === undefined) {
-      p.asgariUcrTopMat = 0;
-    }
-
-    if (!overrides.asgariUcrTopMat && monthIdx > 0) {
-      if (isDoubleMinWageYear) {
-        if (monthIdx < 6) {
-          // 1. Dönem (Şubat - Haziran): OcakTaban * (monthIdx + 1)
-          p.asgariUcrTopMat = Math.round((ocakMatrahTaban * (monthIdx + 1)) * 100) / 100;
-        } else {
-          // 2. Dönem (Temmuz - Aralık):
-          // Haziran sonu birikmiş matrah: 6 * ocakMatrahTaban
-          // Temmuz ve sonrası eklenen kısım: (monthIdx - 5) * temmuzMatrahTaban
-          const haziranBirikmis = ocakMatrahTaban * 6;
-          const temmuzEk = temmuzMatrahTaban * (monthIdx - 5);
-          p.asgariUcrTopMat = Math.round((haziranBirikmis + temmuzEk) * 100) / 100;
-        }
-      } else {
-        // Standart Yıllar
-        p.asgariUcrTopMat = Math.round((ocakMatrahTaban * (monthIdx + 1)) * 100) / 100;
+    // 10. Madde: Asgari Ücret ve Asgari Ücret Toplam Matrah
+    // Asgari ücret bir önceki aydan otomatik devredilir (kullanıcı o ay elle bir değer girmediyse)
+    if (!overrides.asgariUcret) {
+      if (prevMonthData && (Number(prevMonthData.asgariUcret) || 0) > 0) {
+        p.asgariUcret = Number(prevMonthData.asgariUcret) || 0;
       }
     }
+    const asgariUcretVal = Number(p.asgariUcret) || 0;
+
+    // Asgari Ücret Toplam Matrah: Bir önceki ayın toplam matrahı + bu aydaki asgari ücret
+    const oncekiAsgariMatrah = yearCumulatives[year].asgariUcrTopMat || 0;
+    p.asgariUcrTopMat = Math.round((oncekiAsgariMatrah + asgariUcretVal) * 100) / 100;
+    yearCumulatives[year].asgariUcrTopMat = Number(p.asgariUcrTopMat) || 0;
     const asgariUcrTopMatVal = Number(p.asgariUcrTopMat) || 0;
 
     // 11. Madde: Asgari Ücret Vergi
-    // Asgari ücret toplam matrahı hangi vergi dilimine denk geliyorsa o oranla çarpılır
+    // Vergi dilimi asgari ücret toplam matrahına göre belirlenir,
+    // ancak vergi hesabı matrah üzerinden değil doğrudan o ayki asgari ücret üzerinden yapılır
     if (!overrides.asgariUcrVergi) {
       const asgariTaxRate = getTaxRateForAmount(year, asgariUcrTopMatVal);
-      p.asgariUcrVergi = Math.round((asgariUcrTopMatVal * (asgariTaxRate / 100)) * 100) / 100;
+      p.asgariUcrVergi = Math.round((asgariUcretVal * (asgariTaxRate / 100)) * 100) / 100;
     }
 
     // 12. Madde: Asgari Son. Top. = Toplam Gelir Vergisi Matrahı - Asgari Ücret Toplam Matrah
@@ -3134,10 +3133,10 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
 
     // 13. Madde: Kes. Gel. Ver. (Kesilecek Gelir Vergisi)
-    // 11. maddenin aynısı ancak baz aldığı değer Toplam Gelir Vergisi Matrahıdır
+    // Formül: ((SGK Prim Esas Kazanç - Sigorta Primi) * 0.15) - Asgari Ücret Vergi
+    const asgariUcrVergiVal = Number(p.asgariUcrVergi) || 0;
     if (!overrides.kesGelVer) {
-      const gelTaxRate = getTaxRateForAmount(year, topGelVerMatVal);
-      p.kesGelVer = Math.round((topGelVerMatVal * (gelTaxRate / 100)) * 100) / 100;
+      p.kesGelVer = Math.round((((sgkVal - sigortaVal) * 0.15) - asgariUcrVergiVal) * 100) / 100;
     }
     const kesGelVerVal = Number(p.kesGelVer) || 0;
 
@@ -3251,6 +3250,7 @@ function renderBordroModule() {
   renderBordroTableHeader(months);
   renderBordroTableBody(months);
   renderBordroSummaryCards();
+  updateBordroRowVisibilityBadge();
 }
 
 function populateBordroYearSelects(months) {
@@ -3339,6 +3339,7 @@ function renderBordroTableBody(months) {
 
   const periods = bordroState.periods || {};
   const currentKey = getCurrentMonthKey();
+  const hiddenRows = (bordroState && bordroState.hiddenRows) || [];
 
   const rowsHtml = BORDRO_ROWS_DEF.map((def, rIdx) => {
     // Bu kalemin tüm aylar toplamı
@@ -3348,9 +3349,11 @@ function renderBordroTableBody(months) {
       rowSum += val;
     });
 
+    const isHidden = hiddenRows.includes(def.key);
     let trClass = '';
-    if (def.highlight === 'net') trClass = 'bordro-highlight-net-row';
-    if (def.highlight === 'total') trClass = 'bordro-highlight-total-row';
+    if (def.highlight === 'net') trClass += ' bordro-highlight-net-row';
+    if (def.highlight === 'total') trClass += ' bordro-highlight-total-row';
+    if (isHidden) trClass += ' bordro-row-hidden';
 
     let cellsHtml = `
       <td class="cell-row-num">${rIdx + 1}</td>
@@ -3512,6 +3515,11 @@ function handleBordroCellBlur(inputEl) {
     delete bordroState.manualOverrides[periodKey].toplam;
     delete bordroState.manualOverrides[periodKey].calismaGunuBasi;
   }
+  if (paramKey === 'asgariUcret') {
+    delete bordroState.manualOverrides[periodKey].asgariUcrTopMat;
+    delete bordroState.manualOverrides[periodKey].asgariUcrVergi;
+    delete bordroState.manualOverrides[periodKey].asgariSonTop;
+  }
 
   saveBordroState();
 
@@ -3539,23 +3547,37 @@ function updateAllRowSums() {
   });
 }
 
+function findNextVisibleBordroRowIdx(startIdx, dir) {
+  const hiddenRows = (bordroState && bordroState.hiddenRows) || [];
+  let curr = startIdx + dir;
+  while (curr >= 0 && curr < BORDRO_ROWS_DEF.length) {
+    if (!hiddenRows.includes(BORDRO_ROWS_DEF[curr].key)) {
+      return curr;
+    }
+    curr += dir;
+  }
+  return -1;
+}
+
 function handleBordroCellKeyDown(e, inputEl) {
   const rIdx = parseInt(inputEl.getAttribute('data-row-idx'), 10);
   const cIdx = parseInt(inputEl.getAttribute('data-col-idx'), 10);
-  const totalRows = BORDRO_ROWS_DEF.length;
   const months = generateBordroMonthList();
   const totalCols = months.length;
 
   if (e.key === 'Enter') {
     e.preventDefault();
     inputEl.blur();
-    if (rIdx + 1 < totalRows) focusBordroCell(rIdx + 1, cIdx);
+    const nextDown = findNextVisibleBordroRowIdx(rIdx, 1);
+    if (nextDown !== -1) focusBordroCell(nextDown, cIdx);
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
-    if (rIdx + 1 < totalRows) focusBordroCell(rIdx + 1, cIdx);
+    const nextDown = findNextVisibleBordroRowIdx(rIdx, 1);
+    if (nextDown !== -1) focusBordroCell(nextDown, cIdx);
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
-    if (rIdx - 1 >= 0) focusBordroCell(rIdx - 1, cIdx);
+    const nextUp = findNextVisibleBordroRowIdx(rIdx, -1);
+    if (nextUp !== -1) focusBordroCell(nextUp, cIdx);
   } else if (e.key === 'ArrowRight' && (inputEl.selectionStart === inputEl.value.length || inputEl.value === '')) {
     if (cIdx + 1 < totalCols) {
       e.preventDefault();
@@ -3797,14 +3819,124 @@ function handleBracketLimitChange(year, index, field, val) {
 }
 
 function resetTaxBracketsToOfficialDefaults() {
-  if (confirm(`${activeTaxModalYear} yılı için resmi varsayılan vergi dilimleri ve brüt asgari ücret yüklensin mi?`)) {
-    bordroState.taxConfig[activeTaxModalYear] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[activeTaxModalYear]));
+  if (confirm(`${activeTaxModalYear} yılı için resmi varsayılan vergi dilimleri ve brüt asgari ücret yüklensin mi?\n(Diğer yılların tanımları korunur)`)) {
+    if (!bordroState.taxConfig) {
+      bordroState.taxConfig = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG));
+    }
+    // SADECE o an seçili aktif yılın vergi dilimleri ve asgari ücreti güncellenir; diğer yıllara asla dokunulmaz
+    if (DEFAULT_TAX_CONFIG[activeTaxModalYear]) {
+      bordroState.taxConfig[activeTaxModalYear] = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG[activeTaxModalYear]));
+    }
     saveBordroState();
     renderTaxBracketsForYear(activeTaxModalYear);
     recalculateBordroEngine(false);
-    renderBordroModule();
   }
 }
+
+// -------------------------------------------------------------------------
+// BORDRO SATIR GİZLEME / GÖSTERME (ROW VISIBILITY)
+// -------------------------------------------------------------------------
+function updateBordroRowVisibilityBadge() {
+  const hiddenRows = (bordroState && bordroState.hiddenRows) || [];
+  const badge = document.getElementById('bordroHiddenRowsBadge');
+  if (!badge) return;
+  if (hiddenRows.length > 0) {
+    badge.textContent = `${hiddenRows.length} Gizli`;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function openBordroRowVisibilityModal() {
+  loadBordroState();
+  if (!bordroState.hiddenRows || !Array.isArray(bordroState.hiddenRows)) {
+    bordroState.hiddenRows = [];
+  }
+  renderBordroRowVisibilityList();
+  const modal = document.getElementById('modalBordroRowVisibility');
+  if (modal) modal.showModal();
+}
+
+function renderBordroRowVisibilityList() {
+  const container = document.getElementById('bordroRowVisibilityList');
+  const summaryEl = document.getElementById('bordroRowVisibilitySummary');
+  if (!container) return;
+
+  const hiddenRows = (bordroState && bordroState.hiddenRows) || [];
+  const totalRows = BORDRO_ROWS_DEF.length;
+  const visibleCount = totalRows - hiddenRows.length;
+
+  if (summaryEl) {
+    summaryEl.textContent = `${totalRows} satırdan ${visibleCount} tanesi görünür (${hiddenRows.length} gizli)`;
+  }
+
+  container.innerHTML = BORDRO_ROWS_DEF.map((def, idx) => {
+    const isHidden = hiddenRows.includes(def.key);
+    let badgeHtml = '';
+    if (def.highlight === 'net') {
+      badgeHtml = '<span class="bordro-row-vis-badge-net">Net Gelir</span>';
+    } else if (def.highlight === 'total') {
+      badgeHtml = '<span class="bordro-row-vis-badge-total">Toplam</span>';
+    }
+
+    return `
+      <div class="bordro-row-visibility-item ${isHidden ? 'is-hidden' : ''}" onclick="toggleBordroRowVisibility('${def.key}')">
+        <div class="bordro-row-vis-left">
+          <span class="bordro-row-vis-idx">#${idx + 1}</span>
+          <span class="bordro-row-vis-label">${def.label}</span>
+          ${badgeHtml}
+        </div>
+        <div class="bordro-row-vis-toggle">
+          <input type="checkbox" ${!isHidden ? 'checked' : ''} style="pointer-events: none;">
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleBordroRowVisibility(key) {
+  if (!bordroState.hiddenRows || !Array.isArray(bordroState.hiddenRows)) {
+    bordroState.hiddenRows = [];
+  }
+  const idx = bordroState.hiddenRows.indexOf(key);
+  if (idx >= 0) {
+    // Gizliydi -> Görünür yap
+    bordroState.hiddenRows.splice(idx, 1);
+  } else {
+    // Görünürdü -> Gizle
+    bordroState.hiddenRows.push(key);
+  }
+  saveBordroState();
+  renderBordroRowVisibilityList();
+  const months = generateBordroMonthList();
+  renderBordroTableBody(months);
+  updateBordroRowVisibilityBadge();
+}
+
+function setAllBordroRowsVisibility(showAll) {
+  if (!bordroState.hiddenRows || !Array.isArray(bordroState.hiddenRows)) {
+    bordroState.hiddenRows = [];
+  }
+  if (showAll) {
+    bordroState.hiddenRows = [];
+  }
+  saveBordroState();
+  renderBordroRowVisibilityList();
+  const months = generateBordroMonthList();
+  renderBordroTableBody(months);
+  updateBordroRowVisibilityBadge();
+}
+
+function resetBordroRowsVisibility() {
+  bordroState.hiddenRows = [];
+  saveBordroState();
+  renderBordroRowVisibilityList();
+  const months = generateBordroMonthList();
+  renderBordroTableBody(months);
+  updateBordroRowVisibilityBadge();
+}
+
 
 
 

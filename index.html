@@ -469,6 +469,16 @@
             </span>
             <span class="btn-bordro-calc-label">Otomatik Hesapla</span>
           </button>
+          <button type="button" class="btn-bordro-secondary" id="btnBordroRowVisibility" onclick="openBordroRowVisibilityModal()" title="Tabloda gösterilecek veya gizlenecek bordro satırlarını belirleyin">
+            <span style="display: inline-flex; align-items: center; justify-content: center;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </span>
+            <span>Satırları Göster / Gizle</span>
+            <span id="bordroHiddenRowsBadge" class="bordro-hidden-badge" style="display: none;">0 Gizli</span>
+          </button>
         </div>
         <div class="bordro-toolbar-right">
           <button type="button" class="btn-bordro-excel" onclick="exportBordroOnlyToExcel()" title="Sadece Bu Bordro Tablosunu Excel (.xlsx) Olarak İndir">
@@ -1246,6 +1256,47 @@
     </div>
   </dialog>
 
+  <!-- MODAL: Bordro Satır Görünümü Yönetimi -->
+  <dialog class="app-modal" id="modalBordroRowVisibility">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.25rem;">👁️</span>
+          <h3 style="margin: 0;">Bordro Satırlarını Göster / Gizle</h3>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('modalBordroRowVisibility')">&times;</button>
+      </div>
+
+      <p class="modal-desc" style="margin-bottom: 12px; font-size: 0.78rem; line-height: 1.45;">
+        Tabloda görmek istemediğiniz satırları gizleyebilirsiniz. Satırlar tablodan gizlense bile arka plandaki tüm formül ve toplam hesaplamaları eksiksiz çalışmaya devam eder.
+      </p>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+        <span id="bordroRowVisibilitySummary" style="font-size: 0.78rem; color: var(--text-dim); font-weight: 700;">
+          20 satırdan 20 tanesi görünür
+        </span>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-secondary-full" onclick="setAllBordroRowsVisibility(true)" style="width: auto; padding: 5px 10px; font-size: 0.72rem;">
+            Tümünü Göster
+          </button>
+          <button type="button" class="btn-secondary-full" onclick="resetBordroRowsVisibility()" style="width: auto; padding: 5px 10px; font-size: 0.72rem;">
+            Varsayılana Sıfırla
+          </button>
+        </div>
+      </div>
+
+      <div id="bordroRowVisibilityList" class="bordro-row-visibility-list" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 2px;">
+        <!-- JS tarafından doldurulur -->
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center; margin-top: 16px;">
+        <button type="button" class="btn-submit" onclick="closeModal('modalBordroRowVisibility')">
+          Tamam
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     // PWA Service Worker & Localhost Önbellek Yönetimi
     const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -1274,9 +1325,9 @@
     }
   </script>
   <script src="xlsx.full.min.js"></script>
-  <script src="excel-sync.js?v=20261031_v21"></script>
+  <script src="excel-sync.js?v=20261031_v22"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
-  <script src="app.js?v=20261031_v21"></script>
-  <script src="wallet.js?v=20261031_v21"></script>
+  <script src="app.js?v=20261031_v22"></script>
+  <script src="wallet.js?v=20261031_v22"></script>
 </body>
 </html>
