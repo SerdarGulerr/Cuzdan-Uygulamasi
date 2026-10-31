@@ -12,8 +12,8 @@
   <title>Aile Finansı</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
-  <link rel="stylesheet" href="style.css?v=20261028_v17">
-  <link rel="stylesheet" href="wallet.css?v=20261028_v17">
+  <link rel="stylesheet" href="style.css?v=20261031_v21">
+  <link rel="stylesheet" href="wallet.css?v=20261031_v21">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
       <button type="button" class="drawer-item active" id="drawerItemFaiz" onclick="switchMainModule('faiz')">
         <div class="drawer-item-icon icon-faiz">🏦</div>
         <div class="drawer-item-text">
-          <div class="drawer-item-title">Aile Faiz & Kasa</div>
+          <div class="drawer-item-title">Yatırım</div>
           <div class="drawer-item-desc">Bileşik getiri, kişi payları, günlük rapor</div>
         </div>
         <span class="drawer-badge active-tag">Aktif</span>
@@ -48,7 +48,7 @@
       <button type="button" class="drawer-item" id="drawerItemWallet" onclick="switchMainModule('wallet')">
         <div class="drawer-item-icon icon-wallet">👛</div>
         <div class="drawer-item-text">
-          <div class="drawer-item-title">Gelir & Gider Cüzdanım</div>
+          <div class="drawer-item-title">Cüzdan</div>
           <div class="drawer-item-desc">Harcamalar, takvim, bütçe & hesaplar</div>
         </div>
         <span class="drawer-badge new-tag">Yeni</span>
@@ -57,7 +57,7 @@
       <button type="button" class="drawer-item" id="drawerItemBordro" onclick="switchMainModule('bordro')">
         <div class="drawer-item-icon icon-bordro" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.1)); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">📊</div>
         <div class="drawer-item-text">
-          <div class="drawer-item-title">Maaş & Bordro Tablosu</div>
+          <div class="drawer-item-title">Bordro</div>
           <div class="drawer-item-desc">20 sütunlu Excel tarzı bordro çizelgesi</div>
         </div>
         <span class="drawer-badge new-tag" style="background: rgba(245, 158, 11, 0.25); color: #fbbf24; border-color: rgba(245, 158, 11, 0.35);">Tablo</span>
@@ -83,7 +83,7 @@
   </aside>
 
   <div class="app-container">
-    <!-- MODÜL 1: AİLE FAİZ & KASA -->
+    <!-- MODÜL 1: YATIRIM -->
     <div id="moduleFaiz" class="app-module active">
       <!-- SAYFA 1: ANA SAYFA -->
       <main id="pageHome" class="app-page active">
@@ -97,7 +97,7 @@
             <img src="icon.svg" alt="Logo" class="logo-img">
           </div>
           <div>
-            <h1>Aile Kasa & Faiz</h1>
+            <h1>Yatırım</h1>
             <p class="subtitle" id="currentDateDisplay">Hesaplanıyor...</p>
           </div>
         </div>
@@ -311,7 +311,7 @@
     </main>
     </div><!-- End #moduleFaiz -->
 
-    <!-- MODÜL 2: GELİR & GİDER CÜZDANIM (MONEY MANAGER) -->
+    <!-- MODÜL 2: CÜZDAN -->
     <div id="moduleWallet" class="app-module" style="display: none; flex-direction: column; gap: 16px;">
       <!-- Wallet Header -->
       <header class="wallet-header">
@@ -320,7 +320,7 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
           </button>
           <div>
-            <h1 style="font-size: 1.25rem; font-weight: 800; color: #fff; margin: 0;">Cüzdanım</h1>
+            <h1 style="font-size: 1.25rem; font-weight: 800; color: #fff; margin: 0;">Cüzdan</h1>
             <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Gelir & Gider Yönetimi</p>
           </div>
         </div>
@@ -395,7 +395,7 @@
       </button>
     </div><!-- End #moduleWallet -->
 
-    <!-- MODÜL 3: MAAŞ & BORDRO TABLOSU (EXCEL TARZI 20 SÜTUNLU TABLO) -->
+    <!-- MODÜL 3: BORDRO (EXCEL TARZI 20 SÜTUNLU TABLO) -->
     <div id="moduleBordro" class="app-module" style="display: none; flex-direction: column; gap: 14px;">
       <!-- Bordro Header -->
       <header class="wallet-header">
@@ -404,7 +404,7 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
           </button>
           <div>
-            <h1 style="font-size: 1.2rem; font-weight: 800; color: #fff; margin: 0;">Maaş & Bordro Matrisi</h1>
+            <h1 style="font-size: 1.2rem; font-weight: 800; color: #fff; margin: 0;">Bordro</h1>
             <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Ocak 2021'den Güncel Yıl Sonuna Kadar Aylık Matris</p>
           </div>
         </div>
@@ -463,8 +463,11 @@
           <button type="button" class="btn-bordro-secondary" onclick="scrollToCurrentMonthBordro()">
             <span>🎯</span> İçinde Olduğumuz Ay
           </button>
-          <button type="button" class="btn-bordro-primary" onclick="recalculateBordroEngine(true)" title="Tüm formülleri sıfırdan hesapla ve boş/tahmini alanları otomatik doldur">
-            <span>⚡</span> Otomatik Hesapla
+          <button type="button" class="btn-bordro-primary" id="btnBordroAutoCalc" onclick="recalculateBordroEngine(true)" title="Tüm formülleri sıfırdan hesapla ve boş/tahmini alanları otomatik doldur">
+            <span class="btn-bordro-calc-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </span>
+            <span class="btn-bordro-calc-label">Otomatik Hesapla</span>
           </button>
         </div>
         <div class="bordro-toolbar-right">
@@ -675,7 +678,7 @@
       </div>
 
       <div class="settings-block">
-        <h4>👥 Kişi Yönetimi (Aile Faiz & Kasa)</h4>
+        <h4>👥 Kişi Yönetimi (Yatırım)</h4>
         <p class="modal-desc">Hesaba ortak olan kişileri düzenleyin veya yeni kişi ekleyin.</p>
         <div id="membersManagerList" class="members-manager-list"></div>
         <div class="add-member-row">
@@ -1271,9 +1274,9 @@
     }
   </script>
   <script src="xlsx.full.min.js"></script>
-  <script src="excel-sync.js?v=20261028_v17"></script>
+  <script src="excel-sync.js?v=20261031_v21"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
-  <script src="app.js?v=20261028_v17"></script>
-  <script src="wallet.js?v=20261028_v17"></script>
+  <script src="app.js?v=20261031_v21"></script>
+  <script src="wallet.js?v=20261031_v21"></script>
 </body>
 </html>

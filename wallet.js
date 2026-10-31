@@ -772,7 +772,6 @@ function renderAccountsView() {
   `;
 
   walletState.accounts.forEach(acc => {
-    const stats = getAccountMovementStats(acc.id);
     html += `
       <div class="account-card" onclick="openAccountDetailModal('${acc.id}')" title="Bu hesaba ait tüm hareketleri ve detayları görmek için tıklayın">
         <div class="account-info">
@@ -782,7 +781,6 @@ function renderAccountsView() {
             <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
               <span class="account-type-tag">${getAccountTypeLabel(acc.type)}</span>
               ${acc.type === 'credit' && acc.billingDay ? `<span class="account-cutoff-pill">📅 Kesim: Ayın ${acc.billingDay}'i</span>` : ''}
-              <span class="account-movement-chip">📋 ${stats.txCount} Hareket</span>
             </div>
           </div>
         </div>
@@ -1222,10 +1220,6 @@ function openAccountDetailModal(accId, filterType = 'all') {
             <span class="account-mini-stat-label">Toplam Çıkış</span>
             <span class="account-mini-stat-val expense">-${formatWalletTL(stats.totalOut)}</span>
           </div>
-          <div class="account-mini-stat">
-            <span class="account-mini-stat-label">Toplam Hareket</span>
-            <span class="account-mini-stat-val count">${stats.txCount} İşlem</span>
-          </div>
         </div>
         ${creditInfoHtml}
       </div>
@@ -1267,19 +1261,19 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
 
   filterBar.innerHTML = `
     <button type="button" class="acc-filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'all')">
-      Tümü (${stats.txCount})
+      Tümü
     </button>
     <button type="button" class="acc-filter-chip ${activeFilter === 'month' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'month')">
-      Bu Ay (${stats.monthCount})
+      Bu Ay
     </button>
     <button type="button" class="acc-filter-chip ${activeFilter === 'expense' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'expense')">
-      Giderler (${expCount})
+      Giderler
     </button>
     <button type="button" class="acc-filter-chip ${activeFilter === 'income' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'income')">
-      Gelirler / Giriş (${incCount})
+      Gelirler / Giriş
     </button>
     <button type="button" class="acc-filter-chip ${activeFilter === 'transfer' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'transfer')">
-      Transferler (${transCount})
+      Transferler
     </button>
   `;
 }
@@ -3206,6 +3200,30 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     updateAllRowSums();
     renderBordroSummaryCards();
   }
+
+  if (forceRecomputeAll) {
+    const calcBtn = document.getElementById('btnBordroAutoCalc');
+    if (calcBtn && !calcBtn.classList.contains('calc-success')) {
+      const iconBox = calcBtn.querySelector('.btn-bordro-calc-icon');
+      const labelBox = calcBtn.querySelector('.btn-bordro-calc-label');
+      const origIcon = iconBox ? iconBox.innerHTML : '';
+      const origLabel = labelBox ? labelBox.textContent : 'Otomatik Hesapla';
+
+      calcBtn.classList.add('calc-success');
+      if (iconBox) {
+        iconBox.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+      }
+      if (labelBox) {
+        labelBox.textContent = 'Hesaplandı';
+      }
+
+      setTimeout(() => {
+        calcBtn.classList.remove('calc-success');
+        if (iconBox) iconBox.innerHTML = origIcon;
+        if (labelBox) labelBox.textContent = origLabel;
+      }, 1500);
+    }
+  }
 }
 
 function toggleBordroWideMode() {
@@ -3285,11 +3303,11 @@ function renderBordroTableHeader(months) {
 
   const currentKey = getCurrentMonthKey();
 
-  // Sol sabit başlıklar: Satır No, Bordro Kalemi, Kümülatif Toplam
+  // Sol sabit başlıklar: Satır No ve Bordro Kalemi (TOPLAM sütunu yatay kaydırmaya dahildir)
   let html = `
-    <th class="col-row-num" style="min-width: 40px; width: 40px;">#</th>
-    <th class="col-sticky-param" style="min-width: 185px; width: 185px; text-align: left;">Bordro Kalemi</th>
-    <th class="col-sticky-param-total" style="min-width: 120px; width: 120px; text-align: right;">TOPLAM</th>
+    <th class="col-row-num">#</th>
+    <th class="col-sticky-param">Bordro Kalemi</th>
+    <th class="col-sticky-param-total">TOPLAM</th>
   `;
 
   // Aylar Sağa Doğru (Yeniden Eskiye: En solda içinde olduğumuz ay/yıl)
@@ -3393,12 +3411,9 @@ function renderBordroTableBody(months) {
 
   let lockRowHtml = `
     <tr class="bordro-lock-action-row">
-      <td class="cell-row-num" style="color: #34d399; font-weight: 800; font-size: 0.85rem;">🔒</td>
+      <td class="cell-row-num" style="color: #34d399; font-weight: 800; font-size: 0.78rem;">🔒</td>
       <td class="cell-sticky-param">
-        <div class="bordro-param-title" style="color: #60a5fa; display: flex; align-items: center; justify-content: space-between;">
-          <span>Ay Onayı</span>
-          <small style="font-size: 0.65rem; color: var(--text-dim); font-weight: normal;">(Kilitle)</small>
-        </div>
+        <div class="bordro-param-title" style="color: #60a5fa;">Ay Onayı</div>
       </td>
       <td class="cell-sticky-param-total" style="text-align: right; padding: 4px 8px;">
         <span class="bordro-locked-summary-pill" id="bordroLockedMonthsCount">${lockedCount} / ${months.length} Onaylı</span>
