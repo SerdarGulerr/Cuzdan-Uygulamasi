@@ -2284,6 +2284,152 @@
   background: rgba(16, 185, 129, 0.22);
 }
 
+.btn-acc-action.pay-card-debt {
+  background: linear-gradient(135deg, #059669, #10b981);
+  border: 1px solid #34d399;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 10px 14px;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+}
+
+.btn-acc-action.pay-card-debt:hover {
+  background: linear-gradient(135deg, #047857, #059669);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-acc-pay-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.btn-acc-pay-inline:hover {
+  background: rgba(16, 185, 129, 0.28);
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.btn-account-pay-shortcut {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.btn-account-pay-shortcut:hover {
+  background: rgba(16, 185, 129, 0.3) !important;
+  color: #ffffff !important;
+}
+
+/* Kredi Kartı Borç Ödeme Banner ve Çipleri */
+.card-debt-summary-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.card-debt-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-debt-banner-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.card-debt-banner-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.card-debt-banner-info h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-debt-banner-sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 2px;
+}
+
+.card-debt-banner-badge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.quick-pay-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: -6px;
+  margin-bottom: 14px;
+}
+
+.quick-pay-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.quick-pay-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.quick-pay-chip-btn.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+  font-weight: 700;
+}
+
 .account-tx-filter-bar {
   display: flex;
   gap: 6px;
@@ -2823,6 +2969,30 @@
   box-shadow: var(--shadow-card);
   position: relative;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Bordro Tablo Altı İşlem Çubuğu */
+.bordro-bottom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 640px) {
+  .bordro-bottom-actions {
+    justify-content: stretch;
+  }
+  .bordro-bottom-actions .btn-bordro-excel {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 12px;
+  }
 }
 
 .bordro-excel-table {

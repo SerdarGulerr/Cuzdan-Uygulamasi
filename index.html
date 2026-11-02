@@ -452,7 +452,7 @@
 
       <!-- Excel Toolbar (İşlem Çubuğu) -->
       <div class="bordro-toolbar">
-        <div class="bordro-toolbar-left" style="display: flex; align-items: center; gap: 8px;">
+        <div class="bordro-toolbar-left" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
           <!-- Yıla Hızlı Git -->
           <div style="display: flex; align-items: center; gap: 5px;">
             <label for="selectBordroYearJump" style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700;">Yıla Git:</label>
@@ -480,15 +480,6 @@
             <span id="bordroHiddenRowsBadge" class="bordro-hidden-badge" style="display: none;">0 Gizli</span>
           </button>
         </div>
-        <div class="bordro-toolbar-right">
-          <button type="button" class="btn-bordro-excel" onclick="exportBordroOnlyToExcel()" title="Sadece Bu Bordro Tablosunu Excel (.xlsx) Olarak İndir">
-            <span>📥</span> Excel İndir
-          </button>
-          <label class="btn-bordro-excel upload" title="Excel (.xlsx) Dosyasından Bordro Tablosunu Yükle">
-            <span>📤</span> Excel Yükle
-            <input type="file" accept=".xlsx, .xls" onchange="importDataFromExcel(event)" style="display:none;">
-          </label>
-        </div>
       </div>
 
       <!-- Bilgi İpucu -->
@@ -508,6 +499,17 @@
             <!-- JS ile 19 kalem satırı ve her ayın hücresi oluşturulur -->
           </tbody>
         </table>
+      </div>
+
+      <!-- Bordro Tablo Altı İşlem Çubuğu (Excel İndir & Yükle) -->
+      <div class="bordro-bottom-actions">
+        <button type="button" class="btn-bordro-excel" onclick="exportBordroOnlyToExcel()" title="Sadece Bu Bordro Tablosunu Excel (.xlsx) Olarak İndir">
+          <span>📥</span> Excel İndir
+        </button>
+        <label class="btn-bordro-excel upload" title="Excel (.xlsx) Dosyasından Bordro Tablosunu Yükle">
+          <span>📤</span> Excel Yükle
+          <input type="file" accept=".xlsx, .xls" onchange="importDataFromExcel(event)" style="display:none;">
+        </label>
       </div>
     </div><!-- End #moduleBordro -->
   </div><!-- End .app-container -->
@@ -1201,6 +1203,69 @@
         <!-- Hareketler Listesi -->
         <div id="accountDetailTxList" class="account-detail-tx-list"></div>
       </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: KREDİ KARTI BORCU ÖDEME -->
+  <dialog class="app-modal" id="modalPayCreditCard">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">💳</span>
+          <h3 id="modalPayCreditCardTitle" style="margin: 0; font-size: 1.1rem; font-weight: 800;">Kart Borcu Öde</h3>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('modalPayCreditCard')">&times;</button>
+      </div>
+
+      <!-- Hedef Kart Özet Bilgi Kartı -->
+      <div class="card-debt-summary-banner" id="payCardDebtSummaryBanner">
+        <div class="card-debt-banner-left">
+          <span class="card-debt-banner-icon" id="payCardBannerIcon">💳</span>
+          <div class="card-debt-banner-info">
+            <h4 id="payCardBannerName">Kredi Kartı</h4>
+            <span class="card-debt-banner-sub" id="payCardBannerSub">Dönem Borcu: 0,00 ₺</span>
+          </div>
+        </div>
+        <div class="card-debt-banner-badge" id="payCardBannerDebtBadge">
+          Bakiye: 0,00 ₺
+        </div>
+      </div>
+
+      <form id="formPayCreditCard" onsubmit="handlePayCreditCardSubmit(event)">
+        <input type="hidden" id="inputPayCardTargetAccountId">
+
+        <div class="form-group">
+          <label for="selectPayCardSourceAccount">Ödemenin Yapılacağı Hesap (Kaynak)</label>
+          <select id="selectPayCardSourceAccount" class="app-select" required onchange="updatePayCardSourceHint()"></select>
+          <small class="field-hint" id="payCardSourceBalanceHint" style="display: block; margin-top: 5px; font-size: 0.76rem; color: var(--text-dim);"></small>
+        </div>
+
+        <div class="form-group">
+          <label for="inputPayCardAmount">Ödenecek Tutar (₺)</label>
+          <div class="input-with-affix">
+            <input type="number" id="inputPayCardAmount" step="0.01" min="0.01" placeholder="0,00" required autofocus>
+            <span class="affix">₺</span>
+          </div>
+        </div>
+
+        <!-- Hızlı Borç / Asgari Tutar Seçim Çipleri -->
+        <div class="quick-pay-chips" id="payCardQuickChips"></div>
+
+        <div class="form-group">
+          <label for="inputPayCardDate">Ödeme Tarihi</label>
+          <input type="date" id="inputPayCardDate" required>
+        </div>
+
+        <div class="form-group">
+          <label for="inputPayCardNote">Açıklama / Not (İsteğe bağlı)</label>
+          <input type="text" id="inputPayCardNote" placeholder="Örn: Garanti Bonus Borç Ödemesi">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('modalPayCreditCard')">İptal</button>
+          <button type="submit" class="btn-submit" id="btnPayCardSubmit" style="background: linear-gradient(135deg, #059669, #10b981);">✓ Ödemeyi Kaydet</button>
+        </div>
+      </form>
     </div>
   </dialog>
 

@@ -792,6 +792,11 @@ function renderAccountsView() {
             </div>
           </div>
           <div class="account-actions-stack">
+            ${acc.type === 'credit' ? `
+            <button type="button" class="btn-account-edit btn-account-pay-shortcut" onclick="event.stopPropagation(); openPayCreditCardModal('${acc.id}')" title="Kart Borcu Öde">
+              💳 Borç Öde
+            </button>
+            ` : ''}
             <button type="button" class="btn-account-edit" onclick="event.stopPropagation(); openAccountDetailModal('${acc.id}')" title="Hareketleri Gör">
               📋 Hareketler
             </button>
@@ -1183,12 +1188,22 @@ function openAccountDetailModal(accId, filterType = 'all') {
     if (creditDebtData) {
       creditInfoHtml = `
         <div class="account-credit-info-card">
-          <div>
-            <strong>📅 Hesap Kesim:</strong> Son Kesim: ${formatTurkishDate(creditDebtData.info.lastCutoffStr)}
-          </div>
-          <div>
-            <strong>Dönem İçi Harcanan:</strong> <span style="color:var(--rose); font-weight:700;">${formatWalletTL(creditDebtData.totalSpent)}</span>
-            ${creditDebtData.totalPayments > 0 ? ` | <strong>Ödenen:</strong> <span style="color:var(--emerald); font-weight:700;">${formatWalletTL(creditDebtData.totalPayments)}</span>` : ''}
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div style="min-width: 0; flex: 1;">
+              <div>
+                <strong>📅 Hesap Kesim:</strong> Son Kesim: ${formatTurkishDate(creditDebtData.info.lastCutoffStr)}
+              </div>
+              <div style="margin-top: 4px;">
+                <strong>Dönem İçi Harcanan:</strong> <span style="color:var(--rose); font-weight:700;">${formatWalletTL(creditDebtData.totalSpent)}</span>
+                ${creditDebtData.totalPayments > 0 ? ` | <strong>Ödenen:</strong> <span style="color:var(--emerald); font-weight:700;">${formatWalletTL(creditDebtData.totalPayments)}</span>` : ''}
+              </div>
+              <div style="margin-top: 4px;">
+                <strong>Kalan Dönem Borcu:</strong> <span style="color:${creditDebtData.netDebt > 0 ? 'var(--rose)' : 'var(--emerald)'}; font-weight:800;">${formatWalletTL(creditDebtData.netDebt)}</span>
+              </div>
+            </div>
+            <button type="button" class="btn-acc-pay-inline" onclick="openPayCreditCardModal('${acc.id}')" title="Bu kartın borcunu öde">
+              💳 Borç Öde
+            </button>
           </div>
         </div>
       `;
@@ -1229,17 +1244,34 @@ function openAccountDetailModal(accId, filterType = 'all') {
   // Hızlı Eylemler Çubuğu
   const actionsBar = document.getElementById('accountDetailActionButtons');
   if (actionsBar) {
-    actionsBar.innerHTML = `
-      <button type="button" class="btn-acc-action primary" onclick="openAddTxForAccount('${acc.id}')">
-        ➕ İşlem Ekle
-      </button>
-      <button type="button" class="btn-acc-action" onclick="openEditAccountModal('${acc.id}')">
-        ✏️ Hesabı Düzenle
-      </button>
-      <button type="button" class="btn-acc-action recalc full-span" onclick="syncAccountBalanceWithMovements('${acc.id}')" title="İşlem hareketlerini toplayıp bakiyeyi eşitler">
-        🔄 Bakiyeyi Hareketlere Göre Eşitle
-      </button>
-    `;
+    if (acc.type === 'credit') {
+      actionsBar.innerHTML = `
+        <button type="button" class="btn-acc-action pay-card-debt full-span" onclick="openPayCreditCardModal('${acc.id}')">
+          💳 Kart Borcu Öde
+        </button>
+        <button type="button" class="btn-acc-action primary" onclick="openAddTxForAccount('${acc.id}')">
+          ➕ Harcama Ekle
+        </button>
+        <button type="button" class="btn-acc-action" onclick="openEditAccountModal('${acc.id}')">
+          ✏️ Kartı Düzenle
+        </button>
+        <button type="button" class="btn-acc-action recalc full-span" onclick="syncAccountBalanceWithMovements('${acc.id}')" title="İşlem hareketlerini toplayıp bakiyeyi eşitler">
+          🔄 Bakiyeyi Hareketlere Göre Eşitle
+        </button>
+      `;
+    } else {
+      actionsBar.innerHTML = `
+        <button type="button" class="btn-acc-action primary" onclick="openAddTxForAccount('${acc.id}')">
+          ➕ İşlem Ekle
+        </button>
+        <button type="button" class="btn-acc-action" onclick="openEditAccountModal('${acc.id}')">
+          ✏️ Hesabı Düzenle
+        </button>
+        <button type="button" class="btn-acc-action recalc full-span" onclick="syncAccountBalanceWithMovements('${acc.id}')" title="İşlem hareketlerini toplayıp bakiyeyi eşitler">
+          🔄 Bakiyeyi Hareketlere Göre Eşitle
+        </button>
+      `;
+    }
   }
 
   // Filtreler
@@ -1397,6 +1429,249 @@ function openAddTxForAccount(accId) {
     const fromSelect = document.getElementById('selectWalletFromAccount');
     if (fromSelect && accId) fromSelect.value = accId;
   }, 50);
+}
+
+// --- Kredi Kartı Borcu Ödeme Modal Sistemi ---
+function openPayCreditCardModal(cardId) {
+  const cardAcc = walletState.accounts.find(a => a.id === cardId);
+  if (!cardAcc) return;
+
+  const modal = document.getElementById('modalPayCreditCard');
+  if (!modal) return;
+
+  // Hedef kart bilgilerini yerleştir
+  document.getElementById('inputPayCardTargetAccountId').value = cardId;
+  const iconEl = document.getElementById('payCardBannerIcon');
+  if (iconEl) iconEl.textContent = cardAcc.icon || '💳';
+  const nameEl = document.getElementById('payCardBannerName');
+  if (nameEl) nameEl.textContent = cardAcc.name;
+
+  // Borç hesaplamaları
+  const totalDebt = Math.max(0, -cardAcc.balance);
+  let periodDebt = 0;
+  if (cardAcc.billingDay) {
+    const periodData = calculateCreditCardPeriodDebt(cardId, cardAcc.billingDay);
+    if (periodData) {
+      periodDebt = periodData.netDebt;
+    }
+  }
+
+  const subEl = document.getElementById('payCardBannerSub');
+  if (subEl) {
+    if (cardAcc.billingDay) {
+      subEl.textContent = `Dönem Borcu: ${formatWalletTL(periodDebt)} (Kesim: Ayın ${cardAcc.billingDay}'i)`;
+    } else {
+      subEl.textContent = `Toplam Borç: ${formatWalletTL(totalDebt)}`;
+    }
+  }
+
+  const badgeEl = document.getElementById('payCardBannerDebtBadge');
+  if (badgeEl) {
+    badgeEl.textContent = `Bakiye: ${formatWalletTL(cardAcc.balance)}`;
+    badgeEl.style.color = cardAcc.balance < 0 ? 'var(--rose)' : 'var(--emerald)';
+  }
+
+  // Kaynak hesapları doldur (ödemenin yapılacağı hesap)
+  const selectSource = document.getElementById('selectPayCardSourceAccount');
+  if (selectSource) {
+    selectSource.innerHTML = '';
+    const otherAccounts = walletState.accounts.filter(a => a.id !== cardId);
+
+    // Vadesiz banka ve nakit hesaplarını öne al, bakiyeye göre sırala
+    otherAccounts.sort((a, b) => {
+      if (a.type === 'bank' && b.type !== 'bank') return -1;
+      if (b.type === 'bank' && a.type !== 'bank') return 1;
+      return b.balance - a.balance;
+    });
+
+    otherAccounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.textContent = `${acc.icon || '🏦'} ${acc.name} (${formatWalletTL(acc.balance)})`;
+      selectSource.appendChild(opt);
+    });
+
+    // Pozitif bakiyeli ilk hesabı seç, yoksa ilk hesabı seç
+    const positiveAcc = otherAccounts.find(a => a.balance > 0 && a.type !== 'credit');
+    if (positiveAcc) {
+      selectSource.value = positiveAcc.id;
+    } else if (otherAccounts.length > 0) {
+      selectSource.value = otherAccounts[0].id;
+    }
+
+    updatePayCardSourceHint();
+  }
+
+  // Ödeme tarihi bugüne ayarlansın
+  const dateInput = document.getElementById('inputPayCardDate');
+  if (dateInput) {
+    dateInput.value = new Date().toISOString().split('T')[0];
+  }
+
+  // Açıklama varsayılanı
+  const noteInput = document.getElementById('inputPayCardNote');
+  if (noteInput) {
+    noteInput.value = `${cardAcc.name} Borç Ödemesi`;
+  }
+
+  // Tutar alanı ve hızlı çipleri hazırla
+  const amountInput = document.getElementById('inputPayCardAmount');
+  let defaultAmount = periodDebt > 0 ? periodDebt : (totalDebt > 0 ? totalDebt : '');
+  if (amountInput) {
+    amountInput.value = defaultAmount > 0 ? defaultAmount.toFixed(2) : '';
+  }
+
+  renderPayCardQuickChips(periodDebt, totalDebt);
+
+  modal.showModal();
+}
+
+function updatePayCardSourceHint() {
+  const selectSource = document.getElementById('selectPayCardSourceAccount');
+  const hintEl = document.getElementById('payCardSourceBalanceHint');
+  if (!selectSource || !hintEl) return;
+
+  const acc = walletState.accounts.find(a => a.id === selectSource.value);
+  if (acc) {
+    hintEl.innerHTML = `Seçili hesap bakiyesi: <strong style="color: ${acc.balance >= 0 ? 'var(--emerald)' : 'var(--rose)'};">${formatWalletTL(acc.balance)}</strong> (${getAccountTypeLabel(acc.type)})`;
+  } else {
+    hintEl.innerHTML = '';
+  }
+}
+
+function renderPayCardQuickChips(periodDebt, totalDebt) {
+  const container = document.getElementById('payCardQuickChips');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const chips = [];
+
+  if (periodDebt > 0) {
+    chips.push({
+      label: `📋 Dönem Borcu (${formatWalletTL(periodDebt)})`,
+      amount: periodDebt
+    });
+  }
+
+  if (totalDebt > 0 && Math.abs(totalDebt - periodDebt) > 0.01) {
+    chips.push({
+      label: `💳 Toplam Borç (${formatWalletTL(totalDebt)})`,
+      amount: totalDebt
+    });
+  }
+
+  // Asgari ödeme (%20 ve %40)
+  const baseDebt = periodDebt > 0 ? periodDebt : totalDebt;
+  if (baseDebt > 0) {
+    const min20 = Math.round(baseDebt * 0.20 * 100) / 100;
+    const min40 = Math.round(baseDebt * 0.40 * 100) / 100;
+    if (min20 >= 1) {
+      chips.push({
+        label: `⚡ %20 Asgari (${formatWalletTL(min20)})`,
+        amount: min20
+      });
+    }
+    if (min40 >= 1 && min40 !== min20) {
+      chips.push({
+        label: `⚡ %40 Asgari (${formatWalletTL(min40)})`,
+        amount: min40
+      });
+    }
+  }
+
+  if (chips.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
+  chips.forEach((c, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `quick-pay-chip-btn ${index === 0 ? 'active' : ''}`;
+    btn.textContent = c.label;
+    btn.onclick = () => {
+      const amountInput = document.getElementById('inputPayCardAmount');
+      if (amountInput) {
+        amountInput.value = c.amount.toFixed(2);
+        amountInput.focus();
+      }
+      container.querySelectorAll('.quick-pay-chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+    container.appendChild(btn);
+  });
+}
+
+function handlePayCreditCardSubmit(e) {
+  e.preventDefault();
+
+  const targetCardId = document.getElementById('inputPayCardTargetAccountId').value;
+  const sourceAccountId = document.getElementById('selectPayCardSourceAccount').value;
+  const amountInput = document.getElementById('inputPayCardAmount');
+  const dateInput = document.getElementById('inputPayCardDate');
+  const noteInput = document.getElementById('inputPayCardNote');
+
+  const amount = parseFloat(amountInput.value);
+  if (!amount || amount <= 0) {
+    alert('Lütfen geçerli bir ödeme tutarı giriniz.');
+    return;
+  }
+
+  if (!sourceAccountId) {
+    alert('Lütfen ödemenin yapılacağı kaynak hesabı seçiniz.');
+    return;
+  }
+
+  if (sourceAccountId === targetCardId) {
+    alert('Kaynak ve hedef kart aynı olamaz!');
+    return;
+  }
+
+  const sourceAcc = walletState.accounts.find(a => a.id === sourceAccountId);
+  const cardAcc = walletState.accounts.find(a => a.id === targetCardId);
+
+  if (!sourceAcc || !cardAcc) {
+    alert('Hesap bulunamadı!');
+    return;
+  }
+
+  const dateVal = dateInput.value || new Date().toISOString().split('T')[0];
+  const noteVal = noteInput.value.trim() || `${cardAcc.name} Borç Ödemesi`;
+
+  // 1. Yeni Transfer İşlemi Oluştur (Kaynak -> Kredi Kartı)
+  const newTx = {
+    id: 'wtx_' + Date.now(),
+    type: 'transfer',
+    amount: amount,
+    fromAccountId: sourceAccountId,
+    toAccountId: targetCardId,
+    categoryId: '',
+    subCategory: '',
+    date: dateVal,
+    note: noteVal
+  };
+
+  // 2. Bakiyeleri Güncelle
+  sourceAcc.balance = Math.round((sourceAcc.balance - amount) * 100) / 100;
+  cardAcc.balance = Math.round((cardAcc.balance + amount) * 100) / 100;
+
+  // 3. İşlemi ekle ve tarihe göre sırala
+  walletState.transactions.push(newTx);
+  walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // 4. Durumu kaydet ve arayüzü güncelle
+  saveWalletState();
+  renderWalletUI();
+
+  // 5. Modalı kapat
+  closeModal('modalPayCreditCard');
+
+  // 6. Eğer kart detay modalı açıksa hemen yenile
+  const modalDetail = document.getElementById('modalAccountDetail');
+  if (modalDetail && modalDetail.open) {
+    openAccountDetailModal(targetCardId, activeAccountDetailFilter || 'all');
+  }
 }
 
 function syncAccountBalanceWithMovements(accId) {
@@ -2825,6 +3100,9 @@ function loadBordroState() {
               delete bordroState.manualOverrides[k].calismaGunuBasi;
               delete bordroState.manualOverrides[k].asgariUcrTopMat;
               delete bordroState.manualOverrides[k].asgariUcrVergi;
+              delete bordroState.manualOverrides[k].sigortaPrimi;
+              delete bordroState.manualOverrides[k].topGelVerMat;
+              delete bordroState.manualOverrides[k].kesGelVer;
             }
           });
         }
@@ -2925,7 +3203,7 @@ function parseBordroInputNum(str) {
 }
 
 // -------------------------------------------------------------------------
-// VERGİ DİLİMİ ORANI BULUCU (Madde 11 & 13)
+// VERGİ DİLİMİ ORANI BULUCU (Madde 11)
 // Matrah hangi aralığa denk geliyorsa o aralığın oranını döner
 // -------------------------------------------------------------------------
 function getTaxRateForAmount(year, amount) {
@@ -2941,6 +3219,39 @@ function getTaxRateForAmount(year, amount) {
     }
   }
   return 15;
+}
+
+// -------------------------------------------------------------------------
+// KADEMELİ GELİR VERGİSİ DİLİM HESAPLAYICI (Madde 13 - Progresif Vergi Motoru)
+// Önceki kümülatif vergi matrahından (m1) bu ayki kümülatif vergi matrahına (m2) kadar olan kısmı
+// resmi vergi dilimlerinin sınırlarına göre (%15, %20, %27, %35, %40) parçalara ayırır,
+// her parçayı ilgili dilim oranıyla hesaplar ve toplamını döner.
+// Örnek: Mart kümülatif 26.701,79 TL, Nisan kümülatif 36.615,81 TL ise:
+// 32.000 TL'ye kadar olan 5.298,21 TL %15'ten, kalan 4.615,81 TL %20'den hesaplanıp toplanır.
+// -------------------------------------------------------------------------
+function calculateProgressiveTaxForPeriod(year, prevCumul, currentCumul) {
+  if (!bordroState.taxConfig) bordroState.taxConfig = JSON.parse(JSON.stringify(DEFAULT_TAX_CONFIG));
+  const yearCfg = bordroState.taxConfig[year] || bordroState.taxConfig[2026] || DEFAULT_TAX_CONFIG[2026];
+  const brackets = yearCfg.brackets || [];
+
+  const m1 = Math.max(0, Number(prevCumul) || 0);
+  const m2 = Math.max(0, Number(currentCumul) || 0);
+  if (m2 <= m1) return 0;
+
+  let totalTax = 0;
+  for (const b of brackets) {
+    const min = Number(b.min) || 0;
+    const max = (b.max !== null && b.max !== undefined && b.max !== '') ? Number(b.max) : Infinity;
+    const rate = Number(b.rate) || 15;
+
+    // Bu dilim aralığına [min, max) düşen matrah payı
+    const inBracket = Math.max(0, Math.min(m2, max) - Math.max(m1, min));
+    if (inBracket > 0) {
+      totalTax += inBracket * (rate / 100);
+    }
+  }
+
+  return Math.round(totalTax * 100) / 100;
 }
 
 function getMinWageGrossForYear(year, monthIndex = 0) {
@@ -3078,11 +3389,11 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
     const sigortaVal = Number(p.sigortaPrimi) || 0;
 
-    // 7. Madde: Top. Gel. Ver. Mat. = Aynı yıl önceki ay TopGelVerMat + SGK - Yemek - Sigorta
+    // 7. Madde: Top. Gel. Ver. Mat. = Bir önceki ayın Top. Gel. Ver. Mat. + SGK Prim Esas Kazanç - Sigorta Primi
+    const oncekiTopGelVerMat = yearCumulatives[year].topGelVerMat || 0;
     if (!overrides.topGelVerMat) {
-      const oncekiMatrah = yearCumulatives[year].topGelVerMat;
-      const buAykiKazancMatrahi = Math.max(0, sgkVal - yemekVal - sigortaVal);
-      p.topGelVerMat = Math.round((oncekiMatrah + buAykiKazancMatrahi) * 100) / 100;
+      const buAykiKazancMatrahi = Math.max(0, sgkVal - sigortaVal);
+      p.topGelVerMat = Math.round((oncekiTopGelVerMat + buAykiKazancMatrahi) * 100) / 100;
     }
     yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
     const topGelVerMatVal = Number(p.topGelVerMat) || 0;
@@ -3133,10 +3444,14 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
 
     // 13. Madde: Kes. Gel. Ver. (Kesilecek Gelir Vergisi)
-    // Formül: ((SGK Prim Esas Kazanç - Sigorta Primi) * 0.15) - Asgari Ücret Vergi
+    // Formül: Kademeli Gelir Vergisi Dilim Hesabı - Asgari Ücret Vergi
+    // Önceki aydan devreden kümülatif matrahtan bu ayki kümülatif matraha kadar olan kısım
+    // resmi vergi dilimlerinin sınırlarına göre kademeli hesaplanır (%15, %20, %27, %35, %40).
+    // Bulunan toplam vergiden varsa o ayki Asgari Ücret Vergi istisnası düşülür.
     const asgariUcrVergiVal = Number(p.asgariUcrVergi) || 0;
     if (!overrides.kesGelVer) {
-      p.kesGelVer = Math.round((((sgkVal - sigortaVal) * 0.15) - asgariUcrVergiVal) * 100) / 100;
+      const hesaplananGelirVergisi = calculateProgressiveTaxForPeriod(year, oncekiTopGelVerMat, topGelVerMatVal);
+      p.kesGelVer = Math.max(0, Math.round((hesaplananGelirVergisi - asgariUcrVergiVal) * 100) / 100);
     }
     const kesGelVerVal = Number(p.kesGelVer) || 0;
 
@@ -3514,6 +3829,13 @@ function handleBordroCellBlur(inputEl) {
   if (paramKey !== 'toplam') {
     delete bordroState.manualOverrides[periodKey].toplam;
     delete bordroState.manualOverrides[periodKey].calismaGunuBasi;
+  }
+  if (['yemekYardimi', 'brutUcret', 'sosyalYardim', 'ikramiyeYardimi', 'yolYardimi', 'ekstra'].includes(paramKey)) {
+    delete bordroState.manualOverrides[periodKey].sgkPrimEsasKazanc;
+    delete bordroState.manualOverrides[periodKey].sigortaPrimi;
+    delete bordroState.manualOverrides[periodKey].topGelVerMat;
+    delete bordroState.manualOverrides[periodKey].kesGelVer;
+    delete bordroState.manualOverrides[periodKey].netOdenen;
   }
   if (paramKey === 'asgariUcret') {
     delete bordroState.manualOverrides[periodKey].asgariUcrTopMat;
