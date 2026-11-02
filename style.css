@@ -32,6 +32,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-primary);
@@ -42,6 +47,7 @@ body {
   padding: 0;
   margin: 0;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .app-container {
