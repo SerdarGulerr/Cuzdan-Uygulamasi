@@ -3431,11 +3431,10 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     const asgariUcrTopMatVal = Number(p.asgariUcrTopMat) || 0;
 
     // 11. Madde: Asgari Ücret Vergi
-    // Vergi dilimi asgari ücret toplam matrahına göre belirlenir,
-    // ancak vergi hesabı matrah üzerinden değil doğrudan o ayki asgari ücret üzerinden yapılır
+    // Vergi dilimi asgari ücret toplam matrahına göre kademeli (progresif) dilim motoru ile hesaplanır:
+    // Üst limitine kadar olan kısım o limitten (%15), kalan kısım bir üst limitten (%20 vb.) hesaplanıp toplanır.
     if (!overrides.asgariUcrVergi) {
-      const asgariTaxRate = getTaxRateForAmount(year, asgariUcrTopMatVal);
-      p.asgariUcrVergi = Math.round((asgariUcretVal * (asgariTaxRate / 100)) * 100) / 100;
+      p.asgariUcrVergi = calculateProgressiveTaxForPeriod(year, oncekiAsgariMatrah, asgariUcrTopMatVal);
     }
 
     // 12. Madde: Asgari Son. Top. = Toplam Gelir Vergisi Matrahı - Asgari Ücret Toplam Matrah
@@ -3702,9 +3701,14 @@ function renderBordroTableBody(months) {
       if (isLocked) inputClass += ' locked-month-input';
 
       cellsHtml += `
-        <td class="${tdClass}">
+        <td class="${tdClass}" onclick="const inp=this.querySelector('input'); if(inp && !inp.readOnly) inp.focus();">
           <input
             type="text"
+            inputmode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
             class="${inputClass}"
             data-period-key="${m.key}"
             data-param-key="${def.key}"
@@ -3841,6 +3845,8 @@ function handleBordroCellBlur(inputEl) {
     delete bordroState.manualOverrides[periodKey].asgariUcrTopMat;
     delete bordroState.manualOverrides[periodKey].asgariUcrVergi;
     delete bordroState.manualOverrides[periodKey].asgariSonTop;
+    delete bordroState.manualOverrides[periodKey].kesGelVer;
+    delete bordroState.manualOverrides[periodKey].netOdenen;
   }
 
   saveBordroState();
@@ -4033,7 +4039,7 @@ function renderTaxBracketsForYear(year) {
                 1. Dönem (Ocak - Haziran)
               </label>
               <div class="input-with-affix">
-                <input type="number" step="0.01" id="inputMinWageGross1" value="${Number(cfg.minWageGross1 || cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageTwoPeriodsChange(${year}, 'minWageGross1', this.value)">
+                <input type="number" step="0.01" inputmode="decimal" id="inputMinWageGross1" value="${Number(cfg.minWageGross1 || cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageTwoPeriodsChange(${year}, 'minWageGross1', this.value)">
                 <span class="affix">₺</span>
               </div>
             </div>
@@ -4042,7 +4048,7 @@ function renderTaxBracketsForYear(year) {
                 2. Dönem (Temmuz - Aralık)
               </label>
               <div class="input-with-affix">
-                <input type="number" step="0.01" id="inputMinWageGross2" value="${Number(cfg.minWageGross2 || cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageTwoPeriodsChange(${year}, 'minWageGross2', this.value)">
+                <input type="number" step="0.01" inputmode="decimal" id="inputMinWageGross2" value="${Number(cfg.minWageGross2 || cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageTwoPeriodsChange(${year}, 'minWageGross2', this.value)">
                 <span class="affix">₺</span>
               </div>
             </div>
@@ -4058,7 +4064,7 @@ function renderTaxBracketsForYear(year) {
             <small style="color: var(--text-dim); font-weight: normal;">Damga Vergisi Muafiyeti İçin</small>
           </label>
           <div class="input-with-affix" style="margin-top: 4px;">
-            <input type="number" step="0.01" id="inputMinWageGross" value="${Number(cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageChange(this.value)">
+            <input type="number" step="0.01" inputmode="decimal" id="inputMinWageGross" value="${Number(cfg.minWageGross || 0) || ''}" placeholder="0.00" onchange="handleTaxMinWageChange(this.value)">
             <span class="affix">₺</span>
           </div>
         </div>
@@ -4079,6 +4085,7 @@ function renderTaxBracketsForYear(year) {
         <input
           type="number"
           step="1"
+          inputmode="numeric"
           class="tax-bracket-input"
           value="${b.min !== null && b.min !== undefined ? b.min : ''}"
           placeholder="0"
@@ -4089,6 +4096,7 @@ function renderTaxBracketsForYear(year) {
         <input
           type="number"
           step="1"
+          inputmode="numeric"
           class="tax-bracket-input"
           value="${b.max !== null && b.max !== undefined ? b.max : ''}"
           placeholder="Sınırsız (Üst dilim)"
