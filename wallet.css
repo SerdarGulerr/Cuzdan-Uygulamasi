@@ -826,6 +826,1037 @@
   margin-top: 4px;
 }
 
+/* ===================================================
+   GELİŞMİŞ ANALİZ & TREND GRAFİKLERİ STİLLERİ
+   =================================================== */
+
+.analytics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.analytics-header-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  box-shadow: var(--shadow-card);
+}
+
+.analytics-mode-switcher {
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.analytics-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.analytics-mode-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.analytics-mode-btn.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.12));
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #60a5fa;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.2);
+}
+
+.analytics-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.analytics-toolbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.analytics-pill-group {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.analytics-pill-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.analytics-pill-btn:hover {
+  color: #fff;
+}
+
+.analytics-pill-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.analytics-pill-btn.active-expense {
+  background: rgba(244, 63, 94, 0.18);
+  color: #fb7185;
+  border-color: rgba(244, 63, 94, 0.35);
+}
+
+.analytics-pill-btn.active-income {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+/* Dönem Çubuğu */
+.analytics-period-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.analytics-period-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.period-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.period-chip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.period-chip.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #60a5fa;
+  font-weight: 800;
+}
+
+/* Kategori Çipleri Seçim Alanı */
+.analytics-sub-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analytics-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.analytics-section-title {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.btn-clear-chip-filter {
+  background: transparent;
+  border: none;
+  color: #60a5fa;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-family: inherit;
+}
+.btn-clear-chip-filter:hover {
+  text-decoration: underline;
+}
+
+.analytics-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cat-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 6px 11px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.cat-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.cat-filter-chip.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Donut Halka Grafiği */
+.donut-chart-container {
+  max-width: 220px;
+  margin: 6px auto;
+  position: relative;
+}
+
+.donut-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.donut-slice {
+  cursor: pointer;
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.donut-slice:hover {
+  stroke-width: 28px;
+  opacity: 0.9;
+}
+
+.donut-center-group {
+  user-select: none;
+  pointer-events: none;
+}
+
+.donut-center-sub {
+  fill: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.donut-center-val {
+  fill: #ffffff;
+  font-size: 13.5px;
+  font-weight: 800;
+  font-family: inherit;
+}
+
+.donut-empty-text {
+  fill: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.donut-empty-sub {
+  fill: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: inherit;
+}
+
+.analytics-filter-badge-banner {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 0.74rem;
+  color: #93c5fd;
+}
+
+/* Karşılaştırma Kartları Listesi */
+.comparison-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comparison-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.comparison-card-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.comp-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.comp-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.comp-rank-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.comp-cat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.comp-title-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.comp-cat-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comp-cat-subhint {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.comp-row-right {
+  flex-shrink: 0;
+}
+
+.comp-amount {
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.comp-action-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.btn-comp-action {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-comp-action:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.btn-comp-action.highlight {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.btn-comp-action.highlight:hover {
+  background: rgba(59, 130, 246, 0.22);
+  color: #fff;
+}
+
+/* Alt Başlık Kırılımı Görünümü */
+.subcat-hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  padding: 10px 14px;
+}
+
+.subcat-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subcat-hero-icon {
+  font-size: 1.4rem;
+}
+
+.subcat-hero-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.subcat-hero-meta {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.btn-hero-trend {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-hero-trend:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #fff;
+}
+
+.subcat-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subcat-item-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 11px;
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+
+.subcat-item-card:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.subcat-item-card.open {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.subcat-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.subcat-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.subcat-rank-pill {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.subcat-name-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.subcat-item-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subcat-item-meta {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.subcat-item-right {
+  flex-shrink: 0;
+}
+
+.subcat-item-val {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.subcat-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.btn-subcat-toggle-txs {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+}
+
+.btn-subcat-toggle-txs:hover {
+  color: #60a5fa;
+}
+
+.btn-subcat-trend {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+  font-family: inherit;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-subcat-trend:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #fff;
+}
+
+/* ===================================================
+   TREND & ZAMAN ANALİZİ STİLLERİ
+   =================================================== */
+
+.trend-hero-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.trend-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.trend-hero-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.trend-hero-title {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.trend-subcat-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.trend-hero-sub {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin: 2px 0 0 0;
+}
+
+.trend-hero-right {
+  flex-shrink: 0;
+}
+
+.trend-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.trend-badge-pill.up-bad {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.trend-badge-pill.down-good {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.trend-badge-pill.up-good {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.trend-badge-pill.down-bad {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.trend-badge-pill.neutral {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* KPI Metrik Kartları */
+.trend-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 600px) {
+  .trend-kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.trend-kpi-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 11px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.trend-kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.trend-kpi-icon {
+  font-size: 0.95rem;
+}
+
+.trend-kpi-title {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.trend-kpi-val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trend-kpi-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sütun & Trend Grafiği */
+.trend-chart-card {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trend-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trend-chart-wrapper {
+  width: 100%;
+  overflow: visible;
+}
+
+.trend-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.chart-y-axis-label {
+  fill: var(--text-dim);
+  font-size: 9px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.chart-avg-badge {
+  fill: #fbbf24;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.chart-bar-value {
+  fill: #e2e8f0;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.chart-bar-value.peak-val {
+  fill: #fbbf24;
+  font-weight: 800;
+}
+
+.chart-peak-crown {
+  font-size: 11px;
+}
+
+.chart-month-label {
+  fill: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.chart-month-label.latest {
+  fill: #fff;
+  font-weight: 800;
+}
+
+.chart-month-label.selected-month {
+  fill: #60a5fa;
+  font-weight: 800;
+}
+
+.chart-bar-slot-bg {
+  fill: transparent;
+  transition: fill 0.15s ease;
+}
+
+.chart-bar-slot-bg.active,
+.chart-bar-group:hover .chart-bar-slot-bg {
+  fill: rgba(255, 255, 255, 0.05);
+}
+
+.chart-bar-rect {
+  transition: transform 0.2s ease, filter 0.2s ease;
+  transform-origin: bottom;
+}
+
+.chart-bar-group:hover .chart-bar-rect {
+  transform: scaleY(1.03);
+}
+
+.chart-bar-rect.selected-bar {
+  filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.7));
+  stroke: #bfdbfe;
+  stroke-width: 1.5;
+}
+
+.trend-selected-month-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+.btn-clear-month-filter {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-clear-month-filter:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Geçmiş Hareketler Tablosu */
+.trend-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.trend-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.trend-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.trend-tx-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trend-tx-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.trend-tx-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.trend-tx-date {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.trend-tx-acc {
+  font-size: 0.7rem;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.trend-tx-note {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trend-tx-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.trend-tx-amount {
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.trend-tx-amount.expense {
+  color: #fff;
+}
+
+.trend-tx-amount.income {
+  color: var(--emerald);
+}
+
+.trend-tx-edit-icon {
+  font-size: 0.75rem;
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+
+.trend-tx-card:hover .trend-tx-edit-icon {
+  opacity: 1;
+}
+
+/* Günlük İşlem Satırındaki Trend Butonu */
+.btn-tx-stats {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-tx-stats:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #fff;
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.empty-state-notice {
+  text-align: center;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.empty-state-notice p {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
 /* Category Statistics & Pie/Bar Representation */
 .stats-card {
   background: var(--bg-card);

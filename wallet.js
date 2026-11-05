@@ -392,6 +392,15 @@ function renderDailyView(txs) {
           <div class="wallet-tx-right">
             <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(t.amount)}</span>
             <div class="wallet-tx-actions">
+              ${t.type !== 'transfer' ? `
+              <button type="button" class="btn-tx-action btn-tx-stats" onclick="inspectCategoryTrend('${t.categoryId}', '${(t.subCategory || '').replace(/'/g, "\\'")}', '${t.type}')" title="Bu Kalemin Trendini & Geçmişini İncele" aria-label="Analiz">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </button>
+              ` : ''}
               <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi Düzenle" aria-label="Düzenle">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -528,18 +537,175 @@ function filterCalendarDay(day) {
   detailBox.innerHTML = html;
 }
 
-// 3. ANALİZ & İSTATİSTİK GÖRÜNÜMÜ
+// ===================================================
+// 3. GELİŞMİŞ ANALİZ, KIYASLAMA & GEÇMİŞ TREND MOTORU
+// ===================================================
+
 let expandedStatsCategories = new Set();
 let expandedStatsSubCategories = new Set();
 
+let walletAnalyticsState = {
+  mode: 'compare', // 'compare' (Kıyaslama & Dağılım) | 'trend' (Zaman & Geçmiş Trendi)
+  compareType: 'expense', // 'expense' | 'income'
+  comparePeriod: 'month', // 'month' (seçili ay) | '3months' | '6months' | 'year' | 'all'
+  compareScope: 'categories', // 'categories' (kategorileri kıyasla) | 'subcategories' (alt başlık kırılımı)
+  selectedCategoryIds: [], // boş ise tümü, dolu ise seçili kategoriler örn: ['cat_market', 'cat_food']
+  selectedScopeCatId: 'cat_market', // alt başlık analizi için seçili ana kategori
+
+  // Trend Modu
+  trendType: 'expense', // 'expense' | 'income'
+  trendCategoryId: 'cat_food',
+  trendSubCategory: '', // '' ise tüm kategori, dolu ise örn: 'Fast Food' veya '__unassigned__'
+  trendRange: '6months', // '6months' | '12months' | 'year' | 'all'
+  trendSelectedMonth: null // grafikten bir aya tıklandığında o aya filtreler
+};
+
+// --- Mod ve Filtre Kontrol Fonksiyonları ---
+function setAnalyticsMode(mode) {
+  walletAnalyticsState.mode = mode;
+  walletAnalyticsState.trendSelectedMonth = null;
+  renderStatsView();
+}
+
+function setAnalyticsCompareType(type) {
+  walletAnalyticsState.compareType = type;
+  walletAnalyticsState.selectedCategoryIds = [];
+  const catList = (walletState && walletState.categories && walletState.categories[type]) ? walletState.categories[type] : [];
+  if (catList.length > 0) {
+    walletAnalyticsState.selectedScopeCatId = catList[0].id;
+  }
+  renderStatsView();
+}
+
+function setAnalyticsComparePeriod(period) {
+  walletAnalyticsState.comparePeriod = period;
+  renderStatsView();
+}
+
+function setAnalyticsCompareScope(scope) {
+  walletAnalyticsState.compareScope = scope;
+  renderStatsView();
+}
+
+function toggleAnalyticsCategoryFilter(catId) {
+  if (catId === 'all') {
+    walletAnalyticsState.selectedCategoryIds = [];
+  } else {
+    const idx = walletAnalyticsState.selectedCategoryIds.indexOf(catId);
+    if (idx >= 0) {
+      walletAnalyticsState.selectedCategoryIds.splice(idx, 1);
+    } else {
+      walletAnalyticsState.selectedCategoryIds.push(catId);
+    }
+  }
+  renderStatsView();
+}
+
+function selectAnalyticsScopeCategory(catId) {
+  walletAnalyticsState.selectedScopeCatId = catId;
+  renderStatsView();
+}
+
+function setAnalyticsTrendType(type) {
+  walletAnalyticsState.trendType = type;
+  const catList = (walletState && walletState.categories && walletState.categories[type]) ? walletState.categories[type] : [];
+  if (catList.length > 0) {
+    walletAnalyticsState.trendCategoryId = catList[0].id;
+  }
+  walletAnalyticsState.trendSubCategory = '';
+  walletAnalyticsState.trendSelectedMonth = null;
+  renderStatsView();
+}
+
+function setAnalyticsTrendCategory(catId) {
+  walletAnalyticsState.trendCategoryId = catId;
+  walletAnalyticsState.trendSubCategory = '';
+  walletAnalyticsState.trendSelectedMonth = null;
+  renderStatsView();
+}
+
+function setAnalyticsTrendSubCategory(subCat) {
+  walletAnalyticsState.trendSubCategory = subCat || '';
+  walletAnalyticsState.trendSelectedMonth = null;
+  renderStatsView();
+}
+
+function setAnalyticsTrendRange(range) {
+  walletAnalyticsState.trendRange = range;
+  walletAnalyticsState.trendSelectedMonth = null;
+  renderStatsView();
+}
+
+function selectTrendMonth(monthKey) {
+  if (walletAnalyticsState.trendSelectedMonth === monthKey) {
+    walletAnalyticsState.trendSelectedMonth = null;
+  } else {
+    walletAnalyticsState.trendSelectedMonth = monthKey;
+  }
+  renderStatsView();
+}
+
+// Hızlı Trend & İnceleme Yönlendirmesi
+function inspectCategoryTrend(catId, subCatName = '', type = 'expense') {
+  walletAnalyticsState.mode = 'trend';
+  walletAnalyticsState.trendType = type === 'income' ? 'income' : 'expense';
+  walletAnalyticsState.trendCategoryId = catId;
+  walletAnalyticsState.trendSubCategory = subCatName || '';
+  walletAnalyticsState.trendSelectedMonth = null;
+  
+  if (activeWalletSubView !== 'stats') {
+    switchWalletSubView('stats');
+  } else {
+    renderStatsView();
+  }
+  
+  const container = document.getElementById('subView_stats');
+  if (container) {
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function inspectCategorySubBreakdown(catId, type = 'expense') {
+  walletAnalyticsState.mode = 'compare';
+  walletAnalyticsState.compareType = type === 'income' ? 'income' : 'expense';
+  walletAnalyticsState.compareScope = 'subcategories';
+  walletAnalyticsState.selectedScopeCatId = catId;
+  
+  if (activeWalletSubView !== 'stats') {
+    switchWalletSubView('stats');
+  } else {
+    renderStatsView();
+  }
+
+  const container = document.getElementById('subView_stats');
+  if (container) {
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function abbreviateTL(amount) {
+  if (isNaN(amount) || amount === 0) return '0\u00A0₺';
+  const abs = Math.abs(amount);
+  if (abs >= 1000000) {
+    return (amount / 1000000).toFixed(1).replace('.', ',') + 'M\u00A0₺';
+  }
+  if (abs >= 10000) {
+    return (amount / 1000).toFixed(0) + 'K\u00A0₺';
+  }
+  if (abs >= 1000) {
+    return (amount / 1000).toFixed(1).replace('.', ',') + 'K\u00A0₺';
+  }
+  return Math.round(amount) + '\u00A0₺';
+}
+
+// Akordeon Genişletme Yardımcıları
 function toggleStatsCategoryExpand(catId) {
   if (expandedStatsCategories.has(catId)) {
     expandedStatsCategories.delete(catId);
   } else {
     expandedStatsCategories.add(catId);
   }
-  const data = getFilteredWalletData();
-  renderStatsView(data.monthTxs, data.totalExpense);
+  renderStatsView();
 }
 
 function toggleAllStatsCategories(catIds) {
@@ -549,8 +715,7 @@ function toggleAllStatsCategories(catIds) {
   } else {
     catIds.forEach(id => expandedStatsCategories.add(id));
   }
-  const data = getFilteredWalletData();
-  renderStatsView(data.monthTxs, data.totalExpense);
+  renderStatsView();
 }
 
 function toggleStatsSubCategoryTxList(event, subKey) {
@@ -560,194 +725,967 @@ function toggleStatsSubCategoryTxList(event, subKey) {
   } else {
     expandedStatsSubCategories.add(subKey);
   }
-  const data = getFilteredWalletData();
-  renderStatsView(data.monthTxs, data.totalExpense);
+  renderStatsView();
 }
 
-function renderStatsView(txs, totalExpense) {
-  const container = document.getElementById('subView_stats');
-  if (!container) return;
-
-  const expenses = txs.filter(t => t.type === 'expense');
-  if (expenses.length === 0 || totalExpense === 0) {
-    container.innerHTML = `
-      <div class="stats-card" style="text-align: center; padding: 24px;">
-        <p style="color: var(--text-muted); font-size: 0.85rem;">Bu ayda kayıtlı gider bulunmuyor.</p>
+// SVG Donut (Halka) Grafiği Üreteci
+function generateSvgDonut(items, total, centerSub = 'Toplam', centerVal = '') {
+  if (!items || items.length === 0 || total <= 0) {
+    return `
+      <div class="donut-chart-container empty">
+        <svg viewBox="0 0 240 240" class="donut-chart-svg">
+          <circle cx="120" cy="120" r="82" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="24" />
+          <text x="120" y="115" text-anchor="middle" class="donut-empty-text">Kayıt Bulunmuyor</text>
+          <text x="120" y="135" text-anchor="middle" class="donut-empty-sub">0,00 ₺</text>
+        </svg>
       </div>
     `;
-    return;
   }
 
-  // Kategori bazlı topla
-  const catTotals = {};
-  const catTxsMap = {};
-  expenses.forEach(t => {
-    catTotals[t.categoryId] = (catTotals[t.categoryId] || 0) + t.amount;
-    if (!catTxsMap[t.categoryId]) catTxsMap[t.categoryId] = [];
-    catTxsMap[t.categoryId].push(t);
+  const R = 82;
+  const C = 2 * Math.PI * R; // ~515.22
+  let accPct = 0;
+  let circlesHtml = '';
+
+  items.forEach((item) => {
+    const slicePct = item.amount / total;
+    const dashLength = Math.max(1.5, slicePct * C);
+    const strokeOffset = -(accPct * C);
+    accPct += slicePct;
+
+    circlesHtml += `
+      <circle cx="120" cy="120" r="${R}" fill="none" 
+              stroke="${item.color}" 
+              stroke-width="24" 
+              stroke-dasharray="${dashLength.toFixed(2)} ${(C - dashLength).toFixed(2)}" 
+              stroke-dashoffset="${strokeOffset.toFixed(2)}"
+              transform="rotate(-90 120 120)"
+              class="donut-slice">
+        <title>${item.name || item.label}: ${formatWalletTL(item.amount)} (%${item.pct}%)</title>
+      </circle>
+    `;
   });
 
-  const sortedCatIds = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
-  const allExpanded = sortedCatIds.length > 0 && sortedCatIds.every(id => expandedStatsCategories.has(id));
+  const displayVal = centerVal || formatWalletTL(total);
 
-  let html = `
-    <div class="stats-card">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:10px; gap:8px; flex-wrap:wrap;">
-        <div>
-          <h4 style="font-size:0.95rem; font-weight:800; color:#fff;">Aylık Gider Dağılımı</h4>
-          <span style="font-size:0.7rem; color:var(--text-dim);">Alt başlık grafiği için kategoriye dokunun</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" class="btn-stats-expand-all" onclick='toggleAllStatsCategories(${JSON.stringify(sortedCatIds)})'>
-            ${allExpanded ? '🔼 Tümünü Kapat' : '🔽 Tümünü Aç'}
-          </button>
-          <span style="font-size:0.85rem; font-weight:800; color:var(--rose);">-${formatWalletTL(totalExpense)}</span>
-        </div>
-      </div>
-      <div class="category-bar-list">
+  return `
+    <div class="donut-chart-container">
+      <svg viewBox="0 0 240 240" class="donut-chart-svg">
+        <circle cx="120" cy="120" r="${R}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="24" />
+        ${circlesHtml}
+        <g class="donut-center-group">
+          <text x="120" y="112" text-anchor="middle" class="donut-center-sub">${centerSub}</text>
+          <text x="120" y="135" text-anchor="middle" class="donut-center-val">${displayVal}</text>
+        </g>
+      </svg>
+    </div>
+  `;
+}
+
+// SVG Aylık Trend Sütun & Ortalama Grafiği Üreteci
+function generateSvgTrendChart(monthsList, maxVal, avgAmount, peakMonth, selectedMonthKey, themeColor = '#f59e0b') {
+  if (!monthsList || monthsList.length === 0) {
+    return `<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:0.8rem;">Grafik verisi bulunamadı.</div>`;
+  }
+
+  const svgW = 460;
+  const svgH = 210;
+  const padLeft = 45;
+  const padRight = 15;
+  const padTop = 32;
+  const padBottom = 32;
+  const plotW = svgW - padLeft - padRight;
+  const plotH = svgH - padTop - padBottom;
+
+  const safeMax = Math.max(maxVal, 100);
+
+  // Y-Ekseni Grid Çizgileri (0, 50%, 100%)
+  const y0 = padTop + plotH;
+  const yMid = padTop + plotH / 2;
+  const yTop = padTop;
+
+  let gridHtml = `
+    <!-- Grid Çizgileri -->
+    <line x1="${padLeft}" y1="${yTop}" x2="${svgW - padRight}" y2="${yTop}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
+    <text x="${padLeft - 6}" y="${yTop + 4}" text-anchor="end" class="chart-y-axis-label">${abbreviateTL(safeMax)}</text>
+
+    <line x1="${padLeft}" y1="${yMid}" x2="${svgW - padRight}" y2="${yMid}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3" />
+    <text x="${padLeft - 6}" y="${yMid + 4}" text-anchor="end" class="chart-y-axis-label">${abbreviateTL(safeMax / 2)}</text>
+
+    <line x1="${padLeft}" y1="${y0}" x2="${svgW - padRight}" y2="${y0}" stroke="rgba(255,255,255,0.12)" />
+    <text x="${padLeft - 6}" y="${y0 + 4}" text-anchor="end" class="chart-y-axis-label">0</text>
   `;
 
-  sortedCatIds.forEach(catId => {
-    const cat = walletState.categories.expense.find(c => c.id === catId) || { name: 'Diğer', icon: '📦', color: '#64748b' };
-    const amount = catTotals[catId];
-    const pct = ((amount / totalExpense) * 100).toFixed(1);
-    const catTxs = catTxsMap[catId] || [];
-    const isExpanded = expandedStatsCategories.has(catId);
+  // Ortalama Harcama Çizgisi
+  if (avgAmount > 0 && avgAmount <= safeMax) {
+    const avgY = padTop + plotH - (avgAmount / safeMax) * plotH;
+    gridHtml += `
+      <line x1="${padLeft}" y1="${avgY}" x2="${svgW - padRight}" y2="${avgY}" stroke="#fbbf24" stroke-dasharray="4 4" stroke-width="1.4" opacity="0.85" />
+      <text x="${svgW - padRight}" y="${avgY - 4}" text-anchor="end" class="chart-avg-badge">Ort: ${abbreviateTL(avgAmount)}</text>
+    `;
+  }
 
-    // Alt başlık dağılımı (Alt başlığı olmayanları "Genel / Belirtilmemiş" altında topla)
-    const subMap = {};
-    catTxs.forEach(t => {
-      const label = (t.subCategory && t.subCategory.trim()) ? t.subCategory.trim() : 'Genel (Alt Başlıksız)';
-      if (!subMap[label]) {
-        subMap[label] = { amount: 0, count: 0, txs: [], isUnassigned: !(t.subCategory && t.subCategory.trim()) };
-      }
-      subMap[label].amount += t.amount;
-      subMap[label].count += 1;
-      subMap[label].txs.push(t);
-    });
+  // Barlar & Etiketler
+  const n = monthsList.length;
+  const slotW = plotW / n;
+  const barW = Math.max(12, Math.min(28, slotW * 0.55));
 
-    const sortedSubNames = Object.keys(subMap).sort((a, b) => subMap[b].amount - subMap[a].amount);
+  let barsHtml = '';
+  monthsList.forEach((m, idx) => {
+    const x = padLeft + idx * slotW + (slotW - barW) / 2;
+    const barH = safeMax > 0 ? (m.amount / safeMax) * plotH : 0;
+    const y = padTop + plotH - barH;
+    const isSelected = selectedMonthKey === m.key;
+    const isPeak = peakMonth && peakMonth.amount > 0 && m.key === peakMonth.key;
+    const isLatest = idx === monthsList.length - 1;
 
-    // Kapalıyken kısa özet rozetleri
-    let collapsedPreviewHtml = '';
-    if (!isExpanded && sortedSubNames.length > 0) {
-      collapsedPreviewHtml = `<div class="subcat-breakdown-row">`;
-      sortedSubNames.slice(0, 4).forEach(sName => {
-        const sData = subMap[sName];
-        const sPct = ((sData.amount / amount) * 100).toFixed(0);
-        collapsedPreviewHtml += `<span class="subcat-breakdown-pill">${sName} <strong style="color:#cbd5e1;">%${sPct}</strong></span>`;
-      });
-      if (sortedSubNames.length > 4) {
-        collapsedPreviewHtml += `<span class="subcat-breakdown-pill">+${sortedSubNames.length - 4} diğer</span>`;
-      }
-      collapsedPreviewHtml += `</div>`;
+    let barColor = themeColor;
+    if (isSelected) barColor = '#60a5fa';
+
+    // Tepe Rozeti / Tutar
+    let topLabelHtml = '';
+    if (isPeak) {
+      topLabelHtml += `<text x="${x + barW / 2}" y="${Math.max(14, y - 16)}" text-anchor="middle" class="chart-peak-crown">👑</text>`;
+    }
+    if (m.amount > 0) {
+      topLabelHtml += `<text x="${x + barW / 2}" y="${Math.max(14, y - 4)}" text-anchor="middle" class="chart-bar-value ${isPeak ? 'peak-val' : ''}">${abbreviateTL(m.amount)}</text>`;
     }
 
-    // Açıkken detaylı alt başlık grafik paneli
-    let expandedPanelHtml = '';
-    if (isExpanded) {
-      expandedPanelHtml = `
-        <div class="subcat-drilldown-panel" onclick="event.stopPropagation()">
-          <div class="subcat-drilldown-header">
-            <span>📊 <strong>${cat.name}</strong> Alt Başlık Dağılımı</span>
-            <span class="subcat-drilldown-meta">${sortedSubNames.length} Alt Başlık • ${catTxs.length} İşlem</span>
+    barsHtml += `
+      <g class="chart-bar-group ${isSelected ? 'selected' : ''}" onclick="selectTrendMonth('${m.key}')" style="cursor: pointer;">
+        <title>${m.fullName}: ${formatWalletTL(m.amount)} (${m.count} işlem)</title>
+        
+        <!-- Dokunma / Tıklama Alanı -->
+        <rect x="${padLeft + idx * slotW}" y="${padTop}" width="${slotW}" height="${plotH + padBottom}" fill="transparent" />
+        
+        <!-- Bar Arka Planı (Hover/Seçim için) -->
+        <rect x="${x - 3}" y="${padTop}" width="${barW + 6}" height="${plotH}" rx="6" class="chart-bar-slot-bg ${isSelected ? 'active' : ''}" />
+
+        <!-- Sütun (Bar) -->
+        ${m.amount > 0 ? `
+          <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="5" ry="5" fill="${barColor}" class="chart-bar-rect ${isSelected ? 'selected-bar' : ''}" />
+        ` : `
+          <!-- 0 Tutar Çizgisi -->
+          <line x1="${x}" y1="${y0 - 2}" x2="${x + barW}" y2="${y0 - 2}" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-linecap="round" />
+        `}
+
+        ${topLabelHtml}
+
+        <!-- Ay Adı -->
+        <text x="${x + barW / 2}" y="${y0 + 18}" text-anchor="middle" class="chart-month-label ${isLatest ? 'latest' : ''} ${isSelected ? 'selected-month' : ''}">
+          ${m.shortName}
+        </text>
+      </g>
+    `;
+  });
+
+  return `
+    <div class="trend-chart-wrapper">
+      <svg viewBox="0 0 ${svgW} ${svgH}" class="trend-chart-svg" preserveAspectRatio="xMidYMid meet">
+        ${gridHtml}
+        ${barsHtml}
+      </svg>
+    </div>
+  `;
+}
+
+// Ana Analiz Görünümü Render Motoru
+function renderStatsView(legacyTxs, legacyTotalExpense) {
+  const container = document.getElementById('subView_stats');
+  if (!container) return;
+  if (!walletState) loadWalletState();
+
+  const isCompare = walletAnalyticsState.mode === 'compare';
+  const currentYear = currentWalletDate.getFullYear();
+  const currentMonthIdx = currentWalletDate.getMonth();
+  const currentMonthName = getMonthNameTR(currentMonthIdx);
+
+  // Ortak Header (Mod Seçici: Kıyaslama vs Zaman & Geçmiş Trendi)
+  let html = `
+    <div class="analytics-container">
+      <div class="analytics-header-card">
+        <div class="analytics-mode-switcher">
+          <button type="button" class="analytics-mode-btn ${isCompare ? 'active' : ''}" onclick="setAnalyticsMode('compare')">
+            <span>📊</span> Kıyaslama & Dağılım
+          </button>
+          <button type="button" class="analytics-mode-btn ${!isCompare ? 'active' : ''}" onclick="setAnalyticsMode('trend')">
+            <span>📈</span> Zaman & Geçmiş Trendi
+          </button>
+        </div>
+      </div>
+  `;
+
+  if (isCompare) {
+    // ==========================================================
+    // MOD 1: KIYASLAMA & DAĞILIM (Kategoriler veya Alt Başlıklar)
+    // ==========================================================
+    const compareType = walletAnalyticsState.compareType;
+    const comparePeriod = walletAnalyticsState.comparePeriod;
+    const compareScope = walletAnalyticsState.compareScope;
+    const isCategoryScope = compareScope === 'categories';
+
+    // 1. Dönem Filtreleme
+    let filteredTxs = [];
+    let periodLabel = '';
+    const mStr = String(currentMonthIdx + 1).padStart(2, '0');
+    const monthKey = `${currentYear}-${mStr}`;
+
+    if (comparePeriod === 'month') {
+      filteredTxs = walletState.transactions.filter(t => t.type === compareType && t.date.startsWith(monthKey));
+      periodLabel = `${currentMonthName} ${currentYear}`;
+    } else if (comparePeriod === '3months') {
+      const cut = new Date(currentYear, currentMonthIdx - 2, 1);
+      const cutStr = `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, '0')}-01`;
+      const endD = new Date(currentYear, currentMonthIdx + 1, 0);
+      const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+      filteredTxs = walletState.transactions.filter(t => t.type === compareType && t.date >= cutStr && t.date <= endStr);
+      periodLabel = 'Son 3 Ay';
+    } else if (comparePeriod === '6months') {
+      const cut = new Date(currentYear, currentMonthIdx - 5, 1);
+      const cutStr = `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, '0')}-01`;
+      const endD = new Date(currentYear, currentMonthIdx + 1, 0);
+      const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+      filteredTxs = walletState.transactions.filter(t => t.type === compareType && t.date >= cutStr && t.date <= endStr);
+      periodLabel = 'Son 6 Ay';
+    } else if (comparePeriod === 'year') {
+      filteredTxs = walletState.transactions.filter(t => t.type === compareType && t.date.startsWith(String(currentYear)));
+      periodLabel = `${currentYear} Yılı`;
+    } else if (comparePeriod === 'all') {
+      filteredTxs = walletState.transactions.filter(t => t.type === compareType);
+      periodLabel = 'Tüm Zamanlar';
+    }
+
+    const availableCats = (walletState.categories && walletState.categories[compareType]) ? walletState.categories[compareType] : [];
+
+    html += `
+      <!-- Toolbar & Kapsam Kontrolleri -->
+      <div class="analytics-card">
+        <div class="analytics-toolbar-row">
+          <!-- Tür Seçici (Gider / Gelir) -->
+          <div class="analytics-pill-group">
+            <button type="button" class="analytics-pill-btn ${compareType === 'expense' ? 'active-expense' : ''}" onclick="setAnalyticsCompareType('expense')">
+              🔴 Giderler
+            </button>
+            <button type="button" class="analytics-pill-btn ${compareType === 'income' ? 'active-income' : ''}" onclick="setAnalyticsCompareType('income')">
+              🟢 Gelirler
+            </button>
           </div>
-          <div class="subcat-chart-list">
+
+          <!-- Kapsam Seçici (Kategorileri Kıyasla vs Alt Başlık Kırılımı) -->
+          <div class="analytics-pill-group">
+            <button type="button" class="analytics-pill-btn ${isCategoryScope ? 'active' : ''}" onclick="setAnalyticsCompareScope('categories')" title="Başlıkları birbiriyle kıyasla">
+              🏷️ Başlık Kıyaslama
+            </button>
+            <button type="button" class="analytics-pill-btn ${!isCategoryScope ? 'active' : ''}" onclick="setAnalyticsCompareScope('subcategories')" title="Bir başlığın alt kırılımlarını incele">
+              🔍 Alt Başlık Kırılımı
+            </button>
+          </div>
+        </div>
+
+        <!-- Dönem Seçici Çubuk -->
+        <div class="analytics-period-bar">
+          <button type="button" class="period-chip ${comparePeriod === 'month' ? 'active' : ''}" onclick="setAnalyticsComparePeriod('month')">
+            📅 Bu Ay (${currentMonthName})
+          </button>
+          <button type="button" class="period-chip ${comparePeriod === '3months' ? 'active' : ''}" onclick="setAnalyticsComparePeriod('3months')">
+            Son 3 Ay
+          </button>
+          <button type="button" class="period-chip ${comparePeriod === '6months' ? 'active' : ''}" onclick="setAnalyticsComparePeriod('6months')">
+            Son 6 Ay
+          </button>
+          <button type="button" class="period-chip ${comparePeriod === 'year' ? 'active' : ''}" onclick="setAnalyticsComparePeriod('year')">
+            ${currentYear}
+          </button>
+          <button type="button" class="period-chip ${comparePeriod === 'all' ? 'active' : ''}" onclick="setAnalyticsComparePeriod('all')">
+            Tümü
+          </button>
+        </div>
+    `;
+
+    if (isCategoryScope) {
+      // ----------------------------------------------------
+      // SENARYO A: BAŞLIKLARI BİRBİRİYLE KIYASLA (Market, Yemek, Fatura...)
+      // ----------------------------------------------------
+      const selectedIds = walletAnalyticsState.selectedCategoryIds;
+      const isFilteredSelection = selectedIds.length > 0;
+
+      // Kategori Çoklu Seçim Çipleri
+      html += `
+        <div class="analytics-sub-section">
+          <div class="analytics-section-title-row">
+            <span class="analytics-section-title">Kıyaslanacak Başlıkları Seçin:</span>
+            ${isFilteredSelection ? `
+              <button type="button" class="btn-clear-chip-filter" onclick="toggleAnalyticsCategoryFilter('all')">
+                ✕ Seçimi Sıfırla (Tümü)
+              </button>
+            ` : ''}
+          </div>
+          <div class="analytics-chips-wrap">
+            <button type="button" class="cat-filter-chip ${!isFilteredSelection ? 'active' : ''}" onclick="toggleAnalyticsCategoryFilter('all')">
+              ✓ Tümü (${availableCats.length})
+            </button>
       `;
 
-      sortedSubNames.forEach((sName, idx) => {
-        const sData = subMap[sName];
-        const subPctOfCat = amount > 0 ? ((sData.amount / amount) * 100).toFixed(1) : '0.0';
-        const subPctOfTotal = totalExpense > 0 ? ((sData.amount / totalExpense) * 100).toFixed(1) : '0.0';
-        const subUniqueKey = `${catId}__${sName}`;
-        const isSubTxOpen = expandedStatsSubCategories.has(subUniqueKey);
-
-        let subTxRowsHtml = '';
-        if (isSubTxOpen) {
-          const sortedSubTxs = [...sData.txs].sort((a, b) => b.date.localeCompare(a.date));
-          subTxRowsHtml = `<div class="subcat-tx-mini-list">`;
-          sortedSubTxs.forEach(tx => {
-            const acc = walletState.accounts.find(a => a.id === tx.fromAccountId);
-            const accLabel = acc ? acc.name : '';
-            subTxRowsHtml += `
-              <div class="subcat-tx-mini-row">
-                <div class="subcat-tx-mini-left">
-                  <span class="subcat-tx-mini-date">📅 ${formatTurkishDate(tx.date)}</span>
-                  ${accLabel ? `<span class="subcat-tx-mini-acc">• ${accLabel}</span>` : ''}
-                  ${tx.note ? `<span class="subcat-tx-mini-note">(${tx.note})</span>` : ''}
-                </div>
-                <span class="subcat-tx-mini-amount">-${formatWalletTL(tx.amount)}</span>
-              </div>
-            `;
-          });
-          subTxRowsHtml += `</div>`;
-        }
-
-        expandedPanelHtml += `
-          <div class="subcat-chart-item ${isSubTxOpen ? 'sub-open' : ''}" onclick="toggleStatsSubCategoryTxList(event, '${subUniqueKey.replace(/'/g, "\\'")}')">
-            <div class="subcat-chart-top">
-              <div class="subcat-chart-title-wrap">
-                <span class="subcat-rank-badge" style="background:${cat.color}22; color:${cat.color}; border-color:${cat.color}44;">#${idx + 1}</span>
-                <span class="subcat-chart-name">${sName}</span>
-                <span class="subcat-chart-count">${sData.count} işlem</span>
-              </div>
-              <div class="subcat-chart-values">
-                <span class="subcat-chart-pct" style="color:${cat.color};">%${subPctOfCat}</span>
-                <span class="subcat-chart-amount">-${formatWalletTL(sData.amount)}</span>
-                <span class="subcat-tx-chevron ${isSubTxOpen ? 'open' : ''}" title="İşlemleri Gör">▾</span>
-              </div>
-            </div>
-            <div class="subcat-track">
-              <div class="subcat-fill" style="width: ${subPctOfCat}%; background: ${cat.color};"></div>
-            </div>
-            <div class="subcat-chart-submeta">
-              <span>Kategori içi payı: <strong>%${subPctOfCat}</strong></span>
-              <span>Genel gider payı: <strong>%${subPctOfTotal}</strong></span>
-            </div>
-            ${subTxRowsHtml}
-          </div>
+      availableCats.forEach(c => {
+        const isCatSelected = selectedIds.includes(c.id);
+        html += `
+          <button type="button" class="cat-filter-chip ${isCatSelected ? 'active' : ''}" onclick="toggleAnalyticsCategoryFilter('${c.id}')" style="${isCatSelected ? `background: ${c.color}25; border-color: ${c.color}; color: #fff;` : ''}">
+            <span>${c.icon}</span> <span>${c.name}</span>
+          </button>
         `;
       });
 
-      expandedPanelHtml += `
+      html += `
           </div>
         </div>
+      `;
+
+      // Kategori bazında hesaplama
+      let effectiveTxs = filteredTxs;
+      if (isFilteredSelection) {
+        effectiveTxs = filteredTxs.filter(t => selectedIds.includes(t.categoryId));
+      }
+
+      const catTotals = {};
+      const catCount = {};
+      let totalSum = 0;
+
+      effectiveTxs.forEach(t => {
+        catTotals[t.categoryId] = (catTotals[t.categoryId] || 0) + t.amount;
+        catCount[t.categoryId] = (catCount[t.categoryId] || 0) + 1;
+        totalSum += t.amount;
+      });
+
+      // Dilimleri ve sıralı listeyi hazırla
+      const sortedCatIds = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+      const donutItems = sortedCatIds.map(cId => {
+        const cat = availableCats.find(c => c.id === cId) || { name: 'Diğer', icon: '📦', color: '#64748b' };
+        const amount = catTotals[cId];
+        const pct = totalSum > 0 ? ((amount / totalSum) * 100).toFixed(1) : '0.0';
+        return {
+          id: cId,
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          amount,
+          pct,
+          count: catCount[cId] || 0
+        };
+      });
+
+      html += `
+        <!-- Donut Halka Grafiği -->
+        ${generateSvgDonut(donutItems, totalSum, isFilteredSelection ? 'Seçilenler Toplamı' : `${periodLabel} Toplam`, (compareType === 'expense' ? '-' : '+') + formatWalletTL(totalSum))}
+      `;
+
+      if (isFilteredSelection) {
+        const selectedNames = availableCats.filter(c => selectedIds.includes(c.id)).map(c => c.name).join(', ');
+        html += `
+          <div class="analytics-filter-badge-banner">
+            <span>🎯 <strong>${selectedIds.length} Başlık Kıyaslanıyor:</strong> ${selectedNames}</span>
+          </div>
+        `;
+      }
+
+      // Kategori Kıyaslama Listesi
+      if (sortedCatIds.length === 0) {
+        html += `
+          <div class="empty-state-notice">
+            <p>Seçilen dönem ve başlıklarda kayıtlı ${compareType === 'expense' ? 'gider' : 'gelir'} bulunamadı.</p>
+          </div>
+        `;
+      } else {
+        html += `<div class="comparison-bar-list">`;
+        donutItems.forEach((item, idx) => {
+          html += `
+            <div class="comparison-card-row">
+              <div class="comp-row-header">
+                <div class="comp-row-left">
+                  <span class="comp-rank-badge" style="background:${item.color}22; color:${item.color}; border:1px solid ${item.color}44;">#${idx + 1}</span>
+                  <span class="comp-cat-icon" style="background:${item.color}20; border-color:${item.color}40;">${item.icon}</span>
+                  <div class="comp-title-box">
+                    <span class="comp-cat-name">${item.name}</span>
+                    <span class="comp-cat-subhint">${item.count} işlem • Payı: %${item.pct}</span>
+                  </div>
+                </div>
+                <div class="comp-row-right">
+                  <span class="comp-amount" style="color: ${compareType === 'expense' ? '#fff' : 'var(--emerald)'};">
+                    ${compareType === 'expense' ? '-' : '+'}${formatWalletTL(item.amount)}
+                  </span>
+                </div>
+              </div>
+              <div class="cat-track">
+                <div class="cat-fill" style="width: ${item.pct}%; background: ${item.color};"></div>
+              </div>
+              <div class="comp-action-buttons">
+                <button type="button" class="btn-comp-action" onclick="inspectCategorySubBreakdown('${item.id}', '${compareType}')">
+                  🔍 Alt Kırılımlarını Gör
+                </button>
+                <button type="button" class="btn-comp-action highlight" onclick="inspectCategoryTrend('${item.id}', '', '${compareType}')">
+                  📈 Geçmiş Trendini Gör
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+    } else {
+      // ----------------------------------------------------
+      // SENARYO B: BİR BAŞLIĞIN ALT KIRILIMLARINI KIYASLA (Market: BİM, Migros, ŞOK...)
+      // ----------------------------------------------------
+      let targetCatId = walletAnalyticsState.selectedScopeCatId;
+      let targetCat = availableCats.find(c => c.id === targetCatId);
+      if (!targetCat && availableCats.length > 0) {
+        targetCat = availableCats[0];
+        targetCatId = targetCat.id;
+        walletAnalyticsState.selectedScopeCatId = targetCatId;
+      }
+
+      html += `
+        <!-- İncelenen Ana Kategori Seçimi -->
+        <div class="analytics-sub-section">
+          <span class="analytics-section-title">Alt Kırılımı İncelenecek Başlığı Seçin:</span>
+          <div class="analytics-chips-wrap">
+      `;
+
+      availableCats.forEach(c => {
+        const isSelected = c.id === targetCatId;
+        html += `
+          <button type="button" class="cat-filter-chip ${isSelected ? 'active' : ''}" onclick="selectAnalyticsScopeCategory('${c.id}')" style="${isSelected ? `background: ${c.color}25; border-color: ${c.color}; color: #fff;` : ''}">
+            <span>${c.icon}</span> <span>${c.name}</span>
+          </button>
+        `;
+      });
+
+      html += `
+          </div>
+        </div>
+      `;
+
+      // Hedef kategorinin alt başlıklarını topla
+      const catTxs = filteredTxs.filter(t => t.categoryId === targetCatId);
+      const subMap = {};
+      let catTotal = 0;
+
+      catTxs.forEach(t => {
+        const label = (t.subCategory && t.subCategory.trim()) ? t.subCategory.trim() : 'Genel (Alt Başlıksız)';
+        if (!subMap[label]) {
+          subMap[label] = { label, amount: 0, count: 0, txs: [], isUnassigned: !(t.subCategory && t.subCategory.trim()) };
+        }
+        subMap[label].amount += t.amount;
+        subMap[label].count += 1;
+        subMap[label].txs.push(t);
+        catTotal += t.amount;
+      });
+
+      const sortedSubLabels = Object.keys(subMap).sort((a, b) => subMap[b].amount - subMap[a].amount);
+      const subColors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#64748b', '#a855f7'];
+
+      const subDonutItems = sortedSubLabels.map((lbl, idx) => {
+        const s = subMap[lbl];
+        const pct = catTotal > 0 ? ((s.amount / catTotal) * 100).toFixed(1) : '0.0';
+        return {
+          label: lbl,
+          name: lbl,
+          amount: s.amount,
+          pct,
+          count: s.count,
+          color: subColors[idx % subColors.length]
+        };
+      });
+
+      // Başlık Bilgi Bandı
+      html += `
+        <div class="subcat-hero-card" style="border-left: 4px solid ${targetCat ? targetCat.color : '#3b82f6'};">
+          <div class="subcat-hero-left">
+            <span class="subcat-hero-icon">${targetCat ? targetCat.icon : '📦'}</span>
+            <div>
+              <div class="subcat-hero-title">${targetCat ? targetCat.name : ''} Alt Kırılım Analizi</div>
+              <div class="subcat-hero-meta">${periodLabel} • ${catTxs.length} İşlem • ${sortedSubLabels.length} Farklı Alt Kalem</div>
+            </div>
+          </div>
+          <button type="button" class="btn-hero-trend" onclick="inspectCategoryTrend('${targetCatId}', '', '${compareType}')">
+            📈 Başlık Trendi
+          </button>
+        </div>
+
+        <!-- Donut Halka Grafiği -->
+        ${generateSvgDonut(subDonutItems, catTotal, `${targetCat ? targetCat.name : ''} Toplam`, (compareType === 'expense' ? '-' : '+') + formatWalletTL(catTotal))}
+      `;
+
+      if (sortedSubLabels.length === 0) {
+        html += `
+          <div class="empty-state-notice">
+            <p>${targetCat ? targetCat.name : 'Bu başlıkta'} ${periodLabel} döneminde kayıtlı işlem bulunmuyor.</p>
+          </div>
+        `;
+      } else {
+        html += `<div class="subcat-breakdown-list">`;
+        subDonutItems.forEach((item, idx) => {
+          const sData = subMap[item.label];
+          const subKey = `${targetCatId}__${item.label}`;
+          const isTxOpen = expandedStatsSubCategories.has(subKey);
+
+          let txListHtml = '';
+          if (isTxOpen) {
+            const sortedTxs = [...sData.txs].sort((a, b) => b.date.localeCompare(a.date));
+            txListHtml = `<div class="subcat-tx-mini-list">`;
+            sortedTxs.forEach(t => {
+              const acc = (walletState.accounts || []).find(a => a.id === t.fromAccountId);
+              txListHtml += `
+                <div class="subcat-tx-mini-row" onclick="openEditWalletTxModal('${t.id}')" style="cursor: pointer;" title="İşlemi düzenlemek için tıklayın">
+                  <div class="subcat-tx-mini-left">
+                    <span class="subcat-tx-mini-date">📅 ${formatTurkishDate(t.date)}</span>
+                    ${acc ? `<span class="subcat-tx-mini-acc">• ${acc.name}</span>` : ''}
+                    ${t.note ? `<span class="subcat-tx-mini-note">(${t.note})</span>` : ''}
+                  </div>
+                  <span class="subcat-tx-mini-amount">-${formatWalletTL(t.amount)}</span>
+                </div>
+              `;
+            });
+            txListHtml += `</div>`;
+          }
+
+          html += `
+            <div class="subcat-item-card ${isTxOpen ? 'open' : ''}">
+              <div class="subcat-item-header">
+                <div class="subcat-item-left">
+                  <span class="subcat-rank-pill" style="background:${item.color}22; color:${item.color}; border:1px solid ${item.color}44;">#${idx + 1}</span>
+                  <div class="subcat-name-box">
+                    <span class="subcat-item-title">${item.label}</span>
+                    <span class="subcat-item-meta">${item.count} işlem • Kategori içi: %${item.pct}</span>
+                  </div>
+                </div>
+                <div class="subcat-item-right">
+                  <span class="subcat-item-val">-${formatWalletTL(item.amount)}</span>
+                </div>
+              </div>
+              <div class="cat-track">
+                <div class="cat-fill" style="width: ${item.pct}%; background: ${item.color};"></div>
+              </div>
+              <div class="subcat-actions-row">
+                <button type="button" class="btn-subcat-toggle-txs" onclick="toggleStatsSubCategoryTxList(event, '${subKey.replace(/'/g, "\\'")}')">
+                  ${isTxOpen ? '▲ İşlemleri Gizle' : `▼ İşlemleri Gör (${item.count})`}
+                </button>
+                <button type="button" class="btn-subcat-trend" onclick="inspectCategoryTrend('${targetCatId}', '${sData.isUnassigned ? '__unassigned__' : item.label.replace(/'/g, "\\'")}', '${compareType}')">
+                  📈 Bu Kalemin Geçmiş Trendi
+                </button>
+              </div>
+              ${txListHtml}
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+    }
+
+    html += `
+      </div><!-- End .analytics-card -->
+    `;
+
+  } else {
+    // ==========================================================
+    // MOD 2: ZAMAN & GEÇMİŞ TREND ANALİZİ (Aylar Arası Değişim)
+    // ==========================================================
+    const trendType = walletAnalyticsState.trendType;
+    const trendCatId = walletAnalyticsState.trendCategoryId;
+    const trendSubCat = walletAnalyticsState.trendSubCategory;
+    const trendRange = walletAnalyticsState.trendRange;
+    const selectedMonth = walletAnalyticsState.trendSelectedMonth;
+
+    const availableCats = (walletState.categories && walletState.categories[trendType]) ? walletState.categories[trendType] : [];
+    let currentCat = availableCats.find(c => c.id === trendCatId);
+    if (!currentCat && availableCats.length > 0) {
+      currentCat = availableCats[0];
+      walletAnalyticsState.trendCategoryId = currentCat.id;
+    }
+
+    // Seçili Kategoriye Ait Alt Başlık Listesi
+    const catSubCategories = (currentCat && Array.isArray(currentCat.subcategories)) ? currentCat.subcategories : [];
+
+    // Trend Aylarını Hesapla
+    const monthsList = [];
+    const now = new Date(currentWalletDate);
+    const curY = now.getFullYear();
+    const curM = now.getMonth();
+
+    if (trendRange === '6months') {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(curY, curM - i, 1);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        monthsList.push({
+          key: `${y}-${String(m + 1).padStart(2, '0')}`,
+          year: y,
+          monthIdx: m,
+          shortName: getMonthNameTR(m).slice(0, 3),
+          fullName: `${getMonthNameTR(m)} ${y}`,
+          amount: 0,
+          count: 0,
+          txs: []
+        });
+      }
+    } else if (trendRange === '12months') {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(curY, curM - i, 1);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        monthsList.push({
+          key: `${y}-${String(m + 1).padStart(2, '0')}`,
+          year: y,
+          monthIdx: m,
+          shortName: getMonthNameTR(m).slice(0, 3),
+          fullName: `${getMonthNameTR(m)} ${y}`,
+          amount: 0,
+          count: 0,
+          txs: []
+        });
+      }
+    } else if (trendRange === 'year') {
+      for (let m = 0; m < 12; m++) {
+        monthsList.push({
+          key: `${curY}-${String(m + 1).padStart(2, '0')}`,
+          year: curY,
+          monthIdx: m,
+          shortName: getMonthNameTR(m).slice(0, 3),
+          fullName: `${getMonthNameTR(m)} ${curY}`,
+          amount: 0,
+          count: 0,
+          txs: []
+        });
+      }
+    } else if (trendRange === 'all') {
+      const monthKeysSet = new Set();
+      walletState.transactions.forEach(t => {
+        if (t.date && t.date.length >= 7) monthKeysSet.add(t.date.slice(0, 7));
+      });
+      const curKey = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+      monthKeysSet.add(curKey);
+      const sortedKeys = Array.from(monthKeysSet).sort();
+      sortedKeys.forEach(k => {
+        const [yStr, mStr] = k.split('-');
+        const y = parseInt(yStr, 10);
+        const m = parseInt(mStr, 10) - 1;
+        monthsList.push({
+          key: k,
+          year: y,
+          monthIdx: m,
+          shortName: getMonthNameTR(m).slice(0, 3),
+          fullName: `${getMonthNameTR(m)} ${y}`,
+          amount: 0,
+          count: 0,
+          txs: []
+        });
+      });
+    }
+
+    // İşlemleri Filtrele
+    const allMatchingTxs = walletState.transactions.filter(t => {
+      if (t.type !== trendType) return false;
+      if (t.categoryId !== trendCatId) return false;
+      if (!trendSubCat) return true;
+      if (trendSubCat === '__unassigned__') {
+        return !t.subCategory || !t.subCategory.trim();
+      }
+      return t.subCategory && t.subCategory.trim().toLowerCase() === trendSubCat.trim().toLowerCase();
+    });
+
+    // Aylara Dağıt
+    monthsList.forEach(m => {
+      const mTxs = allMatchingTxs.filter(t => t.date.startsWith(m.key));
+      m.amount = mTxs.reduce((sum, t) => sum + t.amount, 0);
+      m.count = mTxs.length;
+      m.txs = mTxs;
+    });
+
+    // Metrik Hesaplamaları
+    const totalTrendAmount = monthsList.reduce((sum, m) => sum + m.amount, 0);
+    const totalTrendCount = monthsList.reduce((sum, m) => sum + m.count, 0);
+    const activeMonths = monthsList.filter(m => m.amount > 0);
+    const avgAmount = monthsList.length > 0 ? (totalTrendAmount / monthsList.length) : 0;
+    const maxVal = Math.max(...monthsList.map(m => m.amount), 0);
+    const peakMonth = monthsList.reduce((prev, curr) => (curr.amount > (prev ? prev.amount : 0) ? curr : prev), null);
+    const lowestMonth = activeMonths.reduce((prev, curr) => (!prev || curr.amount < prev.amount ? curr : prev), null);
+
+    // Bu Ay vs Geçen Ay Karşılaştırması
+    const curMonthKey = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+    const curMonthObj = monthsList.find(m => m.key === curMonthKey) || monthsList[monthsList.length - 1];
+    
+    // Bir önceki ayı bul
+    let prevMonthObj = null;
+    if (curMonthObj) {
+      const prevDate = new Date(curMonthObj.year, curMonthObj.monthIdx - 1, 1);
+      const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      prevMonthObj = monthsList.find(m => m.key === prevKey);
+      if (!prevMonthObj) {
+        const prevTxs = allMatchingTxs.filter(t => t.date.startsWith(prevKey));
+        prevMonthObj = {
+          amount: prevTxs.reduce((s, t) => s + t.amount, 0),
+          fullName: `${getMonthNameTR(prevDate.getMonth())} ${prevDate.getFullYear()}`
+        };
+      }
+    }
+
+    const curAmount = curMonthObj ? curMonthObj.amount : 0;
+    const prevAmount = prevMonthObj ? prevMonthObj.amount : 0;
+    const diff = curAmount - prevAmount;
+    let pctChange = 0;
+    if (prevAmount > 0) {
+      pctChange = ((diff / prevAmount) * 100);
+    } else if (curAmount > 0) {
+      pctChange = 100;
+    }
+
+    // Değişim Rozeti
+    let diffBadgeHtml = '';
+    if (prevAmount === 0 && curAmount === 0) {
+      diffBadgeHtml = `<span class="trend-badge-pill neutral">= Harcama yok</span>`;
+    } else if (diff === 0) {
+      diffBadgeHtml = `<span class="trend-badge-pill neutral">= Geçen ayla aynı</span>`;
+    } else if (diff > 0) {
+      const isBad = trendType === 'expense';
+      diffBadgeHtml = `
+        <span class="trend-badge-pill ${isBad ? 'up-bad' : 'up-good'}">
+          ▲ +%${pctChange.toFixed(1)} (+${formatWalletTL(diff)})
+        </span>
+      `;
+    } else {
+      const isGood = trendType === 'expense';
+      diffBadgeHtml = `
+        <span class="trend-badge-pill ${isGood ? 'down-good' : 'down-bad'}">
+          ▼ -%${Math.abs(pctChange).toFixed(1)} (-${formatWalletTL(Math.abs(diff))})
+        </span>
       `;
     }
 
     html += `
-      <div class="category-bar-item expandable ${isExpanded ? 'expanded' : ''}" onclick="toggleStatsCategoryExpand('${catId}')" style="${isExpanded ? `border-color: ${cat.color}55;` : ''}">
-        <div class="cat-bar-header">
-          <span class="cat-bar-name">
-            <span class="cat-bar-icon-box" style="background:${cat.color}20; border-color:${cat.color}40;">${cat.icon}</span>
-            <span class="cat-bar-title-group">
-              <span class="cat-bar-title-text">${cat.name} <small style="color:var(--text-dim); font-weight:700;">(%${pct})</small></span>
-              <span class="cat-bar-sub-hint">${sortedSubNames.length} alt başlık • ${catTxs.length} işlem</span>
-            </span>
-          </span>
-          <div class="cat-bar-right">
-            <span class="cat-bar-val" style="color:#ffffff;">-${formatWalletTL(amount)}</span>
-            <span class="cat-expand-chevron ${isExpanded ? 'open' : ''}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </span>
+      <!-- Trend Seçici Kontrolleri -->
+      <div class="analytics-card">
+        <div class="analytics-toolbar-row">
+          <div class="analytics-pill-group">
+            <button type="button" class="analytics-pill-btn ${trendType === 'expense' ? 'active-expense' : ''}" onclick="setAnalyticsTrendType('expense')">
+              🔴 Giderler
+            </button>
+            <button type="button" class="analytics-pill-btn ${trendType === 'income' ? 'active-income' : ''}" onclick="setAnalyticsTrendType('income')">
+              🟢 Gelirler
+            </button>
+          </div>
+
+          <!-- Trend Zaman Aralığı -->
+          <div class="analytics-pill-group">
+            <button type="button" class="analytics-pill-btn ${trendRange === '6months' ? 'active' : ''}" onclick="setAnalyticsTrendRange('6months')">
+              Son 6 Ay
+            </button>
+            <button type="button" class="analytics-pill-btn ${trendRange === '12months' ? 'active' : ''}" onclick="setAnalyticsTrendRange('12months')">
+              Son 12 Ay
+            </button>
+            <button type="button" class="analytics-pill-btn ${trendRange === 'year' ? 'active' : ''}" onclick="setAnalyticsTrendRange('year')">
+              ${curY} Yılı
+            </button>
+            <button type="button" class="analytics-pill-btn ${trendRange === 'all' ? 'active' : ''}" onclick="setAnalyticsTrendRange('all')">
+              Tümü
+            </button>
           </div>
         </div>
-        <div class="cat-track">
-          <div class="cat-fill" style="width: ${pct}%; background: ${cat.color};"></div>
-        </div>
-        ${collapsedPreviewHtml}
-        ${expandedPanelHtml}
-      </div>
+
+        <!-- 1. Kategori Seçimi -->
+        <div class="analytics-sub-section">
+          <span class="analytics-section-title">1. İncelenecek Ana Başlık:</span>
+          <div class="analytics-chips-wrap">
     `;
-  });
+
+    availableCats.forEach(c => {
+      const isSelected = c.id === trendCatId;
+      html += `
+        <button type="button" class="cat-filter-chip ${isSelected ? 'active' : ''}" onclick="setAnalyticsTrendCategory('${c.id}')" style="${isSelected ? `background: ${c.color}25; border-color: ${c.color}; color: #fff;` : ''}">
+          <span>${c.icon}</span> <span>${c.name}</span>
+        </button>
+      `;
+    });
+
+    html += `
+          </div>
+        </div>
+
+        <!-- 2. Kapsam / Alt Başlık Seçimi -->
+        <div class="analytics-sub-section">
+          <span class="analytics-section-title">2. Kapsam (Tüm Başlık veya Spesifik Alt Kalem):</span>
+          <div class="analytics-chips-wrap">
+            <button type="button" class="cat-filter-chip ${!trendSubCat ? 'active' : ''}" onclick="setAnalyticsTrendSubCategory('')">
+              🌟 Tümü (${currentCat ? currentCat.name : ''})
+            </button>
+    `;
+
+    catSubCategories.forEach(subName => {
+      const isSelected = trendSubCat && trendSubCat.toLowerCase() === subName.toLowerCase();
+      html += `
+        <button type="button" class="cat-filter-chip ${isSelected ? 'active' : ''}" onclick="setAnalyticsTrendSubCategory('${subName.replace(/'/g, "\\'")}')">
+          <span>›</span> <span>${subName}</span>
+        </button>
+      `;
+    });
+
+    const isUnassignedSelected = trendSubCat === '__unassigned__';
+    html += `
+            <button type="button" class="cat-filter-chip ${isUnassignedSelected ? 'active' : ''}" onclick="setAnalyticsTrendSubCategory('__unassigned__')">
+              <span>›</span> <span>Genel (Alt Başlıksız)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Trend Başlık Özeti -->
+        <div class="trend-hero-summary" style="border-left: 4px solid ${currentCat ? currentCat.color : '#3b82f6'};">
+          <div class="trend-hero-left">
+            <span class="trend-hero-icon">${currentCat ? currentCat.icon : '📈'}</span>
+            <div>
+              <h3 class="trend-hero-title">
+                ${currentCat ? currentCat.name : ''}
+                ${trendSubCat ? `<span class="trend-subcat-badge">› ${trendSubCat === '__unassigned__' ? 'Genel (Alt Başlıksız)' : trendSubCat}</span>` : ''}
+              </h3>
+              <p class="trend-hero-sub">${monthsList.length} Aylık Hareket & Değişim Trendi</p>
+            </div>
+          </div>
+          <div class="trend-hero-right">
+            ${diffBadgeHtml}
+          </div>
+        </div>
+
+        <!-- KPI Metrik Kartları -->
+        <div class="trend-kpi-grid">
+          <div class="trend-kpi-card">
+            <div class="trend-kpi-header">
+              <span class="trend-kpi-icon">💰</span>
+              <span class="trend-kpi-title">Dönem Toplamı</span>
+            </div>
+            <div class="trend-kpi-val">${formatWalletTL(totalTrendAmount)}</div>
+            <div class="trend-kpi-sub">${totalTrendCount} İşlem Kaydı</div>
+          </div>
+
+          <div class="trend-kpi-card">
+            <div class="trend-kpi-header">
+              <span class="trend-kpi-icon">📊</span>
+              <span class="trend-kpi-title">Aylık Ortalama</span>
+            </div>
+            <div class="trend-kpi-val">${formatWalletTL(avgAmount)}</div>
+            <div class="trend-kpi-sub">${monthsList.length} Ay Ortalaması</div>
+          </div>
+
+          <div class="trend-kpi-card">
+            <div class="trend-kpi-header">
+              <span class="trend-kpi-icon">👑</span>
+              <span class="trend-kpi-title">Zirve Ay</span>
+            </div>
+            <div class="trend-kpi-val" style="color: #fbbf24;">${peakMonth && peakMonth.amount > 0 ? formatWalletTL(peakMonth.amount) : '0,00 ₺'}</div>
+            <div class="trend-kpi-sub">${peakMonth && peakMonth.amount > 0 ? peakMonth.fullName : 'Kayıt Yok'}</div>
+          </div>
+
+          <div class="trend-kpi-card">
+            <div class="trend-kpi-header">
+              <span class="trend-kpi-icon">📉</span>
+              <span class="trend-kpi-title">En Düşük Ay</span>
+            </div>
+            <div class="trend-kpi-val" style="color: var(--emerald);">${lowestMonth ? formatWalletTL(lowestMonth.amount) : '0,00 ₺'}</div>
+            <div class="trend-kpi-sub">${lowestMonth ? lowestMonth.fullName : 'Kayıt Yok'}</div>
+          </div>
+        </div>
+
+        <!-- Aylık Trend Grafiği -->
+        <div class="trend-chart-card">
+          <div class="trend-chart-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span>📊</span>
+              <strong style="font-size:0.85rem; color:#fff;">Aylık Harcama Grafiği</strong>
+            </div>
+            <span style="font-size:0.7rem; color:var(--text-dim);">Aya dokunarak detayları filtreleyin</span>
+          </div>
+
+          ${generateSvgTrendChart(monthsList, maxVal, avgAmount, peakMonth, selectedMonth, currentCat ? currentCat.color : '#f59e0b')}
+
+          ${selectedMonth ? `
+            <div class="trend-selected-month-banner">
+              <div>
+                <span>🔎 Seçili Ay: <strong>${(monthsList.find(m => m.key === selectedMonth) || {}).fullName || selectedMonth}</strong></span>
+                <span style="color:#60a5fa; font-weight:800; margin-left:6px;">${formatWalletTL((monthsList.find(m => m.key === selectedMonth) || {}).amount || 0)}</span>
+              </div>
+              <button type="button" class="btn-clear-month-filter" onclick="selectTrendMonth('${selectedMonth}')">
+                ✕ Filtreyi Kaldır (Tüm Dönem)
+              </button>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Geçmiş Hareketler (İşlem Listesi) -->
+        <div class="trend-history-section">
+      `;
+
+      // Hangi işlemler gösterilecek?
+      let displayTxs = [];
+      if (selectedMonth) {
+        displayTxs = allMatchingTxs.filter(t => t.date.startsWith(selectedMonth));
+      } else {
+        const allowedKeys = new Set(monthsList.map(m => m.key));
+        displayTxs = allMatchingTxs.filter(t => allowedKeys.has(t.date.slice(0, 7)));
+      }
+      displayTxs.sort((a, b) => b.date.localeCompare(a.date));
+
+      html += `
+        <div class="trend-history-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span>📋</span>
+            <strong style="font-size:0.88rem; color:#fff;">
+              ${selectedMonth ? `${(monthsList.find(m => m.key === selectedMonth) || {}).fullName} İşlemleri` : 'Geçmiş Hareketler'}
+            </strong>
+          </div>
+          <span style="font-size:0.72rem; color:var(--text-dim);">${displayTxs.length} İşlem</span>
+        </div>
+      `;
+
+      if (displayTxs.length === 0) {
+        html += `
+          <div class="empty-state-notice" style="padding: 20px;">
+            <p>Seçilen dönem ve filtreye ait geçmiş işlem bulunamadı.</p>
+          </div>
+        `;
+      } else {
+        html += `<div class="trend-tx-list">`;
+        displayTxs.forEach(t => {
+          const acc = (walletState.accounts || []).find(a => a.id === t.fromAccountId);
+          html += `
+            <div class="trend-tx-card" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi düzenlemek için dokunun">
+              <div class="trend-tx-left">
+                <span class="trend-tx-date">📅 ${formatTurkishDate(t.date)}</span>
+                ${(!trendSubCat && t.subCategory) ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
+                ${acc ? `<span class="trend-tx-acc">• ${acc.name}</span>` : ''}
+                ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''}
+                ${t.note ? `<span class="trend-tx-note">(${t.note})</span>` : ''}
+              </div>
+              <div class="trend-tx-right">
+                <span class="trend-tx-amount ${trendType === 'expense' ? 'expense' : 'income'}">
+                  ${trendType === 'expense' ? '-' : '+'}${formatWalletTL(t.amount)}
+                </span>
+                <span class="trend-tx-edit-icon" title="Düzenle">✏️</span>
+              </div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      html += `
+        </div><!-- End .trend-history-section -->
+      </div><!-- End .analytics-card -->
+    `;
+  }
 
   html += `
-      </div>
-    </div>
+    </div><!-- End .analytics-container -->
   `;
 
   container.innerHTML = html;
 }
+
 
 // 4. HESAPLAR / CÜZDANLAR GÖRÜNÜMÜ
 function renderAccountsView() {
@@ -2927,7 +3865,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // =========================================================================
 // MODÜL 3: MAAŞ & BORDRO EXCEL TABLOSU MOTORU (YATAY AY MATRİSİ)
-// Satırlar: 21 Kalem (Asgari Ücret ve Yemek Yardımı dahil)
+// Satırlar: 22 Kalem (Muafiyet, Asgari Ücret ve Yemek Yardımı dahil)
 // Sütunlar: Yeniden Eskiye (En başta içinde olduğumuz ay/yıl)
 // =========================================================================
 
@@ -2938,6 +3876,7 @@ const BORDRO_ROWS_DEF = [
   { key: 'yolYardimi', label: 'Yol Yardımı' },
   { key: 'yemekYardimi', label: 'Yemek Yardımı' },
   { key: 'ekstra', label: 'Ekstra' },
+  { key: 'muafiyet', label: 'Muafiyet' },
   { key: 'sgkPrimEsasKazanc', label: 'SGK Prim Esas Kazanç' },
   { key: 'sigortaPrimi', label: 'Sigorta Primi' },
   { key: 'topGelVerMat', label: 'Top. Gel. Ver. Mat.' },
@@ -3366,6 +4305,16 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     p.yolYardimi = Number(p.yolYardimi) || 0;
     p.ekstra = Number(p.ekstra) || 0;
 
+    // Muafiyet: Değer elle girilir, her ay bir önceki aya girilen veri varsayılan (default) olarak kullanılır
+    if (!overrides.muafiyet) {
+      if (prevMonthData && prevMonthData.muafiyet !== undefined) {
+        p.muafiyet = Number(prevMonthData.muafiyet) || 0;
+      } else {
+        p.muafiyet = Number(p.muafiyet) || 0;
+      }
+    }
+    p.muafiyet = Number(p.muafiyet) || 0;
+
     // 4. Madde: Yemek yardımı
     p.yemekYardimi = Number(p.yemekYardimi) || 0;
 
@@ -3375,10 +4324,11 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     const yolVal = Number(p.yolYardimi) || 0;
     const yemekVal = Number(p.yemekYardimi) || 0;
     const ekstraVal = Number(p.ekstra) || 0;
+    const muafiyetVal = Number(p.muafiyet) || 0;
 
-    // 5. Madde: SGK Prim Esas Kazanç = Brüt + Sosyal + İkramiye + Yol + Yemek + Ekstra
+    // 5. Madde: SGK Prim Esas Kazanç = Brüt + Sosyal + İkramiye + Yol + Yemek + Ekstra - Muafiyet
     if (!overrides.sgkPrimEsasKazanc) {
-      p.sgkPrimEsasKazanc = Math.round((brutVal + sosyalVal + ikramiyeVal + yolVal + yemekVal + ekstraVal) * 100) / 100;
+      p.sgkPrimEsasKazanc = Math.max(0, Math.round((brutVal + sosyalVal + ikramiyeVal + yolVal + yemekVal + ekstraVal - muafiyetVal) * 100) / 100);
     }
     const sgkVal = Number(p.sgkPrimEsasKazanc) || 0;
 
@@ -3834,7 +4784,7 @@ function handleBordroCellBlur(inputEl) {
     delete bordroState.manualOverrides[periodKey].toplam;
     delete bordroState.manualOverrides[periodKey].calismaGunuBasi;
   }
-  if (['yemekYardimi', 'brutUcret', 'sosyalYardim', 'ikramiyeYardimi', 'yolYardimi', 'ekstra'].includes(paramKey)) {
+  if (['yemekYardimi', 'brutUcret', 'sosyalYardim', 'ikramiyeYardimi', 'yolYardimi', 'ekstra', 'muafiyet'].includes(paramKey)) {
     delete bordroState.manualOverrides[periodKey].sgkPrimEsasKazanc;
     delete bordroState.manualOverrides[periodKey].sigortaPrimi;
     delete bordroState.manualOverrides[periodKey].topGelVerMat;
