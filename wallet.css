@@ -3117,6 +3117,96 @@
   font-weight: 700;
 }
 
+.account-cutoff-pill.notif-active {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(244, 63, 94, 0.2));
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fca5a5;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+  animation: pulseNotifBadge 2.2s infinite ease-in-out;
+}
+
+@keyframes pulseNotifBadge {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.cutoff-notif-callout {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.cutoff-notif-callout.active {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.cutoff-notif-callout.waiting {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}
+
+/* Bildirim Ayarları Rozetleri ve Kart Durumları */
+.notif-perm-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.notif-perm-badge.perm-granted {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.notif-perm-badge.perm-needed {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.notif-active-pill {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 3px 7px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.notif-waiting-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 7px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.notif-paid-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 7px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
 /* ===================================================
    HESAP DETAYI & HAREKETLERİ MODAL STİLLERİ
    =================================================== */
@@ -3354,14 +3444,117 @@
 }
 
 .btn-account-pay-shortcut {
-  background: rgba(16, 185, 129, 0.15) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.18)) !important;
   color: #34d399 !important;
-  border-color: rgba(16, 185, 129, 0.35) !important;
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
+  font-weight: 700;
+  border-radius: 7px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
 }
 
 .btn-account-pay-shortcut:hover {
-  background: rgba(16, 185, 129, 0.3) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.38), rgba(5, 150, 105, 0.32)) !important;
   color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+/* Kredi Kartı Dönem Borcu Kart Tasarımı */
+.credit-account-card {
+  border-left: 3px solid #f43f5e !important;
+}
+
+.account-credit-debt-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 175px;
+}
+
+.credit-debt-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.credit-debt-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #fb7185;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.credit-debt-range {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.credit-debt-main-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.credit-debt-amount {
+  font-size: 1.05rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.credit-debt-amount.debt-active {
+  color: #fb7185;
+}
+
+.credit-debt-amount.debt-zero {
+  color: var(--emerald);
+}
+
+.credit-debt-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.credit-total-balance-text {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.credit-mini-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.btn-account-mini {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+
+.btn-account-mini:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Kredi Kartı Borç Ödeme Banner ve Çipleri */
@@ -4118,18 +4311,6 @@
   color: #f1f5f9;
 }
 
-.bordro-month-col-th.current-month-col {
-  background: #1e3a8a !important;
-  border-bottom-color: #60a5fa !important;
-}
-
-.bordro-month-col-th.current-month-col .bordro-month-th-year {
-  color: #93c5fd;
-}
-
-.bordro-month-col-th.current-month-col .bordro-month-th-month {
-  color: #ffffff;
-}
 
 /* Ay Odaklama Animasyonu */
 .pulse-highlight {
@@ -4278,10 +4459,6 @@
   background: #232017 !important;
 }
 
-/* Güncel Ay Hücresi */
-.cell-current-month {
-  background: rgba(59, 130, 246, 0.08);
-}
 
 /* Hücre İçi Input (style.css içindeki input[type="text"] kuralını ezmek için yüksek özgüllük) */
 .bordro-excel-table input[type="text"].bordro-cell-input,

@@ -1,5 +1,5 @@
 // %100 Çevrimdışı (Offline-First) Service Worker
-const CACHE_NAME = 'aile-finansi-offline-v27';
+const CACHE_NAME = 'aile-finansi-offline-v31';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
   './excel-sync.js',
   './app.js',
   './wallet.js',
+  './notifications.js',
   './icon.svg',
   './manifest.json'
 ];
@@ -65,6 +66,28 @@ self.addEventListener('fetch', (event) => {
       });
 
       return cachedResponse || fetchPromise;
+    })
+  );
+});
+
+// Bildirime Tıklandığında Uygulamayı Aç ve İlgili Karta Odaklan
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const accId = event.notification.data ? event.notification.data.accountId : null;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          if (accId) {
+            client.postMessage({ type: 'OPEN_CARD_PAY_MODAL', accountId: accId });
+          }
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('./?openCard=' + (accId || ''));
+      }
     })
   );
 });

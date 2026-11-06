@@ -1303,6 +1303,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   function openAppSettings() {
     renderSettings();
+    if (typeof renderNotificationSettingsUI === 'function') {
+      renderNotificationSettingsUI();
+    }
     openModal('modalSettings');
   }
   window.openAppSettings = openAppSettings;

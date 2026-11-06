@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="stylesheet" href="style.css?v=20261105_v26">
-  <link rel="stylesheet" href="wallet.css?v=20261105_v26">
+  <link rel="stylesheet" href="wallet.css?v=20261106_v29">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -689,6 +689,47 @@
         </button>
       </div>
 
+      <!-- KREDİ KARTI KESİM BİLDİRİMLERİ (11:30 GÜNLÜK ALARM) -->
+      <div class="settings-block" id="notifSettingsContainer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <h4 style="margin: 0;">🔔 Kredi Kartı Kesim Bildirimleri</h4>
+          <span id="notifPermissionBadge" class="notif-perm-badge" onclick="handleNotificationPermissionClick()" style="cursor: pointer;">Kontrol Ediliyor...</span>
+        </div>
+        <p class="modal-desc">
+          Kredi kartı hesap kesim tarihi geldiğinde, borç tamamen ödenene kadar her gün saat <strong>11:30</strong>'da telefonunuza borcu olan kartlarla ilgili <strong>ayrı ayrı bildirim</strong> gönderilir.
+        </p>
+
+        <div class="notif-settings-controls">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 8px;">
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.88rem; font-weight: 700; color: #fff;">Günlük 11:30 Bildirimleri</span>
+              <span style="font-size: 0.72rem; color: var(--text-dim);">Kesim tarihi gelen borçlu kartlar için</span>
+            </div>
+            <label class="installment-switch" style="margin: 0;">
+              <input type="checkbox" id="toggleCardCutoffNotif" onchange="toggleNotificationEnabled(this.checked)" checked>
+              <span class="installment-slider"></span>
+            </label>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 10px;">
+            <span style="font-size: 0.84rem; font-weight: 600;">Bildirim Saati:</span>
+            <input type="time" id="inputNotifTime" value="11:30" onchange="handleNotificationTimeChange(this.value)" style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.8); color: #fff; font-family: inherit; font-size: 0.88rem; font-weight: 700;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 6px; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">
+          📋 Kartların Kesim & Bildirim Durumu
+        </div>
+        <div id="notifPendingCardsList" class="notif-cards-status-list" style="margin-bottom: 10px;"></div>
+
+        <div class="backup-actions">
+          <button type="button" class="btn-secondary-full" onclick="testCreditCardCutoffNotifications()" style="border-color: rgba(59, 130, 246, 0.4); color: #60a5fa; font-weight: 700;">
+            🔔 Bildirimleri Şimdi Test Et (Ayrı Ayrı Gönder)
+          </button>
+        </div>
+        <div id="notifTestFeedbackMsg" style="display:none; margin-top:8px; padding:8px 12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); border-radius:8px; color:#34d399; font-size:0.82rem; text-align:center; font-weight:700;"></div>
+      </div>
+
       <div class="settings-block">
         <h4>👥 Kişi Yönetimi (Yatırım)</h4>
         <p class="modal-desc">Hesaba ortak olan kişileri düzenleyin veya yeni kişi ekleyin.</p>
@@ -1233,6 +1274,7 @@
 
       <form id="formPayCreditCard" onsubmit="handlePayCreditCardSubmit(event)">
         <input type="hidden" id="inputPayCardTargetAccountId">
+        <div id="payCardErrorMsg" style="display:none; color:#f87171; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); padding:8px 12px; border-radius:8px; font-size:0.8rem; margin-bottom:12px;"></div>
 
         <div class="form-group">
           <label for="selectPayCardSourceAccount">Ödemenin Yapılacağı Hesap (Kaynak)</label>
@@ -1393,6 +1435,7 @@
   <script src="excel-sync.js?v=20261031_v22"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
   <script src="app.js?v=20261031_v22"></script>
-  <script src="wallet.js?v=20261105_v27"></script>
+  <script src="wallet.js?v=20261106_v29"></script>
+  <script src="notifications.js?v=20261106_v1"></script>
 </body>
 </html>

@@ -43,7 +43,7 @@ jobs:
       - name: Web dosyalarını hazırla ve Capacitor kur
         run: |
           mkdir -p dist
-          cp index.html style.css wallet.css app.js wallet.js excel-sync.js xlsx.full.min.js icon.svg manifest.json sw.js dist/
+          cp index.html style.css wallet.css app.js wallet.js excel-sync.js xlsx.full.min.js icon.svg manifest.json sw.js notifications.js dist/
           echo "window.APP_VERSION=${{ github.run_number }};window.APP_REPO='${{ github.repository }}';" > dist/version.js
           cat > capacitor.config.json << 'EOF'
           {
@@ -54,11 +54,29 @@ jobs:
           }
           EOF
           npm init -y
-          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7 @capacitor/local-notifications@7
           npx cap add android
 
           # Sabit imza anahtarını doğrudan Android proje klasörüne kopyala
           cp ~/.android/debug.keystore android/app/debug.keystore
+
+          # AndroidManifest izinlerini ekle (Bildirimler ve Tam Zamanlı Alarmlar)
+          python3 -c "
+          p = 'android/app/src/main/AndroidManifest.xml'
+          with open(p, 'r') as f:
+              c = f.read()
+          perms = '''
+              <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />
+              <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\" />
+              <uses-permission android:name=\"android.permission.USE_EXACT_ALARM\" />
+              <uses-permission android:name=\"android.permission.WAKE_LOCK\" />
+              <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />
+          '''
+          if 'POST_NOTIFICATIONS' not in c:
+              c = c.replace('<application', perms + '\n    <application', 1)
+          with open(p, 'w') as f:
+              f.write(c)
+          "
 
           # Sürüm bilgilerini build.gradle dosyasına işle
           sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
