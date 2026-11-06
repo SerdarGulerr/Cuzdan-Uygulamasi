@@ -1723,69 +1723,56 @@ function renderAccountsView() {
       const isNotifActive = notifDetails && notifDetails.shouldNotify;
 
       html += `
-        <div class="account-card credit-account-card" onclick="openAccountDetailModal('${acc.id}')" title="Bu hesaba ait tüm hareketleri ve detayları görmek için tıklayın">
-          <div class="account-info">
-            <div class="account-icon">${acc.icon || '💳'}</div>
-            <div class="account-title-box">
-              <h4>${acc.name}</h4>
-              <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
-                <span class="account-type-tag">${getAccountTypeLabel(acc.type)}</span>
-                <span class="account-cutoff-pill">📅 Kesim: Ayın ${acc.billingDay || 15}'i</span>
-                ${isNotifActive ? `<span class="account-cutoff-pill notif-active" title="Hesap kesim tarihi geldi! Borç ödenene kadar her gün 11:30'da bildirim gönderilir.">🔔 11:30 Bildirim</span>` : ''}
-              </div>
+        <div class="wacc-card wacc-credit" onclick="openAccountDetailModal('${acc.id}')" title="Bu hesaba ait tüm hareketleri ve detayları görmek için tıklayın">
+          <div class="wacc-top">
+            <div class="wacc-icon">${acc.icon || '💳'}</div>
+            <div class="wacc-title">
+              <div class="wacc-name">${acc.name}</div>
+              <div class="wacc-type">${getAccountTypeLabel(acc.type)}</div>
+            </div>
+            <div class="wacc-balance">
+              <div class="wacc-balance-label">Toplam Bakiye</div>
+              <div class="wacc-balance-value ${acc.balance < 0 ? 'neg' : 'pos'}">${formatWalletTL(acc.balance)}</div>
             </div>
           </div>
 
-          <div class="account-credit-debt-block">
-            <div class="credit-debt-header-row">
-              <span class="credit-debt-tag">📋 Dönem Borcu</span>
-              ${rangeText ? `<span class="credit-debt-range">${rangeText}</span>` : ''}
+          <div class="wacc-pills">
+            <span class="wacc-pill">📅 Kesim: Ayın ${acc.billingDay || 15}'i</span>
+            ${rangeText ? `<span class="wacc-pill wacc-pill-muted">🗓️ ${rangeText}</span>` : ''}
+            ${isNotifActive ? `<span class="wacc-pill wacc-pill-alert" title="Hesap kesim tarihi geldi! Borç ödenene kadar her gün 11:30'da bildirim gönderilir.">🔔 11:30 Bildirim</span>` : ''}
+          </div>
+
+          <div class="wacc-debt">
+            <div class="wacc-debt-info">
+              <div class="wacc-debt-label">Dönem Borcu</div>
+              <div class="wacc-debt-value ${periodDebt > 0 ? 'neg' : 'zero'}">${formatWalletTL(periodDebt)}</div>
             </div>
-            <div class="credit-debt-main-row">
-              <div class="credit-debt-amount ${periodDebt > 0 ? 'debt-active' : 'debt-zero'}">
-                ${formatWalletTL(periodDebt)}
-              </div>
-              <button type="button" class="btn-account-pay-shortcut" onclick="event.stopPropagation(); openPayCreditCardModal('${acc.id}')" title="Dönem Borcunu Öde">
-                💳 Borç Öde
-              </button>
-            </div>
-            <div class="credit-debt-footer-row">
-              <span class="credit-total-balance-text">Toplam Bakiye: <strong style="color: ${acc.balance < 0 ? 'var(--rose)' : 'var(--emerald)'};">${formatWalletTL(acc.balance)}</strong></span>
-              <div class="credit-mini-actions">
-                <button type="button" class="btn-account-mini" onclick="event.stopPropagation(); openAccountDetailModal('${acc.id}')" title="Hareketleri Gör">📋</button>
-                <button type="button" class="btn-account-mini" onclick="event.stopPropagation(); openEditAccountModal('${acc.id}')" title="Hesabı Düzenle">✏️</button>
-              </div>
-            </div>
+            <button type="button" class="wacc-btn wacc-btn-pay" onclick="event.stopPropagation(); openPayCreditCardModal('${acc.id}')" title="Dönem Borcunu Öde">💳 Borç Öde</button>
+          </div>
+
+          <div class="wacc-actions">
+            <button type="button" class="wacc-btn" onclick="event.stopPropagation(); openAccountDetailModal('${acc.id}')" title="Hareketleri Gör">📋 Hareketler</button>
+            <button type="button" class="wacc-btn" onclick="event.stopPropagation(); openEditAccountModal('${acc.id}')" title="Hesabı Düzenle">✏️ Düzenle</button>
           </div>
         </div>
       `;
     } else {
       html += `
-        <div class="account-card" onclick="openAccountDetailModal('${acc.id}')" title="Bu hesaba ait tüm hareketleri ve detayları görmek için tıklayın">
-          <div class="account-info">
-            <div class="account-icon">${acc.icon || '🏦'}</div>
-            <div class="account-title-box">
-              <h4>${acc.name}</h4>
-              <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
-                <span class="account-type-tag">${getAccountTypeLabel(acc.type)}</span>
-              </div>
+        <div class="wacc-card" onclick="openAccountDetailModal('${acc.id}')" title="Bu hesaba ait tüm hareketleri ve detayları görmek için tıklayın">
+          <div class="wacc-top">
+            <div class="wacc-icon">${acc.icon || '🏦'}</div>
+            <div class="wacc-title">
+              <div class="wacc-name">${acc.name}</div>
+              <div class="wacc-type">${getAccountTypeLabel(acc.type)}</div>
+            </div>
+            <div class="wacc-balance">
+              <div class="wacc-balance-label">Son Tutar</div>
+              <div class="wacc-balance-value ${acc.balance < 0 ? 'neg' : ''}">${formatWalletTL(acc.balance)}</div>
             </div>
           </div>
-          <div class="account-right-box">
-            <div class="account-balance-box">
-              <span style="font-size: 0.66rem; color: var(--text-dim); text-align: right; display: block; margin-bottom: 1px;">Son Tutar</span>
-              <div class="account-balance" style="color: ${acc.balance < 0 ? 'var(--rose)' : '#fff'};">
-                ${formatWalletTL(acc.balance)}
-              </div>
-            </div>
-            <div class="account-actions-stack">
-              <button type="button" class="btn-account-edit" onclick="event.stopPropagation(); openAccountDetailModal('${acc.id}')" title="Hareketleri Gör">
-                📋 Hareketler
-              </button>
-              <button type="button" class="btn-account-edit" onclick="event.stopPropagation(); openEditAccountModal('${acc.id}')" title="Hesabı Düzenle">
-                ✏️ Düzenle
-              </button>
-            </div>
+          <div class="wacc-actions">
+            <button type="button" class="wacc-btn" onclick="event.stopPropagation(); openAccountDetailModal('${acc.id}')" title="Hareketleri Gör">📋 Hareketler</button>
+            <button type="button" class="wacc-btn" onclick="event.stopPropagation(); openEditAccountModal('${acc.id}')" title="Hesabı Düzenle">✏️ Düzenle</button>
           </div>
         </div>
       `;
@@ -4068,11 +4055,11 @@ const BORDRO_ROWS_DEF = [
   { key: 'yolYardimi', label: 'Yol Yardımı' },
   { key: 'yemekYardimi', label: 'Yemek Yardımı' },
   { key: 'ekstra', label: 'Ekstra' },
-  { key: 'muafiyet', label: 'Muafiyet' },
   { key: 'sgkPrimEsasKazanc', label: 'SGK Prim Esas Kazanç' },
   { key: 'sigortaPrimi', label: 'Sigorta Primi' },
   { key: 'topGelVerMat', label: 'Top. Gel. Ver. Mat.' },
   { key: 'avans', label: 'Avans' },
+  { key: 'muafiyet', label: 'Muafiyet' },
   { key: 'bes', label: 'BES' },
   { key: 'asgariUcret', label: 'Asgari Ücret' },
   { key: 'asgariUcrTopMat', label: 'Asgari Ücr. Top. Mat.' },
@@ -4532,10 +4519,10 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
     const sigortaVal = Number(p.sigortaPrimi) || 0;
 
-    // 7. Madde: Top. Gel. Ver. Mat. = Bir önceki ayın Top. Gel. Ver. Mat. + SGK Prim Esas Kazanç - Sigorta Primi
+    // 7. Madde: Top. Gel. Ver. Mat. = Bir önceki ayın Top. Gel. Ver. Mat. + SGK Prim Esas Kazanç - Sigorta Primi - Muafiyet
     const oncekiTopGelVerMat = yearCumulatives[year].topGelVerMat || 0;
     if (!overrides.topGelVerMat) {
-      const buAykiKazancMatrahi = Math.max(0, sgkVal - sigortaVal);
+      const buAykiKazancMatrahi = Math.max(0, sgkVal - sigortaVal - muafiyetVal);
       p.topGelVerMat = Math.round((oncekiTopGelVerMat + buAykiKazancMatrahi) * 100) / 100;
     }
     yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
