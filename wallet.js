@@ -5923,10 +5923,10 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
     const sigortaVal = Number(p.sigortaPrimi) || 0;
 
-    // 7. Madde: Top. Gel. Ver. Mat. = Önceki ayın Top. Gel. Ver. Mat. + 1. satır (Brüt) + 2. satır (Sosyal) + 3. satır (İkramiye) + 4. satır (Yol) + 6. satır (Ekstra) - Muafiyet
+    // 7. Madde: Top. Gel. Ver. Mat. = Önceki ayın Top. Gel. Ver. Mat. + 1. satır (Brüt) + 2. satır (Sosyal) + 3. satır (İkramiye) + 4. satır (Yol) + 6. satır (Ekstra) - 9. satır (Sigorta Primi) - Muafiyet
     const oncekiTopGelVerMat = yearCumulatives[year].topGelVerMat || 0;
     if (!overrides.topGelVerMat) {
-      const buAykiKazancMatrahi = Math.max(0, brutVal + sosyalVal + ikramiyeVal + yolVal + ekstraVal - muafiyetVal);
+      const buAykiKazancMatrahi = Math.max(0, brutVal + sosyalVal + ikramiyeVal + yolVal + ekstraVal - sigortaVal - muafiyetVal);
       p.topGelVerMat = Math.round((oncekiTopGelVerMat + buAykiKazancMatrahi) * 100) / 100;
     }
     yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
