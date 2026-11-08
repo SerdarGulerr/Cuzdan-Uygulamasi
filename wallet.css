@@ -205,16 +205,14 @@
    CÜZDAN UYGULAMASI ANA YAPISI (WALLET MODULE)
    ========================================= */
 .wallet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0 8px 0;
+  /* Yapısal ve sticky stilleri style.css içindeki paylaşımlı header kuralından alır */
 }
 
 .wallet-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 /* Month Switcher Bar (Samsung Note 10+ AMOLED Bar) */
@@ -947,34 +945,44 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.28);
   border-radius: 14px;
-  padding: 10px 12px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .wacc-debt-info {
   min-width: 0;
+  flex: 1;
 }
 
 .wacc-debt-label {
-  font-size: 0.74rem;
+  font-size: 0.80rem;
   font-weight: 800;
-  color: #fb7185;
+  color: #fca5a5;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
 }
 
 .wacc-debt-value {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
   white-space: nowrap;
-  margin-top: 1px;
+  margin-top: 3px;
+  letter-spacing: -0.01em;
 }
 
-.wacc-debt-value.neg { color: #fb7185; }
-.wacc-debt-value.zero { color: #34d399; }
+.wacc-debt-value.neg {
+  color: #ff4d6d;
+  text-shadow: 0 0 12px rgba(255, 77, 109, 0.3);
+}
+
+.wacc-debt-value.zero {
+  color: #34d399;
+}
 
 .wacc-actions {
   display: grid;
@@ -1007,11 +1015,46 @@
 }
 
 .wacc-btn-pay {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.18));
-  border-color: rgba(16, 185, 129, 0.5);
-  color: #6ee7b7;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+  border: 1px solid #34d399 !important;
+  color: #ffffff !important;
+  font-size: 0.90rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+  padding: 0 18px !important;
+  min-height: 44px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
   flex-shrink: 0;
-  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.wacc-btn-pay:hover {
+  background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.wacc-btn-pay:active {
+  transform: scale(0.96);
+  background: #047857 !important;
+}
+
+.wacc-btn-pay .wacc-btn-pay-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.wacc-btn-pay .wacc-btn-pay-text {
+  color: #ffffff !important;
+  font-weight: 800 !important;
 }
 
 .emoji-picker-row {
@@ -2491,22 +2534,19 @@
 .category-picker-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 9px 8px;
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 6px 3px;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  gap: 6px 5px;
+  max-height: none;
+  overflow: visible;
+  padding: 4px 1px;
 }
 
 .cat-choice {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 4px;
-  border-radius: var(--radius-md);
+  gap: 3px;
+  padding: 6px 3px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
@@ -2532,16 +2572,16 @@
 }
 
 .cat-choice-icon {
-  font-size: 1.45rem;
+  font-size: 1.15rem;
   line-height: 1;
 }
 
 .cat-choice-name {
-  font-size: 0.72rem;
+  font-size: 0.67rem;
   font-weight: 700;
   color: var(--text-muted);
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .cat-choice.selected .cat-choice-name {
@@ -3209,14 +3249,14 @@
 /* Kredi Kartı Hesap Kesim & Borç Özeti Kartı */
 .credit-cutoff-card {
   margin-top: 10px;
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(17, 24, 39, 0.95) 100%);
-  border: 1px solid rgba(244, 63, 94, 0.28);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 4px 16px rgba(244, 63, 94, 0.08);
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(244, 63, 94, 0.12);
 }
 
 .cutoff-header {
@@ -3224,96 +3264,104 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .cutoff-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.72rem;
+  gap: 6px;
+  font-size: 0.82rem;
   font-weight: 800;
-  color: #ff859b;
+  color: #fda4af;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .cutoff-date-info {
-  font-size: 0.76rem;
-  color: var(--text-muted);
+  font-size: 0.84rem;
+  color: #cbd5e1;
 }
 
 .cutoff-date-info strong {
-  color: var(--text-main);
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .cutoff-body {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  background: rgba(0, 0, 0, 0.28);
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 7px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cutoff-stat-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.86rem;
+  color: #cbd5e1;
 }
 
 .cutoff-spent-amount {
-  color: var(--text-main);
-  font-weight: 700;
+  color: #ffffff;
+  font-weight: 800;
 }
 
 .cutoff-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  margin: 3px 0;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 4px 0;
 }
 
 .cutoff-total-row {
-  font-size: 0.86rem;
+  font-size: 0.94rem;
   font-weight: 800;
-  color: var(--text-main);
+  color: #ffffff;
 }
 
 .cutoff-debt-amount {
-  color: var(--rose);
-  font-size: 1.05rem;
+  color: #ff4d6d;
+  font-size: 1.15rem;
   font-weight: 900;
+  text-shadow: 0 0 12px rgba(255, 77, 109, 0.3);
 }
 
 .cutoff-auto-applied-note {
-  font-size: 0.72rem;
-  color: var(--emerald);
-  margin-top: 2px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #86efac;
+  margin-top: 4px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .cutoff-recalc-btn {
-  background: rgba(244, 63, 94, 0.15);
-  border: 1px solid rgba(244, 63, 94, 0.35);
-  color: #ff859b;
-  font-size: 0.72rem;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(244, 63, 94, 0.15));
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  color: #fecaca;
+  font-size: 0.85rem;
   font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 8px 14px;
+  min-height: 38px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
-  margin-top: 4px;
+  margin-top: 6px;
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .cutoff-recalc-btn:hover {
-  background: rgba(244, 63, 94, 0.25);
-  color: #fff;
+  background: rgba(244, 63, 94, 0.35);
+  color: #ffffff;
+  border-color: rgba(244, 63, 94, 0.6);
 }
 
 .cutoff-tx-details {
@@ -3504,6 +3552,7 @@
 }
 
 .modal-account-detail-content {
+  position: relative !important;
   background: #0f172a !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 18px !important;
@@ -3528,11 +3577,40 @@
 }
 
 .account-detail-scroll-area {
-  padding: 14px;
+  padding: 14px 14px 80px 14px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+/* Hesap Detay Modali Ici Floating Action Button (+ FAB - Samsung Galaxy Note 10+) */
+.account-detail-fab {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 99;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.account-detail-fab:hover {
+  transform: scale(1.06) translateY(-2px);
+  box-shadow: 0 14px 32px rgba(16, 185, 129, 0.6);
+}
+
+.account-detail-fab:active {
+  transform: scale(0.92);
 }
 
 .account-stat-hero {
@@ -3621,16 +3699,18 @@
 
 .account-credit-info-card {
   margin-top: 10px;
-  padding: 8px 10px;
-  background: rgba(244, 63, 94, 0.08);
-  border: 1px solid rgba(244, 63, 94, 0.2);
-  border-radius: 10px;
-  font-size: 0.72rem;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.14) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.32);
+  border-radius: 14px;
+  font-size: 0.86rem;
+  color: #f1f5f9;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .account-detail-actions-bar {
@@ -3644,15 +3724,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 8px 10px;
-  font-size: 0.74rem;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 10px;
+  min-height: 42px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-main);
   font-family: inherit;
   text-align: center;
@@ -3664,7 +3745,7 @@
 }
 
 .btn-acc-action:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   transform: translateY(-1px);
 }
 
@@ -3689,54 +3770,69 @@
 }
 
 .btn-acc-action.pay-card-debt {
-  background: linear-gradient(135deg, #059669, #10b981);
-  border: 1px solid #34d399;
-  color: #ffffff;
-  font-size: 0.82rem;
-  font-weight: 800;
-  padding: 10px 14px;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+  border: 1px solid #34d399 !important;
+  color: #ffffff !important;
+  font-size: 0.94rem !important;
+  font-weight: 800 !important;
+  padding: 12px 16px !important;
+  min-height: 48px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.02em;
 }
 
 .btn-acc-action.pay-card-debt:hover {
-  background: linear-gradient(135deg, #047857, #059669);
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+  background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45) !important;
   transform: translateY(-1px);
 }
 
 .btn-acc-pay-inline {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  border-radius: 6px;
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px !important;
+  min-height: 42px !important;
+  font-size: 0.88rem !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  border: 1px solid #34d399 !important;
+  background: linear-gradient(135deg, #059669, #10b981) !important;
+  color: #ffffff !important;
   cursor: pointer;
-  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   font-family: inherit;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
 }
 
 .btn-acc-pay-inline:hover {
-  background: rgba(16, 185, 129, 0.28);
+  background: linear-gradient(135deg, #047857, #059669) !important;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45) !important;
   transform: translateY(-1px);
-  color: #fff;
+  color: #fff !important;
+}
+
+.btn-acc-pay-inline:active {
+  transform: scale(0.96);
 }
 
 .btn-account-pay-shortcut {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.18)) !important;
-  color: #34d399 !important;
-  border: 1px solid rgba(16, 185, 129, 0.45) !important;
-  font-weight: 700;
-  border-radius: 7px;
-  padding: 5px 10px;
+  background: linear-gradient(135deg, #059669, #10b981) !important;
+  color: #ffffff !important;
+  border: 1px solid #34d399 !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  padding: 8px 14px !important;
   cursor: pointer;
   transition: all 0.18s ease;
   white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3) !important;
 }
 
 .btn-account-pay-shortcut:hover {
@@ -3841,31 +3937,40 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* Kredi Kartı Borç Ödeme Banner ve Çipleri */
+/* Kredi Kartı Borç Ödeme Modal Tasarımı (Note 10+ Optimize) */
+.modal-pay-card-content {
+  max-width: 480px;
+}
+
 .card-debt-summary-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(30, 41, 59, 0.95) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  border-radius: 14px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
 }
 
 .card-debt-banner-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 
 .card-debt-banner-icon {
-  font-size: 1.6rem;
+  font-size: 1.9rem;
   line-height: 1;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .card-debt-banner-info {
@@ -3875,66 +3980,180 @@
 
 .card-debt-banner-info h4 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  color: var(--text-main);
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .card-debt-banner-sub {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  display: block;
-  margin-top: 2px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.card-debt-banner-sub .debt-sub-title {
+  color: #94a3b8;
+}
+
+.card-debt-banner-sub .debt-sub-amount {
+  color: #fca5a5;
+  font-weight: 800;
+  font-size: 0.94rem;
+}
+
+.card-debt-banner-sub .debt-sub-range {
+  color: #94a3b8;
+  font-size: 0.80rem;
 }
 
 .card-debt-banner-badge {
-  font-size: 0.8rem;
-  font-weight: 800;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.card-debt-banner-badge .banner-badge-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card-debt-banner-badge .banner-badge-val {
+  font-size: 0.94rem;
+  font-weight: 900;
+}
+
+.pay-modal-label {
+  display: block;
+  font-size: 0.90rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 6px;
+}
+
+#payCardSourceBalanceHint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.86rem;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.pay-amount-affix {
+  position: relative;
+}
+
+.pay-amount-input {
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em;
+}
+
+.quick-pay-chips-wrapper {
+  margin-top: -2px;
+  margin-bottom: 16px;
+}
+
+.quick-pay-chips-title {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
 }
 
 .quick-pay-chips {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: -6px;
-  margin-bottom: 14px;
 }
 
 .quick-pay-chip-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 9px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted);
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
   cursor: pointer;
+  min-height: 40px;
   transition: all 0.2s ease;
   font-family: inherit;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .quick-pay-chip-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
 }
 
 .quick-pay-chip-btn.active {
-  background: rgba(16, 185, 129, 0.2);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.35));
   border-color: #10b981;
-  color: #34d399;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+}
+
+.pay-modal-footer {
+  margin-top: 20px;
+}
+
+.pay-btn-cancel {
+  min-height: 48px;
+  font-size: 0.90rem;
   font-weight: 700;
+}
+
+.pay-btn-submit {
+  min-height: 48px !important;
+  font-size: 0.96rem !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+  border: 1px solid #34d399 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  border-radius: 12px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pay-btn-submit:hover {
+  background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+  transform: translateY(-1px);
 }
 
 .account-tx-filter-bar {
@@ -4096,10 +4315,12 @@
    MODÜL 3: MAAŞ & BORDRO EXCEL TABLOSU (YATAY AY MATRİSİ)
    =================================================== */
 
-/* Bordro modülü aktifken masaüstünde geniş tablo görünümü */
-.app-container.bordro-wide-active {
-  max-width: 98vw;
-  transition: max-width 0.25s ease;
+/* Bordro modülü aktifken masaüstünde geniş tablo görünümü (Sadece büyük ekranlarda) */
+@media (min-width: 1024px) {
+  .app-container.bordro-wide-active {
+    max-width: 98vw;
+    transition: max-width 0.25s ease;
+  }
 }
 
 .btn-bordro-wide-toggle {
@@ -4135,6 +4356,8 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 900px) {
@@ -4146,6 +4369,26 @@
 @media (max-width: 640px) {
   .bordro-summary-strip {
     grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* 1. Kutu: Dönem Yıl Seçim Kartı en üstte tam genişlikte yatay kontrol paneli */
+  .bordro-summary-strip .bordro-sum-box:first-child {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(15, 23, 42, 0.9));
+    border-color: rgba(245, 158, 11, 0.45);
+  }
+
+  .bordro-summary-strip .bordro-sum-box:first-child > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 }
 
@@ -4279,11 +4522,14 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .b-sum-lbl {
@@ -4292,10 +4538,13 @@
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .b-sum-val {
-  font-size: 0.96rem;
+  font-size: 0.92rem;
   font-weight: 800;
   color: #fff;
   white-space: nowrap;
@@ -5091,30 +5340,38 @@
    SAMSUNG GALAXY NOTE 10+ (6.8" DYNAMIC AMOLED 19:9) & MODERN MOBILE OPTİMİZASYONU
    =================================================== */
 @media screen and (max-width: 480px) {
+  :root {
+    --container-px: 14px;
+  }
+
   /* Note 10+ Geniş Ekran Alanında Konforlu Kart & Tipografi Düzeni */
   .app-container {
-    padding-left: calc(14px + env(safe-area-inset-left, 0px));
-    padding-right: calc(14px + env(safe-area-inset-right, 0px));
-    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-left: calc(var(--container-px) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--container-px) + env(safe-area-inset-right, 0px));
+    padding-top: 0;
     padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Note 10+ Ekranında 4 Sütunlu Kategori Gridinin Kusursuz Oturması */
-  .category-picker-grid {
+    .category-picker-grid {
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px 6px;
+    gap: 5px 4px;
+    max-height: none;
+    overflow: visible;
+    padding: 2px 0;
   }
 
   .cat-choice {
-    padding: 9px 3px;
+    padding: 5px 2px;
+    gap: 2px;
   }
 
   .cat-choice-icon {
-    font-size: 1.4rem;
+    font-size: 1.05rem;
   }
 
   .cat-choice-name {
-    font-size: 0.70rem;
+    font-size: 0.65rem;
   }
 
   /* Alt Navigasyon Dock & Thumb Reachability */
@@ -5149,6 +5406,195 @@
   .month-selector-bar {
     border-radius: 18px;
   }
+
+  /* Note 10+ Kredi Kartı Dönem Borç Kartı & Ödeme Butonu Dokunma & Okunabilirlik */
+  .wacc-debt {
+    padding: 12px 14px;
+    gap: 10px;
+    border-radius: 14px;
+  }
+
+  .wacc-debt-label {
+    font-size: 0.80rem;
+    font-weight: 800;
+  }
+
+  .wacc-debt-value {
+    font-size: 1.25rem;
+    font-weight: 900;
+  }
+
+  .wacc-btn-pay {
+    min-height: 44px !important;
+    padding: 0 16px !important;
+    font-size: 0.90rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em;
+    border-radius: 12px !important;
+  }
+
+  .wacc-btn-pay .wacc-btn-pay-text {
+    color: #ffffff !important;
+    font-weight: 800 !important;
+  }
+
+  /* Note 10+ Kart Detayı Eylem Çubuğu ve Borç Butonları */
+  .btn-acc-action.pay-card-debt {
+    min-height: 48px !important;
+    font-size: 0.94rem !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+  }
+
+  .btn-acc-pay-inline {
+    min-height: 42px !important;
+    padding: 8px 14px !important;
+    font-size: 0.88rem !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    border-radius: 10px !important;
+  }
+
+  /* Note 10+ Borç Ödeme Modal Banner ve Hızlı Seçim Çipleri */
+  .card-debt-summary-banner {
+    padding: 12px 14px;
+    border-radius: 14px;
+    gap: 10px;
+  }
+
+  .card-debt-banner-icon {
+    font-size: 1.7rem;
+    padding: 6px;
+  }
+
+  .card-debt-banner-info h4 {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #ffffff;
+  }
+
+  .card-debt-banner-sub {
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .card-debt-banner-badge {
+    font-size: 0.84rem;
+    padding: 6px 10px;
+  }
+
+  .quick-pay-chips {
+    gap: 6px;
+  }
+
+  .quick-pay-chip-btn {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #ffffff;
+    border-radius: 10px;
+  }
+
+  .pay-modal-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .pay-btn-submit {
+    min-height: 50px !important;
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    border-radius: 12px !important;
+    color: #ffffff !important;
+  }
+
+  /* Samsung Galaxy Note 10+ (412px Viewport) - Tüm Modallar ve Açılan Sayfalar */
+  .app-modal,
+  .app-modal.modal-wide {
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 8px 10px !important;
+    margin: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 16px 14px !important;
+    max-height: 90vh !important;
+    border-radius: 20px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Modal İçi Form, Tablo ve Listeler Ekrandan Taşmasın */
+  .modal-content table,
+  .modal-content .table-responsive,
+  .modal-content .form-group,
+  .modal-content input,
+  .modal-content select,
+  .modal-content textarea {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-header h3 {
+    font-size: 1.05rem !important;
+  }
+
+  /* Bordro Modülü Mobil Uyum */
+  #moduleBordro {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .bordro-toolbar {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .bordro-toolbar-left {
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .btn-bordro-secondary,
+  .btn-bordro-primary {
+    min-height: 42px !important;
+    padding: 8px 11px !important;
+    font-size: 0.78rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .bordro-sheet-wrapper {
+    max-height: 68vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .bordro-bottom-actions {
+    justify-content: stretch !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .bordro-bottom-actions .btn-bordro-excel {
+    flex: 1 1 calc(50% - 4px) !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+    font-size: 0.82rem !important;
+    box-sizing: border-box !important;
+  }
 }
 
 /* Yüksek Çözünürlüklü AMOLED Panel (Samsung Dynamic AMOLED HDR10+ / Retina 2x-3.5x) */
@@ -5175,3 +5621,1108 @@
 
 
 
+
+/* Kredi KartÄ± BorÃ§ Ã–deme - Tarih ve DÃ¶nem SeÃ§imi */
+.pay-card-dates-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 480px) {
+  .pay-card-dates-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+/* DÃ¶nem BorÃ§ & Ã–deme Analiz Paneli */
+.pay-card-period-detail-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pay-card-period-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pay-card-period-title {
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pay-card-period-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.pay-card-period-badge.closed {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+}
+
+.pay-card-period-badge.cleared {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.pay-period-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.pay-period-col {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.pay-period-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pay-period-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.pay-period-val.spent {
+  color: #f87171;
+}
+
+.pay-period-val.paid {
+  color: #38bdf8;
+}
+
+.pay-period-val.remaining {
+  color: #fbbf24;
+}
+
+.pay-period-val.cleared {
+  color: #34d399;
+}
+
+.pay-period-status-line {
+  font-size: 0.74rem;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   ENTEGRE ÖZEL HESAP & TRANSFER SEÇİCİ BİLEŞENLERİ (MOBILE-FIRST)
+   ========================================================================== */
+
+/* Tekli Hesap Seçici Kartı (Gelir / Gider / Borç Ödeme) */
+.custom-account-card-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(145deg, rgba(20, 31, 54, 0.88) 0%, rgba(13, 21, 39, 0.94) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 11px 13px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  min-height: 58px;
+}
+
+.custom-account-card-trigger:hover,
+.custom-account-card-trigger:focus-visible {
+  border-color: rgba(59, 130, 246, 0.55);
+  background: linear-gradient(145deg, rgba(26, 40, 70, 0.95) 0%, rgba(16, 26, 48, 0.98) 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 14px rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.custom-account-card-trigger:active {
+  transform: scale(0.985);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Transfer Akış Kartı Container (Kaynak ve Hedef Tek Kart İçinde) */
+.transfer-accounts-flow-card {
+  background: linear-gradient(160deg, rgba(16, 26, 48, 0.8) 0%, rgba(10, 17, 33, 0.92) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.24);
+  border-radius: 16px;
+  padding: 12px;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Transfer Satırları */
+.transfer-flow-row {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transfer-flow-row:hover,
+.transfer-flow-row:focus-visible {
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+.transfer-flow-row:active {
+  transform: scale(0.985);
+}
+
+/* Transfer Rozet Başlıkları (Kaynak / Hedef) */
+.transfer-flow-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+
+.transfer-flow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.transfer-flow-dot.from-dot {
+  background: #f87171;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.75);
+}
+
+.transfer-flow-dot.to-dot {
+  background: #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.75);
+}
+
+.transfer-flow-label {
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.55px;
+  color: var(--text-dim);
+}
+
+/* Transfer Divider & Hızlı Swap Butonu */
+.transfer-flow-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 7px 0;
+  position: relative;
+}
+
+.transfer-flow-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+}
+
+.btn-transfer-swap {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1.5px solid rgba(59, 130, 246, 0.45);
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 8px rgba(59, 130, 246, 0.2);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.btn-transfer-swap:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  border-color: #93c5fd;
+  color: #ffffff;
+  transform: rotate(180deg) scale(1.08);
+  box-shadow: 0 6px 18px rgba(29, 78, 216, 0.5);
+}
+
+.btn-transfer-swap:active {
+  transform: rotate(180deg) scale(0.92);
+}
+
+.swap-svg {
+  width: 17px;
+  height: 17px;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+}
+
+/* Kart İçeriği Detayları (İkon + İsim + Bakiye + Değiştir Butonu) */
+.tx-acc-card-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.tx-acc-main-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tx-acc-avatar-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.tx-acc-meta-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tx-acc-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tx-acc-name-text {
+  font-size: 0.92rem;
+  font-weight: 750;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-acc-type-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1.5px 6.5px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.2px;
+}
+
+.tx-acc-balance-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+}
+
+.tx-acc-balance-label {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+}
+
+.tx-acc-balance-val {
+  font-weight: 800;
+  letter-spacing: 0.1px;
+}
+
+.tx-acc-balance-val.positive {
+  color: #34d399;
+}
+
+.tx-acc-balance-val.negative {
+  color: #f87171;
+}
+
+.tx-acc-change-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  color: #93c5fd;
+  font-size: 0.73rem;
+  font-weight: 700;
+  padding: 5px 9px;
+  border-radius: 18px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.transfer-flow-row:hover .tx-acc-change-pill,
+.custom-account-card-trigger:hover .tx-acc-change-pill {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   UYGULAMA İÇİ ÖZEL HESAP SEÇİCİ MODAL (DARK/GLASS PICKER)
+   ========================================================================== */
+
+.modal-account-picker-content {
+  max-width: 480px;
+  padding: 18px 16px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-picker-header-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* Hızlı Filtre Çipleri */
+.account-picker-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 0 10px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.account-picker-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.acc-filter-chip {
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+.acc-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.acc-filter-chip.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(29, 78, 216, 0.5) 100%);
+  border-color: #3b82f6;
+  color: #ffffff;
+  font-weight: 750;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Liste Container */
+.custom-accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+  max-height: 52vh;
+}
+
+/* Hesap Seçim Satırı */
+.account-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(20, 31, 54, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.account-picker-row:hover {
+  background: rgba(26, 40, 70, 0.88);
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.account-picker-row:active {
+  transform: scale(0.985);
+}
+
+/* Seçili Satır Vurgusu */
+.account-picker-row.selected {
+  border-color: #10b981;
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.18), inset 0 1px 0 rgba(16, 185, 129, 0.3);
+}
+
+/* Diğer Tarafta Seçili Hesap Uyarısı */
+.account-picker-row.in-other-slot {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.acc-picker-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.45rem;
+  flex-shrink: 0;
+}
+
+.acc-picker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.acc-picker-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.acc-picker-name {
+  font-size: 0.94rem;
+  font-weight: 750;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acc-picker-badge {
+  font-size: 0.67rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.acc-picker-balance-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acc-picker-balance-label {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.acc-picker-balance-val {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.acc-picker-status-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.acc-picker-check-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.account-picker-row.selected .acc-picker-check-circle {
+  border-color: #10b981;
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+}
+
+.acc-check-icon {
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  display: none;
+}
+
+.account-picker-row.selected .acc-check-icon {
+  display: block;
+}
+
+/* Boş Liste Durumu */
+.account-picker-empty {
+  text-align: center;
+  padding: 30px 15px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+@media screen and (max-width: 480px) {
+  .modal-account-picker-content {
+    padding: 16px 14px;
+    border-radius: 20px;
+  }
+  .account-picker-row {
+    padding: 11px 12px;
+  }
+  .tx-acc-avatar-box,
+  .acc-picker-icon-box {
+    width: 38px;
+    height: 38px;
+    font-size: 1.25rem;
+  }
+}
+
+/* --- Tutar Girişi ve ± (İşaret Değiştirme) Butonu --- */
+.input-with-affix {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-with-affix input {
+  width: 100%;
+  padding-left: 14px;
+  padding-right: 42px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+}
+
+.input-with-affix .btn-toggle-sign + input {
+  padding-left: 52px;
+}
+
+.input-with-affix .btn-toggle-sign {
+  position: absolute;
+  left: 6px;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-size: 1.15rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  z-index: 3;
+  touch-action: manipulation;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.input-with-affix .btn-toggle-sign:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.input-with-affix .btn-toggle-sign:active {
+  transform: scale(0.92);
+}
+
+.input-with-affix .btn-toggle-sign.is-negative {
+  background: rgba(244, 63, 94, 0.22);
+  border-color: rgba(244, 63, 94, 0.65);
+  color: #f43f5e;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
+}
+
+.input-with-affix .affix {
+  position: absolute;
+  right: 14px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 1.1rem;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* İade / Negatif Gider Rozeti */
+.tx-refund-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+
+
+/* --- Kredi Kartı Dönemlik Hareket Dökümü & Ekstre Gezgini (Samsung Galaxy Note 10+ Optimize) --- */
+.wacc-period-navigator-wrapper {
+  background: linear-gradient(145deg, rgba(20, 31, 54, 0.8), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.wacc-period-nav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wacc-period-nav-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wacc-period-nav-arrows {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wacc-period-step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.wacc-period-step-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.wacc-period-step-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.wacc-period-scroll-track {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  align-items: stretch;
+}
+
+.wacc-period-scroll-track::-webkit-scrollbar {
+  display: none;
+}
+
+.wacc-period-chip {
+  min-height: 50px;
+  min-width: 140px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.wacc-period-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.wacc-period-chip.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.45) 0%, rgba(29, 78, 216, 0.65) 100%) !important;
+  border-color: #60a5fa !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.wacc-period-chip.all-history {
+  border-style: dashed;
+}
+
+.period-chip-dates {
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.period-chip-sub-badge {
+  font-size: 0.72rem;
+  font-weight: 750;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.period-chip-sub-badge.star {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.period-chip-sub-badge.current {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.period-chip-sub-badge.cleared {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.period-chip-sub-badge.debt {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+/* Seçili Dönem Özet Kartı */
+.wacc-period-summary-hero {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.period-summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.period-summary-range-title {
+  font-size: 1.05rem;
+  font-weight: 850;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.period-summary-cutoff-sub {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+.period-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.period-status-tag.cleared {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.period-status-tag.closed {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.period-status-tag.current {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.period-status-tag.empty {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.period-summary-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.period-summary-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.period-col-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.period-col-val {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.period-col-val.debt {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #f43f5e;
+}
+
+.period-col-val.cleared {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #10b981;
+}
+
+.period-col-val.spent {
+  color: #cbd5e1;
+}
+
+.period-col-val.paid {
+  color: #34d399;
+}
+
+.btn-period-pay-debt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: #ffffff !important;
+  font-size: 0.95rem;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+  transition: all 0.18s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.btn-period-pay-debt:hover,
+.btn-period-pay-debt:active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5);
+}
+
+.period-swipe-hint-bar {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.period-tx-subfilters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.period-tx-subfilters::-webkit-scrollbar {
+  display: none;
+}
+
+.period-subfilter-btn {
+  min-height: 42px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 750;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.period-subfilter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.period-subfilter-btn.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+}
+
+.period-all-history-banner {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.period-all-history-btn {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}

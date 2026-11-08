@@ -97,7 +97,8 @@ function getCreditCardNotificationDetails(acc, now = new Date()) {
     shouldNotify = true;
     notifDebt = (periodData && periodData.netDebt > 0) ? Math.min(totalDebt, periodData.netDebt) : totalDebt;
     reason = 'current_cutoff_arrived';
-    statusText = `Ayın ${billingDay}'inde kesildi. Borç ödenene kadar her gün 11:30'da bildirim aktif.`;
+    const cutoffDateText = (typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null) : `Ayın ${billingDay}'i`;
+    statusText = `${cutoffDateText} tarihinde kesildi. Borç ödenene kadar her gün 11:30'da bildirim aktif.`;
   } else {
     // 2. Durum: Bugün henüz bu ayın kesim gününe gelmedi (örn: Bugün ayın 6'sı, kesim 15'i)
     // Önceki ekstreden (statsA) kalan ödenmemiş borç var mı?
@@ -110,7 +111,8 @@ function getCreditCardNotificationDetails(acc, now = new Date()) {
       // Önceki ekstre ödenmiş, mevcut harcamalar henüz kesilmemiş bir sonraki ekstreye ait
       shouldNotify = false;
       reason = 'upcoming_cutoff_pending';
-      statusText = `Mevcut harcamalar bir sonraki kesim (Ayın ${billingDay}'i) için bekliyor.`;
+      const nextCutoffText = (typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null) : `Ayın ${billingDay}'i`;
+      statusText = `Mevcut harcamalar bir sonraki kesim (${nextCutoffText}) için bekliyor.`;
     }
   }
 
@@ -533,7 +535,7 @@ function renderNotificationSettingsUI() {
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:1.1rem;">${card.icon || '💳'}</span>
                 <strong style="font-size:0.88rem; color:#fff;">${card.name}</strong>
-                <span class="account-cutoff-pill" style="font-size:0.65rem;">📅 Kesim: Ayın ${card.billingDay || 15}'i</span>
+                <span class="account-cutoff-pill" style="font-size:0.65rem;">📅 Kesim: ${(typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(card) : (card.billingDay || 15)}</span>
               </div>
               <div style="font-size:0.75rem; color:var(--text-dim); margin-top:3px;">
                 Borç: <strong style="color:${hasDebt ? 'var(--rose)' : 'var(--emerald)'};">${formatWalletTL(details.debt)}</strong> 

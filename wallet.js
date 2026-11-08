@@ -189,7 +189,7 @@ function switchMainModule(modName) {
   } else if (modName === 'bordro') {
     if (modBordro) modBordro.style.display = 'flex';
     if (itemBordro) itemBordro.classList.add('active');
-    if (appContainer && bordroWideMode) appContainer.classList.add('bordro-wide-active');
+    if (appContainer) appContainer.classList.remove('bordro-wide-active');
     localStorage.setItem('active_suite_module', 'bordro');
     if (typeof renderBordroModule === 'function') renderBordroModule();
   } else {
@@ -351,8 +351,8 @@ function renderDailyView(txs) {
             <span class="daily-date-str">${dayName}</span>
           </div>
           <div class="daily-group-totals">
-            ${dayInc > 0 ? `<span class="sum-income">+${formatWalletTL(dayInc)}</span>` : ''}
-            ${dayExp > 0 ? `<span class="sum-expense">-${formatWalletTL(dayExp)}</span>` : ''}
+            ${dayInc !== 0 ? `<span class="sum-income">${dayInc > 0 ? '+' : ''}${formatWalletTL(dayInc)}</span>` : ''}
+            ${dayExp !== 0 ? `<span class="sum-expense">${dayExp > 0 ? '-' : '+'}${formatWalletTL(Math.abs(dayExp))}</span>` : ''}
           </div>
         </div>
         <div class="daily-tx-list">
@@ -380,20 +380,34 @@ function renderDailyView(txs) {
         accName = acc ? acc.name : '';
       }
 
-      const sign = t.type === 'income' ? '+' : (t.type === 'expense' ? '-' : '');
-      const cls = t.type === 'income' ? 'income' : (t.type === 'expense' ? 'expense' : 'transfer');
+      let sign = '';
+      let cls = 'transfer';
+      const isNegative = t.amount < 0;
+      const absAmount = Math.abs(t.amount);
+
+      if (t.type === 'transfer') {
+        sign = isNegative ? '-' : '';
+        cls = 'transfer';
+      } else if (t.type === 'income') {
+        sign = !isNegative ? '+' : '-';
+        cls = !isNegative ? 'income' : 'expense';
+      } else if (t.type === 'expense') {
+        sign = !isNegative ? '-' : '+';
+        cls = !isNegative ? 'expense' : 'income';
+      }
+      const refundBadge = (t.type === 'expense' && isNegative) ? '<span class="tx-refund-badge">İade</span>' : '';
 
       html += `
         <div class="wallet-tx-row">
           <div class="wallet-tx-left">
             <div class="tx-cat-icon">${icon}</div>
             <div class="tx-desc-box">
-              <span class="tx-cat-name">${catName} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
+              <span class="tx-cat-name">${catName} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
               <span class="tx-account-name">${accName}</span>
             </div>
           </div>
           <div class="wallet-tx-right">
-            <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(t.amount)}</span>
+            <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(absAmount)}</span>
             <div class="wallet-tx-actions">
               ${t.type !== 'transfer' ? `
               <button type="button" class="btn-tx-action btn-tx-stats" onclick="inspectCategoryTrend('${t.categoryId}', '${(t.subCategory || '').replace(/'/g, "\\'")}', '${t.type}')" title="Bu Kalemin Trendini & Geçmişini İncele" aria-label="Analiz">
@@ -506,17 +520,31 @@ function filterCalendarDay(day) {
 
   let html = `<h4 style="font-size:0.85rem; margin-bottom:8px; color:#fff;">📌 ${day} ${getMonthNameTR(data.month)} Gününün Hareketleri:</h4>`;
   dayTxs.forEach(t => {
-    const sign = t.type === 'income' ? '+' : (t.type === 'expense' ? '-' : '');
-    const cls = t.type === 'income' ? 'income' : (t.type === 'expense' ? 'expense' : 'transfer');
+    let sign = '';
+    let cls = 'transfer';
+    const isNegative = t.amount < 0;
+    const absAmount = Math.abs(t.amount);
+
+    if (t.type === 'transfer') {
+      sign = isNegative ? '-' : '';
+      cls = 'transfer';
+    } else if (t.type === 'income') {
+      sign = !isNegative ? '+' : '-';
+      cls = !isNegative ? 'income' : 'expense';
+    } else if (t.type === 'expense') {
+      sign = !isNegative ? '-' : '+';
+      cls = !isNegative ? 'expense' : 'income';
+    }
+    const refundBadge = (t.type === 'expense' && isNegative) ? '<span class="tx-refund-badge">İade</span>' : '';
     html += `
       <div class="wallet-tx-row" style="background:var(--bg-card); border-radius:8px; margin-bottom:6px;">
         <div class="wallet-tx-left">
           <div class="tx-desc-box">
-            <span style="font-size:0.85rem; font-weight:700;">${t.note || 'İşlem'} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}</span>
+            <span style="font-size:0.85rem; font-weight:700;">${t.note || 'İşlem'} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}</span>
           </div>
         </div>
         <div class="wallet-tx-right">
-          <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(t.amount)}</span>
+          <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(absAmount)}</span>
           <div class="wallet-tx-actions">
             <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi Düzenle" aria-label="Düzenle">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1244,7 +1272,7 @@ function renderStatsView(legacyTxs, legacyTotalExpense) {
                     ${acc ? `<span class="subcat-tx-mini-acc">• ${acc.name}</span>` : ''}
                     ${t.note ? `<span class="subcat-tx-mini-note">(${t.note})</span>` : ''}
                   </div>
-                  <span class="subcat-tx-mini-amount">-${formatWalletTL(t.amount)}</span>
+                  <span class="subcat-tx-mini-amount ${t.amount < 0 ? 'income' : ''}">${t.amount < 0 ? '+' : '-'}${formatWalletTL(Math.abs(t.amount))}</span>
                 </div>
               `;
             });
@@ -1665,8 +1693,8 @@ function renderStatsView(legacyTxs, legacyTotalExpense) {
                 ${t.note ? `<span class="trend-tx-note">(${t.note})</span>` : ''}
               </div>
               <div class="trend-tx-right">
-                <span class="trend-tx-amount ${trendType === 'expense' ? 'expense' : 'income'}">
-                  ${trendType === 'expense' ? '-' : '+'}${formatWalletTL(t.amount)}
+                <span class="trend-tx-amount ${(t.amount < 0 ? (trendType === 'expense' ? 'income' : 'expense') : (trendType === 'expense' ? 'expense' : 'income'))}">
+                  ${(t.amount < 0 ? (trendType === 'expense' ? '+' : '-') : (trendType === 'expense' ? '-' : '+'))}${formatWalletTL(Math.abs(t.amount))}
                 </span>
                 <span class="trend-tx-edit-icon" title="Düzenle">✏️</span>
               </div>
@@ -1737,7 +1765,7 @@ function renderAccountsView() {
           </div>
 
           <div class="wacc-pills">
-            <span class="wacc-pill">📅 Kesim: Ayın ${acc.billingDay || 15}'i</span>
+            <span class="wacc-pill">📅 Kesim: ${getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null)}</span>
             ${rangeText ? `<span class="wacc-pill wacc-pill-muted">🗓️ ${rangeText}</span>` : ''}
             ${isNotifActive ? `<span class="wacc-pill wacc-pill-alert" title="Hesap kesim tarihi geldi! Borç ödenene kadar her gün 11:30'da bildirim gönderilir.">🔔 11:30 Bildirim</span>` : ''}
           </div>
@@ -1747,7 +1775,10 @@ function renderAccountsView() {
               <div class="wacc-debt-label">Dönem Borcu</div>
               <div class="wacc-debt-value ${periodDebt > 0 ? 'neg' : 'zero'}">${formatWalletTL(periodDebt)}</div>
             </div>
-            <button type="button" class="wacc-btn wacc-btn-pay" onclick="event.stopPropagation(); openPayCreditCardModal('${acc.id}')" title="Dönem Borcunu Öde">💳 Borç Öde</button>
+            <button type="button" class="wacc-btn wacc-btn-pay" onclick="event.stopPropagation(); openPayCreditCardModal('${acc.id}')" title="Dönem Borcunu Öde">
+              <span class="wacc-btn-pay-icon">💳</span>
+              <span class="wacc-btn-pay-text">Borç Öde</span>
+            </button>
           </div>
 
           <div class="wacc-actions">
@@ -1792,6 +1823,59 @@ function getAccountTypeLabel(type) {
 }
 
 // --- Kredi Kartı Hesap Kesim Tarihi & Otomatik Borç Hesaplama Yardımcıları ---
+function formatCutoffDateDMY(dateStr) {
+  if (!dateStr) return '';
+  const parts = String(dateStr).split('-');
+  if (parts.length < 3) return dateStr;
+  const y = parts[0];
+  const m = String(parts[1]).padStart(2, '0');
+  const d = String(parts[2]).padStart(2, '0');
+  return `${d}.${m}.${y}`;
+}
+
+function getCreditCardCutoffDateDisplay(accOrBillingDay, preferredDateStr) {
+  if (preferredDateStr) {
+    return formatCutoffDateDMY(preferredDateStr);
+  }
+  let billingDay = 15;
+  if (typeof accOrBillingDay === 'object' && accOrBillingDay !== null) {
+    billingDay = parseInt(accOrBillingDay.billingDay, 10) || 15;
+    if (typeof calculateCreditCardPeriodDebt === 'function' && accOrBillingDay.id) {
+      const pData = calculateCreditCardPeriodDebt(accOrBillingDay.id, billingDay);
+      if (pData && pData.endDate) {
+        return formatCutoffDateDMY(pData.endDate);
+      }
+    }
+  } else if (accOrBillingDay) {
+    billingDay = parseInt(accOrBillingDay, 10) || 15;
+  }
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const pad = n => String(n).padStart(2, '0');
+
+  let targetY = y;
+  let targetM = m;
+  if (d > billingDay) {
+    targetM++;
+    if (targetM > 11) {
+      targetM = 0;
+      targetY++;
+    }
+  }
+  const maxDays = new Date(targetY, targetM + 1, 0).getDate();
+  const actualD = Math.min(billingDay, maxDays);
+  return `${pad(actualD)}.${pad(targetM + 1)}.${targetY}`;
+}
+
+// Global erişim için window nesnesine ata
+if (typeof window !== 'undefined') {
+  window.formatCutoffDateDMY = formatCutoffDateDMY;
+  window.getCreditCardCutoffDateDisplay = getCreditCardCutoffDateDisplay;
+}
+
 function formatTurkishShortDate(dateStr) {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -2018,6 +2102,7 @@ function updateCreditCardCutoffPreview(accId, billingDay, autoApplyBalance = tru
     const balanceInput = document.getElementById('inputAccountBalance');
     if (balanceInput) {
       balanceInput.value = netDebt === 0 ? '0' : (-netDebt).toFixed(2);
+      syncSignButton('inputAccountBalance', 'btnAccountBalanceSign');
     }
   }
 
@@ -2085,6 +2170,7 @@ function applyCutoffDebtToBalance(netDebt) {
   const balanceInput = document.getElementById('inputAccountBalance');
   if (balanceInput) {
     balanceInput.value = netDebt === 0 ? '0' : (-netDebt).toFixed(2);
+    syncSignButton('inputAccountBalance', 'btnAccountBalanceSign');
     balanceInput.focus();
   }
 }
@@ -2108,6 +2194,7 @@ function openAddAccountModal() {
   document.getElementById('selectAccountType').value = 'bank';
   selectAccountIcon('🏦');
   document.getElementById('inputAccountBalance').value = '0';
+  syncSignButton('inputAccountBalance', 'btnAccountBalanceSign');
 
   const billingDayGroup = document.getElementById('groupAccountBillingDay');
   if (billingDayGroup) billingDayGroup.style.display = 'none';
@@ -2137,6 +2224,7 @@ function openEditAccountModal(accId) {
   document.getElementById('selectAccountType').value = acc.type || 'bank';
   selectAccountIcon(acc.icon || '💳');
   document.getElementById('inputAccountBalance').value = acc.balance;
+  syncSignButton('inputAccountBalance', 'btnAccountBalanceSign');
 
   const billingDayGroup = document.getElementById('groupAccountBillingDay');
   const billingDayInput = document.getElementById('inputAccountBillingDay');
@@ -2162,6 +2250,8 @@ function openEditAccountModal(accId) {
 // --- Hesap Hareketleri & Detay Modalı Durum ve Fonksiyonları ---
 let activeAccountDetailId = null;
 let activeAccountDetailFilter = 'all';
+let activeAccountDetailCardPeriodKey = null;
+let activeAccountDetailPeriodSubFilter = 'all';
 
 function getAccountMovementStats(accId) {
   const txs = (walletState && walletState.transactions) || [];
@@ -2223,20 +2313,23 @@ function openAccountDetailModal(accId, filterType = 'all') {
   if (!acc) return;
 
   activeAccountDetailId = accId;
-  activeAccountDetailFilter = filterType;
 
   // Başlık ve İkon
   const iconEl = document.getElementById('accountDetailIcon');
   if (iconEl) iconEl.textContent = acc.icon || '💳';
   const titleEl = document.getElementById('accountDetailTitle');
   if (titleEl) titleEl.textContent = acc.name;
+  const detailFab = modal.querySelector('.account-detail-fab');
+  if (detailFab) {
+    detailFab.title = acc.name + ' Hesabına Hareket Ekle';
+  }
   const typeBadgeEl = document.getElementById('accountDetailTypeBadge');
   if (typeBadgeEl) typeBadgeEl.textContent = getAccountTypeLabel(acc.type);
 
   const cutoffBadgeEl = document.getElementById('accountDetailCutoffBadge');
   if (cutoffBadgeEl) {
     if (acc.type === 'credit' && acc.billingDay) {
-      cutoffBadgeEl.textContent = `📅 Kesim: Ayın ${acc.billingDay}'i`;
+      cutoffBadgeEl.textContent = `📅 Kesim: ${getCreditCardCutoffDateDisplay(acc)}`;
       cutoffBadgeEl.style.display = 'inline-flex';
     } else {
       cutoffBadgeEl.style.display = 'none';
@@ -2246,55 +2339,50 @@ function openAccountDetailModal(accId, filterType = 'all') {
   // İstatistikleri hesapla
   const stats = getAccountMovementStats(accId);
 
-  // Kredi kartı için hesap kesim borç analizi
-  let creditInfoHtml = '';
+  // Kredi kartı için dönem seçimi ve bildirim kontrolü
+  let notifCalloutHtml = '';
   if (acc.type === 'credit') {
-    const billingDay = acc.billingDay || 15;
-    const creditDebtData = calculateCreditCardPeriodDebt(accId, billingDay);
-    if (creditDebtData) {
-      const rangeText = formatCreditCardPeriodRange(creditDebtData.startDate, creditDebtData.endDate);
-      const notifDetails = typeof getCreditCardNotificationDetails === 'function'
-        ? getCreditCardNotificationDetails(acc)
-        : null;
+    const periodData = getCreditCardPeriods(acc);
+    const periods = periodData.periods;
 
-      let notifCalloutHtml = '';
-      if (notifDetails && notifDetails.shouldNotify) {
-        notifCalloutHtml = `
-          <div class="cutoff-notif-callout active">
-            🔔 <strong>Hesap Kesim Bildirimi Aktif:</strong> Bu kartın hesap kesim tarihi gelmiştir. Borç (<strong>${formatWalletTL(notifDetails.debt)}</strong>) ödenene kadar her gün saat <strong>11:30</strong>'da telefonunuza bildirim gönderilecektir.
-          </div>
-        `;
-      } else if (notifDetails && notifDetails.debt > 0) {
-        notifCalloutHtml = `
-          <div class="cutoff-notif-callout waiting">
-            ⏳ <strong>Dönem İçi Harcama:</strong> Hesap kesim tarihi (Ayın ${acc.billingDay || 15}'i) geldiğinde borç ödenene kadar her gün saat 11:30'da bildirim başlayacaktır.
-          </div>
-        `;
+    if (typeof filterType === 'string' && filterType.startsWith('period:')) {
+      activeAccountDetailCardPeriodKey = filterType.slice(7);
+      activeAccountDetailFilter = 'period';
+    } else if (filterType === '__all__' || filterType === 'all_history') {
+      activeAccountDetailCardPeriodKey = '__all__';
+      activeAccountDetailFilter = 'all';
+    } else {
+      activeAccountDetailFilter = filterType;
+      // Seçili dönem yoksa veya geçersizse akıllı varsayılan belirle
+      if (!activeAccountDetailCardPeriodKey || (activeAccountDetailCardPeriodKey !== '__all__' && !periods.some(p => p.key === activeAccountDetailCardPeriodKey))) {
+        const defaultPeriod = periods.find(p => p.key === periodData.defaultSelectedKey);
+        const defaultStats = defaultPeriod ? getCreditCardPeriodStats(acc.id, defaultPeriod) : null;
+        const currentPeriod = periods.find(p => p.isCurrentCycle);
+
+        if (defaultStats && defaultStats.remaining > 0) {
+          activeAccountDetailCardPeriodKey = defaultPeriod.key;
+        } else if (currentPeriod) {
+          activeAccountDetailCardPeriodKey = currentPeriod.key;
+        } else if (defaultPeriod) {
+          activeAccountDetailCardPeriodKey = defaultPeriod.key;
+        } else if (periods.length > 0) {
+          activeAccountDetailCardPeriodKey = periods[0].key;
+        }
       }
+    }
 
-      creditInfoHtml = `
-        <div class="account-credit-info-card">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-            <div style="min-width: 0; flex: 1;">
-              <div>
-                <strong>📅 Hesap Kesim Dönemi:</strong> <span>${rangeText}</span>
-              </div>
-              <div style="margin-top: 4px;">
-                <strong>Dönem İçi Harcanan:</strong> <span style="color:var(--rose); font-weight:700;">${formatWalletTL(creditDebtData.totalSpent)}</span>
-                ${creditDebtData.totalPayments > 0 ? ` | <strong>Ödenen:</strong> <span style="color:var(--emerald); font-weight:700;">${formatWalletTL(creditDebtData.totalPayments)}</span>` : ''}
-              </div>
-              <div style="margin-top: 4px;">
-                <strong>Dönem Borcu:</strong> <span style="color:${creditDebtData.netDebt > 0 ? 'var(--rose)' : 'var(--emerald)'}; font-weight:800;">${formatWalletTL(creditDebtData.netDebt)}</span>
-              </div>
-            </div>
-            <button type="button" class="btn-acc-pay-inline" onclick="openPayCreditCardModal('${acc.id}')" title="Bu kartın borcunu öde">
-              💳 Borç Öde
-            </button>
-          </div>
-          ${notifCalloutHtml}
+    const notifDetails = typeof getCreditCardNotificationDetails === 'function'
+      ? getCreditCardNotificationDetails(acc)
+      : null;
+    if (notifDetails && notifDetails.shouldNotify) {
+      notifCalloutHtml = `
+        <div class="cutoff-notif-callout active" style="margin-top: 10px;">
+          🔔 <strong>Hesap Kesim Bildirimi Aktif:</strong> Bu kartın hesap kesim tarihi gelmiştir. Borç (<strong>${formatWalletTL(notifDetails.debt)}</strong>) ödenene kadar her gün saat <strong>11:30</strong>'da telefonunuza bildirim gönderilecektir.
         </div>
       `;
     }
+  } else {
+    activeAccountDetailFilter = filterType;
   }
 
   // Özet / Son Tutar Hero Kartı
@@ -2305,7 +2393,7 @@ function openAccountDetailModal(accId, filterType = 'all') {
       <div class="account-stat-hero">
         <div class="account-stat-hero-top">
           <div>
-            <div class="account-stat-hero-label">Hesaplanan Son Tutar / Bakiye</div>
+            <div class="account-stat-hero-label">${acc.type === 'credit' ? 'Toplam Kart Bakiyesi' : 'Hesaplanan Son Tutar / Bakiye'}</div>
             <div class="account-stat-hero-amount" style="color: ${isDebt ? 'var(--rose)' : 'var(--emerald)'};">
               ${formatWalletTL(acc.balance)}
             </div>
@@ -2323,7 +2411,7 @@ function openAccountDetailModal(accId, filterType = 'all') {
             <span class="account-mini-stat-val expense">-${formatWalletTL(stats.totalOut)}</span>
           </div>
         </div>
-        ${creditInfoHtml}
+        ${notifCalloutHtml}
       </div>
     `;
   }
@@ -2333,8 +2421,9 @@ function openAccountDetailModal(accId, filterType = 'all') {
   if (actionsBar) {
     if (acc.type === 'credit') {
       actionsBar.innerHTML = `
-        <button type="button" class="btn-acc-action pay-card-debt full-span" onclick="openPayCreditCardModal('${acc.id}')">
-          💳 Kart Borcu Öde
+        <button type="button" class="btn-acc-action pay-card-debt full-span" onclick="openPayCreditCardModal('${acc.id}', '${activeAccountDetailCardPeriodKey !== '__all__' ? (activeAccountDetailCardPeriodKey || '') : ''}')">
+          <span class="btn-acc-action-icon">💳</span>
+          <span class="btn-acc-action-text">Kart Borcu Öde</span>
         </button>
         <button type="button" class="btn-acc-action primary" onclick="openAddTxForAccount('${acc.id}')">
           ➕ Harcama Ekle
@@ -2361,11 +2450,11 @@ function openAccountDetailModal(accId, filterType = 'all') {
     }
   }
 
-  // Filtreler
-  renderAccountTxFilters(acc, stats, filterType);
+  // Filtreler / Dönem Gezgini
+  renderAccountTxFilters(acc, stats, activeAccountDetailFilter);
 
   // Hareketler Listesi
-  renderAccountTxList(acc, stats, filterType);
+  renderAccountTxList(acc, stats, activeAccountDetailFilter);
 
   modal.showModal();
 }
@@ -2374,27 +2463,159 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
   const filterBar = document.getElementById('accountTxFilterBar');
   if (!filterBar) return;
 
-  const expCount = stats.accountTxs.filter(t => t.type === 'expense' && t.fromAccountId === acc.id).length;
-  const incCount = stats.accountTxs.filter(t => (t.type === 'income' && t.fromAccountId === acc.id) || (t.type === 'transfer' && t.toAccountId === acc.id)).length;
-  const transCount = stats.accountTxs.filter(t => t.type === 'transfer').length;
+  if (acc.type !== 'credit') {
+    filterBar.innerHTML = `
+      <button type="button" class="acc-filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'all')">
+        Tümü
+      </button>
+      <button type="button" class="acc-filter-chip ${activeFilter === 'month' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'month')">
+        Bu Ay
+      </button>
+      <button type="button" class="acc-filter-chip ${activeFilter === 'expense' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'expense')">
+        Giderler
+      </button>
+      <button type="button" class="acc-filter-chip ${activeFilter === 'income' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'income')">
+        Gelirler / Giriş
+      </button>
+      <button type="button" class="acc-filter-chip ${activeFilter === 'transfer' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'transfer')">
+        Transferler
+      </button>
+    `;
+    return;
+  }
 
-  filterBar.innerHTML = `
-    <button type="button" class="acc-filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'all')">
-      Tümü
-    </button>
-    <button type="button" class="acc-filter-chip ${activeFilter === 'month' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'month')">
-      Bu Ay
-    </button>
-    <button type="button" class="acc-filter-chip ${activeFilter === 'expense' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'expense')">
-      Giderler
-    </button>
-    <button type="button" class="acc-filter-chip ${activeFilter === 'income' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'income')">
-      Gelirler / Giriş
-    </button>
-    <button type="button" class="acc-filter-chip ${activeFilter === 'transfer' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'transfer')">
-      Transferler
+  // Kredi Kartı: Dönem Gezgini (Period Navigator)
+  const periodData = getCreditCardPeriods(acc);
+  const periods = periodData.periods;
+  const isAllHistory = (activeAccountDetailCardPeriodKey === '__all__');
+  const currentIdx = periods.findIndex(p => p.key === activeAccountDetailCardPeriodKey);
+
+  const canGoOlder = !isAllHistory && currentIdx >= 0 && currentIdx < periods.length - 1;
+  const canGoNewer = !isAllHistory && currentIdx > 0;
+
+  let chipsHtml = '';
+  periods.forEach(p => {
+    const isSelected = (!isAllHistory && p.key === activeAccountDetailCardPeriodKey);
+    const pStats = getCreditCardPeriodStats(acc.id, p);
+
+    let subBadge = '';
+    if (p.key === periodData.defaultSelectedKey) {
+      subBadge = '<span class="period-chip-sub-badge star">⭐ Son Kesilen</span>';
+    } else if (p.isCurrentCycle) {
+      subBadge = '<span class="period-chip-sub-badge current">⏳ Güncel Dönem</span>';
+    } else if (pStats.isCleared) {
+      subBadge = '<span class="period-chip-sub-badge cleared">✓ Borçsuz</span>';
+    } else if (pStats.remaining > 0) {
+      subBadge = `<span class="period-chip-sub-badge debt">Borç: ${formatWalletTL(pStats.remaining)}</span>`;
+    }
+
+    chipsHtml += `
+      <button type="button"
+              id="waccPeriodChip_${p.key}"
+              class="wacc-period-chip ${isSelected ? 'active' : ''}"
+              onclick="selectCardDetailPeriod('${acc.id}', '${p.key}')"
+              title="${p.rangeText}">
+        <span class="period-chip-dates">${p.rangeText}</span>
+        ${subBadge}
+      </button>
+    `;
+  });
+
+  chipsHtml += `
+    <button type="button"
+            class="wacc-period-chip all-history ${isAllHistory ? 'active' : ''}"
+            onclick="openCardAllHistory('${acc.id}')"
+            title="Dönem kısıtlaması olmadan tüm kart geçmişini gör">
+      <span class="period-chip-dates">🌐 Tüm Geçmiş</span>
+      <span class="period-chip-sub-badge">Dönemsiz Döküm</span>
     </button>
   `;
+
+  filterBar.innerHTML = `
+    <div class="wacc-period-navigator-wrapper">
+      <div class="wacc-period-nav-header">
+        <div class="wacc-period-nav-title">
+          <span>📅 Borç & Ekstre Dönemi</span>
+        </div>
+        <div class="wacc-period-nav-arrows">
+          <button type="button" class="wacc-period-step-btn"
+                  onclick="stepCardDetailPeriod('${acc.id}', -1)"
+                  ${canGoOlder ? '' : 'disabled'}
+                  title="Önceki Ekstre Dönemi (Geçmiş)">
+            ‹ Önceki
+          </button>
+          <button type="button" class="wacc-period-step-btn"
+                  onclick="stepCardDetailPeriod('${acc.id}', 1)"
+                  ${canGoNewer ? '' : 'disabled'}
+                  title="Sonraki Ekstre Dönemi (Yeni)">
+            Sonraki ›
+          </button>
+        </div>
+      </div>
+      <div class="wacc-period-scroll-track" id="waccPeriodScrollTrack">
+        ${chipsHtml}
+      </div>
+    </div>
+  `;
+
+  setTimeout(() => {
+    const activeChip = filterBar.querySelector('.wacc-period-chip.active');
+    if (activeChip && typeof activeChip.scrollIntoView === 'function') {
+      activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, 40);
+}
+
+function selectCardDetailPeriod(accId, periodKey) {
+  activeAccountDetailCardPeriodKey = periodKey;
+  activeAccountDetailPeriodSubFilter = 'all';
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const stats = getAccountMovementStats(accId);
+  renderAccountTxFilters(acc, stats, activeAccountDetailFilter);
+  renderAccountTxList(acc, stats, activeAccountDetailFilter);
+}
+
+function stepCardDetailPeriod(accId, direction) {
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc || acc.type !== 'credit') return;
+
+  const periodData = getCreditCardPeriods(acc);
+  const periods = periodData.periods;
+  if (!periods || periods.length === 0) return;
+
+  let currentIdx = periods.findIndex(p => p.key === activeAccountDetailCardPeriodKey);
+  if (currentIdx === -1) {
+    currentIdx = 0;
+  }
+
+  const targetIdx = currentIdx - direction;
+  if (targetIdx >= 0 && targetIdx < periods.length) {
+    selectCardDetailPeriod(accId, periods[targetIdx].key);
+  }
+}
+
+function filterCardDetailPeriodSub(accId, subFilter) {
+  activeAccountDetailPeriodSubFilter = subFilter;
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const stats = getAccountMovementStats(accId);
+  renderAccountTxList(acc, stats, activeAccountDetailFilter);
+}
+
+function openCardAllHistory(accId) {
+  activeAccountDetailCardPeriodKey = '__all__';
+  activeAccountDetailFilter = 'all';
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const stats = getAccountMovementStats(accId);
+  renderAccountTxFilters(acc, stats, 'all');
+  renderAccountTxList(acc, stats, 'all');
+}
+
+function returnToCardPeriodView(accId) {
+  activeAccountDetailCardPeriodKey = null;
+  openAccountDetailModal(accId);
 }
 
 function filterAccountDetail(accId, filterType) {
@@ -2407,6 +2628,146 @@ function filterAccountDetail(accId, filterType) {
 }
 
 function renderAccountTxList(acc, stats, filterType) {
+  const listEl = document.getElementById('accountDetailTxList');
+  if (!listEl) return;
+
+  if (acc.type !== 'credit') {
+    renderStandardAccountTxList(acc, stats, filterType);
+    return;
+  }
+
+  if (activeAccountDetailCardPeriodKey === '__all__') {
+    renderCreditCardAllHistoryList(acc, stats, filterType);
+    return;
+  }
+
+  const periodData = getCreditCardPeriods(acc);
+  const selectedPeriod = periodData.periods.find(p => p.key === activeAccountDetailCardPeriodKey);
+  if (!selectedPeriod) {
+    listEl.innerHTML = `<div class="account-empty-state">Seçili ekstre dönemi bulunamadı.</div>`;
+    return;
+  }
+
+  const pStats = getCreditCardPeriodStats(acc.id, selectedPeriod);
+
+  let statusBadgeHtml = '';
+  if (pStats.isCleared) {
+    statusBadgeHtml = `<span class="period-status-tag cleared">✓ Borç Eksiksiz Ödendi</span>`;
+  } else if (pStats.remaining > 0) {
+    if (selectedPeriod.isClosed) {
+      statusBadgeHtml = `<span class="period-status-tag closed">🔔 Ekstre Kesildi (Ödeme Bekliyor)</span>`;
+    } else {
+      statusBadgeHtml = `<span class="period-status-tag current">⏳ Açık Dönem (Harcamalar Devam Ediyor)</span>`;
+    }
+  } else if (pStats.hasNoActivity) {
+    statusBadgeHtml = `<span class="period-status-tag empty">ℹ️ Hareket Yok</span>`;
+  }
+
+  let payDebtBtnHtml = '';
+  if (pStats.remaining > 0) {
+    payDebtBtnHtml = `
+      <button type="button" class="btn-period-pay-debt" onclick="openPayCreditCardModal('${acc.id}', '${selectedPeriod.key}')">
+        <span>💳 Bu Dönemin Borcunu Öde (${formatWalletTL(pStats.remaining)})</span>
+      </button>
+    `;
+  }
+
+  const periodSummaryCardHtml = `
+    <div class="wacc-period-summary-hero">
+      <div class="period-summary-top">
+        <div>
+          <div class="period-summary-range-title">📅 ${selectedPeriod.rangeText}</div>
+          <div class="period-summary-cutoff-sub">Hesap Kesim Tarihi: <strong>${formatCutoffDateDMY(selectedPeriod.endDate)}</strong></div>
+        </div>
+        ${statusBadgeHtml}
+      </div>
+
+      <div class="period-summary-grid">
+        <div class="period-summary-col">
+          <span class="period-col-label">Net Dönem Borcu</span>
+          <strong class="period-col-val ${pStats.remaining > 0 ? 'debt' : 'cleared'}">${formatWalletTL(pStats.remaining)}</strong>
+        </div>
+        <div class="period-summary-col">
+          <span class="period-col-label">Dönem Harcaması</span>
+          <span class="period-col-val spent">-${formatWalletTL(pStats.spent)}</span>
+        </div>
+        <div class="period-summary-col">
+          <span class="period-col-label">Ödenen / İade</span>
+          <span class="period-col-val paid">+${formatWalletTL(pStats.paid)}</span>
+        </div>
+      </div>
+
+      ${payDebtBtnHtml}
+
+      <div class="period-swipe-hint-bar">
+        <span>‹ Dönemler arasında geçiş için ekranı kaydırın veya üstteki oklara dokunun ›</span>
+      </div>
+    </div>
+  `;
+
+  const allTxs = [...pStats.spentTxs, ...pStats.paidTxs];
+  const uniqueTxs = Array.from(new Map(allTxs.map(t => [t.id, t])).values());
+  uniqueTxs.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const spentCount = pStats.spentTxs.length;
+  const paidCount = pStats.paidTxs.length;
+  const totalCount = uniqueTxs.length;
+
+  let subFilterChipsHtml = `
+    <div class="period-tx-subfilters">
+      <button type="button" class="period-subfilter-btn ${activeAccountDetailPeriodSubFilter === 'all' ? 'active' : ''}"
+              onclick="filterCardDetailPeriodSub('${acc.id}', 'all')">
+        Tüm Hareketler (${totalCount})
+      </button>
+      <button type="button" class="period-subfilter-btn ${activeAccountDetailPeriodSubFilter === 'expense' ? 'active' : ''}"
+              onclick="filterCardDetailPeriodSub('${acc.id}', 'expense')">
+        Harcamalar (${spentCount})
+      </button>
+      ${paidCount > 0 ? `
+      <button type="button" class="period-subfilter-btn ${activeAccountDetailPeriodSubFilter === 'payment' ? 'active' : ''}"
+              onclick="filterCardDetailPeriodSub('${acc.id}', 'payment')">
+        Ödemeler & İadeler (${paidCount})
+      </button>
+      ` : ''}
+    </div>
+  `;
+
+  let displayedTxs = uniqueTxs;
+  if (activeAccountDetailPeriodSubFilter === 'expense') {
+    displayedTxs = pStats.spentTxs;
+  } else if (activeAccountDetailPeriodSubFilter === 'payment') {
+    displayedTxs = pStats.paidTxs;
+  }
+
+  let txListHtml = '';
+  if (displayedTxs.length === 0) {
+    txListHtml = `
+      <div class="account-empty-state">
+        <div style="font-size: 1.8rem; margin-bottom: 6px;">📂</div>
+        <div style="font-size: 0.92rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">
+          Bu hesap kesim döneminde (${selectedPeriod.rangeText}) kayıtlı işlem bulunmuyor.
+        </div>
+        <button type="button" class="btn-acc-action primary" style="margin-top: 10px;" onclick="openAddTxForAccount('${acc.id}', '${selectedPeriod.endDate}')">
+          ➕ Bu Döneme Harcama Ekle
+        </button>
+      </div>
+    `;
+  } else {
+    txListHtml = renderPeriodTransactionItems(acc, displayedTxs);
+  }
+
+  listEl.innerHTML = `
+    ${periodSummaryCardHtml}
+    ${subFilterChipsHtml}
+    <div class="period-tx-items-wrapper">
+      ${txListHtml}
+    </div>
+  `;
+
+  setupAccountDetailSwipeListeners();
+}
+
+function renderStandardAccountTxList(acc, stats, filterType) {
   const listEl = document.getElementById('accountDetailTxList');
   if (!listEl) return;
 
@@ -2424,7 +2785,6 @@ function renderAccountTxList(acc, stats, filterType) {
     filtered = filtered.filter(t => t.type === 'transfer');
   }
 
-  // Tarihe göre sırala
   filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (filtered.length === 0) {
@@ -2437,26 +2797,104 @@ function renderAccountTxList(acc, stats, filterType) {
     return;
   }
 
+  listEl.innerHTML = renderPeriodTransactionItems(acc, filtered);
+}
+
+function renderCreditCardAllHistoryList(acc, stats, filterType) {
+  const listEl = document.getElementById('accountDetailTxList');
+  if (!listEl) return;
+
+  const now = new Date();
+  const curMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  let filtered = [...stats.accountTxs];
+  if (filterType === 'month') {
+    filtered = filtered.filter(t => t.date && t.date.startsWith(curMonthPrefix));
+  } else if (filterType === 'expense') {
+    filtered = filtered.filter(t => t.type === 'expense' && t.fromAccountId === acc.id);
+  } else if (filterType === 'income') {
+    filtered = filtered.filter(t => (t.type === 'income' && t.fromAccountId === acc.id) || (t.type === 'transfer' && t.toAccountId === acc.id));
+  } else if (filterType === 'transfer') {
+    filtered = filtered.filter(t => t.type === 'transfer');
+  }
+
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  let bannerHtml = `
+    <div class="period-all-history-banner">
+      <div>
+        <strong style="color:#ffffff;">🌐 Kartın Tüm İşlem Geçmişi</strong>
+        <div style="font-size:0.78rem; color:#94a3b8; margin-top:2px;">Dönem bazlı hesap kesim görünümüne geri dönebilirsiniz.</div>
+      </div>
+      <button type="button" class="period-all-history-btn" onclick="returnToCardPeriodView('${acc.id}')">
+        📅 Dönemlik Görünüme Dön
+      </button>
+    </div>
+  `;
+
+  let subFilterChips = `
+    <div class="period-tx-subfilters">
+      <button type="button" class="period-subfilter-btn ${filterType === 'all' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'all')">
+        Tümü (${stats.accountTxs.length})
+      </button>
+      <button type="button" class="period-subfilter-btn ${filterType === 'month' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'month')">
+        Bu Ay
+      </button>
+      <button type="button" class="period-subfilter-btn ${filterType === 'expense' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'expense')">
+        Giderler
+      </button>
+      <button type="button" class="period-subfilter-btn ${filterType === 'income' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'income')">
+        Ödeme & Giriş
+      </button>
+      <button type="button" class="period-subfilter-btn ${filterType === 'transfer' ? 'active' : ''}" onclick="filterAccountDetail('${acc.id}', 'transfer')">
+        Transferler
+      </button>
+    </div>
+  `;
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      ${bannerHtml}
+      ${subFilterChips}
+      <div class="account-empty-state">
+        <div style="font-size: 1.8rem; margin-bottom: 6px;">📂</div>
+        <div>Bu filtreye uygun kayıtlı işlem hareketi bulunamadı.</div>
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = `
+    ${bannerHtml}
+    ${subFilterChips}
+    <div class="period-tx-items-wrapper">
+      ${renderPeriodTransactionItems(acc, filtered)}
+    </div>
+  `;
+}
+
+function renderPeriodTransactionItems(acc, txList) {
   const expCats = (walletState.categories && walletState.categories.expense) || [];
   const incCats = (walletState.categories && walletState.categories.income) || [];
   const allCats = [...expCats, ...incCats];
 
   let html = '';
-  filtered.forEach(t => {
-    let icon = '💵';
-    let catTitle = 'İşlem';
+  txList.forEach(t => {
+    let icon = '💳';
+    let catTitle = 'Harcama';
     let isOutflow = false;
 
     if (t.type === 'transfer') {
-      icon = '🔄';
       const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
       const toAcc = walletState.accounts.find(a => a.id === t.toAccountId);
       if (t.fromAccountId === acc.id) {
+        icon = '🔄';
         isOutflow = true;
         catTitle = `Transfer ➔ ${toAcc ? toAcc.name : 'Hesap'}`;
       } else {
+        icon = '💳';
         isOutflow = false;
-        catTitle = `Transfer 🠔 ${fromAcc ? fromAcc.name : 'Hesap'}`;
+        catTitle = `Borç Ödemesi 🠔 ${fromAcc ? fromAcc.name : 'Hesap'}`;
       }
     } else {
       const catObj = allCats.find(c => c.id === t.categoryId);
@@ -2467,26 +2905,30 @@ function renderAccountTxList(acc, stats, filterType) {
       isOutflow = (t.type === 'expense');
     }
 
-    const sign = isOutflow ? '-' : '+';
-    const amountCls = isOutflow ? 'expense' : 'income';
+    let effectiveOutflow = isOutflow;
+    if (t.amount < 0) effectiveOutflow = !effectiveOutflow;
+    const sign = effectiveOutflow ? '-' : '+';
+    const amountCls = effectiveOutflow ? 'expense' : 'income';
+    const absFormatted = formatWalletTL(Math.abs(t.amount));
+    const refundBadge = (t.type === 'expense' && t.amount < 0) ? '<span class="tx-refund-badge">İade</span>' : '';
 
     html += `
       <div class="account-tx-card">
         <div class="account-tx-left">
           <div class="account-tx-icon">${icon}</div>
           <div class="account-tx-info">
-            <span class="account-tx-title">${catTitle}</span>
+            <span class="account-tx-title">${catTitle} ${refundBadge}</span>
             <div class="account-tx-sub">
               <span>📅 ${formatTurkishDate(t.date)}</span>
               ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
-              ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}
+              ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''}
               ${t.note ? `<span style="color:var(--text-muted);">(${t.note})</span>` : ''}
             </div>
           </div>
         </div>
         <div class="account-tx-right">
           <span class="account-tx-amount ${amountCls}">
-            ${sign}${formatWalletTL(t.amount)}
+            ${sign}${absFormatted}
           </span>
           <div class="wallet-tx-actions">
             <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="Düzenle">
@@ -2506,166 +2948,485 @@ function renderAccountTxList(acc, stats, filterType) {
       </div>
     `;
   });
-
-  listEl.innerHTML = html;
+  return html;
 }
 
-function openAddTxForAccount(accId) {
-  openAddWalletTxModal();
-  setTimeout(() => {
-    const fromSelect = document.getElementById('selectWalletFromAccount');
-    if (fromSelect && accId) fromSelect.value = accId;
-  }, 50);
+let accountDetailTouchStartX = 0;
+let accountDetailTouchStartY = 0;
+let accountDetailTouchStartTime = 0;
+
+function setupAccountDetailSwipeListeners() {
+  const scrollArea = document.querySelector('#modalAccountDetail .account-detail-scroll-area');
+  if (!scrollArea || scrollArea._swipeAttached) return;
+  scrollArea._swipeAttached = true;
+
+  scrollArea.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches.length === 1) {
+      accountDetailTouchStartX = e.touches[0].clientX;
+      accountDetailTouchStartY = e.touches[0].clientY;
+      accountDetailTouchStartTime = Date.now();
+    }
+  }, { passive: true });
+
+  scrollArea.addEventListener('touchend', (e) => {
+    if (!accountDetailTouchStartX || !accountDetailTouchStartY) return;
+    const endTouch = e.changedTouches ? e.changedTouches[0] : null;
+    if (!endTouch) return;
+    const deltaX = endTouch.clientX - accountDetailTouchStartX;
+    const deltaY = endTouch.clientY - accountDetailTouchStartY;
+    const deltaTime = Date.now() - accountDetailTouchStartTime;
+
+    accountDetailTouchStartX = 0;
+    accountDetailTouchStartY = 0;
+
+    if (!activeAccountDetailId) return;
+    const acc = walletState.accounts.find(a => a.id === activeAccountDetailId);
+    if (!acc || acc.type !== 'credit') return;
+    if (activeAccountDetailCardPeriodKey === '__all__') return;
+
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4 && deltaTime < 600) {
+      if (deltaX < 0) {
+        stepCardDetailPeriod(acc.id, 1);
+      } else {
+        stepCardDetailPeriod(acc.id, -1);
+      }
+    }
+  }, { passive: true });
 }
 
-// --- Kredi Kartı Borcu Ödeme Modal Sistemi ---
-function openPayCreditCardModal(cardId) {
+function openAddTxForAccount(accId, suggestedDate = null) {
+  openAddWalletTxModal(accId, suggestedDate);
+}
+
+function openAddTxForActiveAccount() {
+  if (activeAccountDetailId) {
+    openAddTxForAccount(activeAccountDetailId);
+  } else {
+    openAddWalletTxModal();
+  }
+}
+
+// --- Kredi Kartı Dönem Analiz & Borç Ödeme Motoru ---
+
+// Aktif kredi kartı dönem önbelleği
+let currentPayCardPeriodsCache = [];
+
+function getCreditCardPeriods(cardAcc, referenceDateStr) {
+  if (!cardAcc) return { periods: [], defaultSelectedKey: '' };
+  const billingDay = parseInt(cardAcc.billingDay) || 15;
+  const pad = n => String(n).padStart(2, '0');
+
+  // Referans tarih (Ödeme tarihi veya bugün)
+  let refDate;
+  if (referenceDateStr) {
+    const parts = referenceDateStr.split('-');
+    refDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  } else {
+    refDate = new Date();
+  }
+
+  const refYear = refDate.getFullYear();
+  const refMonth = refDate.getMonth(); // 0-11
+  const refDay = refDate.getDate();
+
+  function getCutoffDateObj(y, m) {
+    const maxDays = new Date(y, m + 1, 0).getDate();
+    const actualD = Math.min(billingDay, maxDays);
+    const dateStr = `${y}-${pad(m + 1)}-${pad(actualD)}`;
+    return { year: y, month: m, day: actualD, dateStr };
+  }
+
+  function getNextDayStr(dateStr) {
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  // Kullanıcı Kuralı:
+  // "eğer girdiğim tarih mevcut hesap kesim tarihinden önceyse bir önceki dönem borcu çıksın karşıma."
+  const refMonthCutoff = getCutoffDateObj(refYear, refMonth);
+  let defaultCutoffYear = refYear;
+  let defaultCutoffMonth = refMonth;
+
+  if (refDay <= refMonthCutoff.day) {
+    // Mevcut ayın kesim gününden önce (veya o gün): Bir önceki ayın kesilen ekstre dönemi
+    defaultCutoffMonth = refMonth - 1;
+    if (defaultCutoffMonth < 0) {
+      defaultCutoffMonth += 12;
+      defaultCutoffYear -= 1;
+    }
+  } else {
+    // Mevcut ayın kesim günü geçmiş: Bu ay kesilen ekstre dönemi
+    defaultCutoffMonth = refMonth;
+    defaultCutoffYear = refYear;
+  }
+
+  const defaultTargetCutoff = getCutoffDateObj(defaultCutoffYear, defaultCutoffMonth);
+  let prevTargetMonth = defaultCutoffMonth - 1;
+  let prevTargetYear = defaultCutoffYear;
+  if (prevTargetMonth < 0) {
+    prevTargetMonth += 12;
+    prevTargetYear -= 1;
+  }
+  const defaultTargetPrevCutoff = getCutoffDateObj(prevTargetYear, prevTargetMonth);
+  const defaultSelectedKey = `${getNextDayStr(defaultTargetPrevCutoff.dateStr)}_${defaultTargetCutoff.dateStr}`;
+
+  // Geriye dönük en az 12 ay ve ileriye dönük en az 2 cari dönem;
+  // ayrıca kart hareketlerinde daha eski/yeni işlemler varsa dinamik olarak genişletilir.
+  let minOffset = -11;
+  let maxOffset = 2;
+
+  const allTxsForRange = (walletState && walletState.transactions) || [];
+  allTxsForRange.forEach(t => {
+    if ((t.fromAccountId === cardAcc.id || t.toAccountId === cardAcc.id) && t.date) {
+      const p = String(t.date).split('-');
+      if (p.length >= 2) {
+        const ty = parseInt(p[0], 10);
+        const tm = parseInt(p[1], 10) - 1;
+        if (!isNaN(ty) && !isNaN(tm)) {
+          const diff = (ty - refYear) * 12 + (tm - refMonth);
+          if (diff - 1 < minOffset) minOffset = diff - 1;
+          if (diff + 1 > maxOffset) maxOffset = diff + 1;
+        }
+      }
+    }
+  });
+
+  minOffset = Math.max(-36, minOffset);
+  maxOffset = Math.min(24, maxOffset);
+
+  const periods = [];
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  for (let offset = maxOffset; offset >= minOffset; offset--) {
+    let targetM = refMonth + offset;
+    let targetY = refYear;
+    while (targetM > 11) { targetM -= 12; targetY++; }
+    while (targetM < 0) { targetM += 12; targetY--; }
+
+    const currCutoff = getCutoffDateObj(targetY, targetM);
+    let prevM = targetM - 1;
+    let prevY = targetY;
+    if (prevM < 0) { prevM += 12; prevY--; }
+    const prevCutoff = getCutoffDateObj(prevY, prevM);
+
+    let nextM = targetM + 1;
+    let nextY = targetY;
+    if (nextM > 11) { nextM -= 12; nextY++; }
+    const nextCutoff = getCutoffDateObj(nextY, nextM);
+
+    const startDate = getNextDayStr(prevCutoff.dateStr);
+    const endDate = currCutoff.dateStr;
+    const nextCutoffDate = nextCutoff.dateStr;
+    const key = `${startDate}_${endDate}`;
+
+    const isClosed = endDate < todayStr;
+    const isCurrentCycle = startDate <= todayStr && todayStr <= endDate;
+    const rangeText = formatCreditCardPeriodRange(startDate, endDate);
+
+    let tag = '';
+    if (key === defaultSelectedKey) {
+      tag = ' ⭐ Seçilen Ekstre';
+    } else if (isCurrentCycle) {
+      tag = ' ⏳ Güncel Dönem (Açık)';
+    }
+
+    periods.push({
+      key,
+      startDate,
+      endDate,
+      cutoffDate: endDate,
+      nextCutoffDate,
+      year: targetY,
+      month: targetM,
+      isClosed,
+      isCurrentCycle,
+      rangeText,
+      label: `${rangeText}${tag}`
+    });
+  }
+
+  // Yeniden eskiye sıralama (en güncel dönemler en üstte)
+  periods.sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+  return {
+    billingDay,
+    refDateStr: `${refYear}-${pad(refMonth + 1)}-${pad(refDay)}`,
+    defaultSelectedKey,
+    periods
+  };
+}
+
+function getCreditCardPeriodStats(accId, period) {
+  const cardAcc = (walletState && walletState.accounts) ? walletState.accounts.find(a => a.id === accId) : null;
+  const txs = (walletState && walletState.transactions) || [];
+
+  if (!period) {
+    const totalDebt = cardAcc ? Math.max(0, -cardAcc.balance) : 0;
+    return {
+      period: null,
+      spent: totalDebt,
+      paid: 0,
+      remaining: totalDebt,
+      isCleared: totalDebt <= 0,
+      hasNoActivity: totalDebt === 0,
+      spentTxs: [],
+      paidTxs: []
+    };
+  }
+
+  let spent = 0;
+  let paid = 0;
+  const spentTxs = [];
+  const paidTxs = [];
+
+  txs.forEach(tx => {
+    // 1. Harcamalar (Dönem tarih aralığında karttan yapılan giderler veya çıkış transferleri)
+    if (tx.fromAccountId === accId && (tx.type === 'expense' || tx.type === 'transfer')) {
+      if (tx.date >= period.startDate && tx.date <= period.endDate) {
+        spent += tx.amount;
+        spentTxs.push(tx);
+      }
+    }
+
+    // 2. Ödemeler (Karta yapılan girişler: borç ödeme transferleri veya gelirler)
+    const isPaymentToCard = (tx.toAccountId === accId && tx.type === 'transfer') ||
+                            (tx.fromAccountId === accId && tx.type === 'income');
+    if (isPaymentToCard) {
+      if (tx.periodKey && tx.periodKey === period.key) {
+        // Doğrudan bu dönem için kaydedilmiş ödeme
+        paid += tx.amount;
+        paidTxs.push(tx);
+      } else if (!tx.periodKey) {
+        // Dönem etiketi olmayan eski / harici transferler:
+        // Ekstre kesim tarihinden bir sonraki kesim tarihine kadar yapılan ödemeler
+        // veya dönem içi erken ara ödemeler
+        const isWithinPaymentWindow = (tx.date > period.endDate && period.nextCutoffDate && tx.date <= period.nextCutoffDate);
+        const isInsidePeriod = (tx.date >= period.startDate && tx.date <= period.endDate);
+        if (isWithinPaymentWindow || isInsidePeriod) {
+          paid += tx.amount;
+          paidTxs.push(tx);
+        }
+      }
+    }
+  });
+
+  spent = Math.round(spent * 100) / 100;
+  paid = Math.round(paid * 100) / 100;
+  let remaining = Math.max(0, Math.round((spent - paid) * 100) / 100);
+
+  // Kartın genel bakiyesine göre kalan borç kontrolü
+  if (cardAcc) {
+    if (cardAcc.balance >= 0) {
+      remaining = 0;
+    } else {
+      const totalCardDebt = Math.abs(cardAcc.balance);
+      remaining = Math.min(remaining, totalCardDebt);
+    }
+  }
+  remaining = Math.round(remaining * 100) / 100;
+
+  return {
+    period,
+    spent,
+    paid,
+    remaining,
+    isCleared: (spent > 0 && remaining <= 0),
+    hasNoActivity: (spent === 0 && paid === 0),
+    spentTxs,
+    paidTxs
+  };
+}
+
+function populatePayCardPeriods(cardAcc, referenceDateStr, resetSelection = true) {
+  const selectPeriod = document.getElementById('selectPayCardPeriod');
+  const groupSelect = document.getElementById('groupPayCardPeriodSelect');
+  const badgeEl = document.getElementById('payCardCutoffHintBadge');
+  if (!selectPeriod) return;
+
+  const billingDay = parseInt(cardAcc.billingDay) || 15;
+  if (badgeEl) {
+    badgeEl.textContent = cardAcc.billingDay ? `Kesim: Ayın ${billingDay}'i` : `Kesim: Ayın 15'i (Varsayılan)`;
+  }
+
+  if (groupSelect) groupSelect.style.display = 'block';
+
+  const periodData = getCreditCardPeriods(cardAcc, referenceDateStr);
+  currentPayCardPeriodsCache = periodData.periods;
+
+  const previousValue = selectPeriod.value;
+  selectPeriod.innerHTML = '';
+
+  periodData.periods.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.key;
+    opt.textContent = p.label;
+    selectPeriod.appendChild(opt);
+  });
+
+  if (resetSelection || !previousValue) {
+    if (periodData.defaultSelectedKey && periodData.periods.some(p => p.key === periodData.defaultSelectedKey)) {
+      selectPeriod.value = periodData.defaultSelectedKey;
+    } else if (periodData.periods.length > 0) {
+      selectPeriod.value = periodData.periods[0].key;
+    }
+  } else {
+    // Önceki seçim hala geçerliyse koru, değilse varsayılanı seç
+    if (periodData.periods.some(p => p.key === previousValue)) {
+      selectPeriod.value = previousValue;
+    } else if (periodData.defaultSelectedKey) {
+      selectPeriod.value = periodData.defaultSelectedKey;
+    }
+  }
+
+  updatePayCardPeriodView(cardAcc.id);
+}
+
+function onPayCardDateChange() {
+  const cardId = document.getElementById('inputPayCardTargetAccountId')?.value;
+  if (!cardId) return;
   const cardAcc = walletState.accounts.find(a => a.id === cardId);
   if (!cardAcc) return;
 
-  const modal = document.getElementById('modalPayCreditCard');
-  if (!modal) return;
+  const dateInput = document.getElementById('inputPayCardDate');
+  const selectedDate = dateInput ? dateInput.value : '';
 
-  // Hata kutusunu temizle
-  const errorEl = document.getElementById('payCardErrorMsg');
-  if (errorEl) {
-    errorEl.textContent = '';
-    errorEl.style.display = 'none';
-  }
+  // Kullanıcı Kuralı: Tarih değiştiğinde, girilen tarihe göre hesap kesim tarihi
+  // kontrol edilir ve otomatik olarak doğru dönem seçilir!
+  populatePayCardPeriods(cardAcc, selectedDate, true);
+}
 
-  // Hedef kart bilgilerini yerleştir
-  document.getElementById('inputPayCardTargetAccountId').value = cardId;
-  const iconEl = document.getElementById('payCardBannerIcon');
-  if (iconEl) iconEl.textContent = cardAcc.icon || '💳';
-  const nameEl = document.getElementById('payCardBannerName');
-  if (nameEl) nameEl.textContent = cardAcc.name;
+function onPayCardPeriodSelectChange() {
+  const cardId = document.getElementById('inputPayCardTargetAccountId')?.value;
+  if (!cardId) return;
+  updatePayCardPeriodView(cardId);
+}
 
-  // Borç hesaplamaları (Dönem Borcu ve Toplam Borç)
-  const totalDebt = Math.max(0, -cardAcc.balance);
-  let periodDebt = 0;
-  let periodRangeStr = '';
-  if (cardAcc.billingDay) {
-    const periodData = calculateCreditCardPeriodDebt(cardId, cardAcc.billingDay);
-    if (periodData) {
-      periodDebt = periodData.netDebt;
-      periodRangeStr = formatCreditCardPeriodRange(periodData.startDate, periodData.endDate);
+function updatePayCardPeriodView(cardId) {
+  const cardAcc = walletState.accounts.find(a => a.id === cardId);
+  if (!cardAcc) return;
+
+  const selectPeriod = document.getElementById('selectPayCardPeriod');
+  const detailContainer = document.getElementById('payCardPeriodDetailCard');
+  const selectedKey = selectPeriod ? selectPeriod.value : null;
+
+  const selectedPeriod = currentPayCardPeriodsCache.find(p => p.key === selectedKey);
+  const stats = getCreditCardPeriodStats(cardId, selectedPeriod);
+
+  // 1. Detay Kartını Güncelle
+  if (detailContainer) {
+    if (selectedPeriod) {
+      let badgeHtml = '';
+      if (stats.isCleared) {
+        badgeHtml = `<span class="pay-card-period-badge cleared">✓ Borç Kapandı</span>`;
+      } else if (stats.paid > 0) {
+        badgeHtml = `<span class="pay-card-period-badge">Kısmi Ödendi</span>`;
+      } else if (selectedPeriod.isClosed) {
+        badgeHtml = `<span class="pay-card-period-badge closed">Ekstre Kesildi</span>`;
+      } else {
+        badgeHtml = `<span class="pay-card-period-badge">Açık Dönem</span>`;
+      }
+
+      let statusMsg = '';
+      if (stats.hasNoActivity) {
+        statusMsg = `ℹ️ Bu dönemde kayıtlı bir harcama veya ödeme bulunmuyor.`;
+      } else if (stats.isCleared) {
+        statusMsg = `🎉 Bu dönemin tüm borcu (<strong>${formatWalletTL(stats.spent)}</strong>) eksiksiz kapatılmıştır.`;
+      } else if (stats.paid > 0) {
+        statusMsg = `💡 Bu dönem için toplam <strong>${formatWalletTL(stats.paid)}</strong> ödeme yapıldı. Kalan borç: <strong>${formatWalletTL(stats.remaining)}</strong>.`;
+      } else {
+        statusMsg = `📋 Bu döneme ait henüz bir ödeme yapılmamış. Ödenecek tutar: <strong>${formatWalletTL(stats.remaining)}</strong>.`;
+      }
+
+      detailContainer.innerHTML = `
+        <div class="pay-card-period-header">
+          <span class="pay-card-period-title">📅 ${selectedPeriod.rangeText}</span>
+          ${badgeHtml}
+        </div>
+        <div class="pay-period-grid">
+          <div class="pay-period-col">
+            <div class="pay-period-label">Dönem Borcu</div>
+            <div class="pay-period-val spent">${formatWalletTL(stats.spent)}</div>
+          </div>
+          <div class="pay-period-col">
+            <div class="pay-period-label">Ödenen Tutar</div>
+            <div class="pay-period-val paid">${formatWalletTL(stats.paid)}</div>
+          </div>
+          <div class="pay-period-col">
+            <div class="pay-period-label">Kalan Borç</div>
+            <div class="pay-period-val ${stats.remaining > 0 ? 'remaining' : 'cleared'}">${formatWalletTL(stats.remaining)}</div>
+          </div>
+        </div>
+        <div class="pay-period-status-line">
+          ${statusMsg}
+        </div>
+      `;
     }
   }
 
+  // 2. Banner alt metnini güncelle
   const subEl = document.getElementById('payCardBannerSub');
   if (subEl) {
-    if (cardAcc.billingDay) {
-      subEl.textContent = `Dönem Borcu: ${formatWalletTL(periodDebt)}${periodRangeStr ? ' (' + periodRangeStr + ')' : ''}`;
+    if (selectedPeriod) {
+      subEl.textContent = `${selectedPeriod.rangeText} | Kalan: ${formatWalletTL(stats.remaining)}`;
     } else {
-      subEl.textContent = `Toplam Borç: ${formatWalletTL(totalDebt)}`;
+      subEl.textContent = `Toplam Borç: ${formatWalletTL(Math.max(0, -cardAcc.balance))}`;
     }
   }
 
-  const badgeEl = document.getElementById('payCardBannerDebtBadge');
-  if (badgeEl) {
-    badgeEl.textContent = `Toplam Bakiye: ${formatWalletTL(cardAcc.balance)}`;
-    badgeEl.style.color = cardAcc.balance < 0 ? 'var(--rose)' : 'var(--emerald)';
-  }
-
-  // Kaynak hesapları doldur (ödemenin yapılacağı hesap)
-  const selectSource = document.getElementById('selectPayCardSourceAccount');
-  if (selectSource) {
-    selectSource.innerHTML = '';
-    const otherAccounts = walletState.accounts.filter(a => a.id !== cardId);
-
-    // Vadesiz banka ve nakit hesaplarını öne al, bakiyeye göre sırala
-    otherAccounts.sort((a, b) => {
-      if (a.type === 'bank' && b.type !== 'bank') return -1;
-      if (b.type === 'bank' && a.type !== 'bank') return 1;
-      return b.balance - a.balance;
-    });
-
-    otherAccounts.forEach(acc => {
-      const opt = document.createElement('option');
-      opt.value = acc.id;
-      opt.textContent = `${acc.icon || '🏦'} ${acc.name} (${formatWalletTL(acc.balance)})`;
-      selectSource.appendChild(opt);
-    });
-
-    // Pozitif bakiyeli ilk hesabı seç, yoksa ilk hesabı seç
-    const positiveAcc = otherAccounts.find(a => a.balance > 0 && a.type !== 'credit');
-    if (positiveAcc) {
-      selectSource.value = positiveAcc.id;
-    } else if (otherAccounts.length > 0) {
-      selectSource.value = otherAccounts[0].id;
-    }
-
-    updatePayCardSourceHint();
-  }
-
-  // Ödeme tarihi bugüne ayarlansın
-  const dateInput = document.getElementById('inputPayCardDate');
-  if (dateInput) {
-    dateInput.value = new Date().toISOString().split('T')[0];
-  }
-
-  // Açıklama varsayılanı
-  const noteInput = document.getElementById('inputPayCardNote');
-  if (noteInput) {
-    noteInput.value = `${cardAcc.name} Dönem Borcu Ödemesi`;
-  }
-
-  // Tutar alanı: Doğrudan dönem borcu (yoksa toplam borç) prefill edilsin
+  // 3. Tutar alanını doldur
   const amountInput = document.getElementById('inputPayCardAmount');
-  let defaultAmount = periodDebt > 0 ? periodDebt : (totalDebt > 0 ? totalDebt : '');
+  const totalDebt = Math.max(0, -cardAcc.balance);
+  let defaultAmount = stats.remaining > 0 ? stats.remaining : (totalDebt > 0 ? totalDebt : 0);
   if (amountInput) {
     amountInput.value = defaultAmount > 0 ? defaultAmount.toFixed(2) : '';
   }
 
-  renderPayCardQuickChips(periodDebt, totalDebt);
+  // 4. Çipleri güncelle
+  renderPayCardQuickChips(stats.remaining, totalDebt, stats.spent);
 
-  modal.showModal();
-
-  // Modal açıldığında tutar alanına odaklanıp seç
-  setTimeout(() => {
-    if (amountInput) {
-      amountInput.focus();
-      amountInput.select();
-    }
-  }, 60);
-}
-
-function updatePayCardSourceHint() {
-  const selectSource = document.getElementById('selectPayCardSourceAccount');
-  const hintEl = document.getElementById('payCardSourceBalanceHint');
-  if (!selectSource || !hintEl) return;
-
-  const acc = walletState.accounts.find(a => a.id === selectSource.value);
-  if (acc) {
-    hintEl.innerHTML = `Seçili hesap bakiyesi: <strong style="color: ${acc.balance >= 0 ? 'var(--emerald)' : 'var(--rose)'};">${formatWalletTL(acc.balance)}</strong> (${getAccountTypeLabel(acc.type)})`;
-  } else {
-    hintEl.innerHTML = '';
+  // 5. Açıklama metnini güncelle
+  const noteInput = document.getElementById('inputPayCardNote');
+  if (noteInput && selectedPeriod) {
+    noteInput.value = `${cardAcc.name} ${selectedPeriod.rangeText} Borç Ödemesi`;
   }
 }
 
-function renderPayCardQuickChips(periodDebt, totalDebt) {
+function renderPayCardQuickChips(periodRemaining, totalDebt, periodSpent) {
   const container = document.getElementById('payCardQuickChips');
   if (!container) return;
   container.innerHTML = '';
 
   const chips = [];
 
-  if (periodDebt > 0) {
+  // Kalan Dönem Borcu
+  if (periodRemaining > 0) {
     chips.push({
-      label: `📋 Dönem Borcu (${formatWalletTL(periodDebt)})`,
-      amount: periodDebt
+      label: `📋 Kalan Borç (${formatWalletTL(periodRemaining)})`,
+      amount: periodRemaining
     });
   }
 
-  if (totalDebt > 0 && Math.abs(totalDebt - periodDebt) > 0.01) {
+  // Dönem Toplam Borcu (eğer önceden kısmi ödeme yapılmışsa ve kalandan farklıysa)
+  if (periodSpent > 0 && Math.abs(periodSpent - periodRemaining) > 0.01) {
     chips.push({
-      label: `💳 Toplam Borç (${formatWalletTL(totalDebt)})`,
+      label: `📑 Dönem Toplamı (${formatWalletTL(periodSpent)})`,
+      amount: periodSpent
+    });
+  }
+
+  // Kartın Toplam Borcu
+  if (totalDebt > 0 && Math.abs(totalDebt - periodRemaining) > 0.01) {
+    chips.push({
+      label: `💳 Kart Toplam Borcu (${formatWalletTL(totalDebt)})`,
       amount: totalDebt
     });
   }
 
   // Asgari ödeme (%20 ve %40)
-  const baseDebt = periodDebt > 0 ? periodDebt : totalDebt;
+  const baseDebt = periodRemaining > 0 ? periodRemaining : totalDebt;
   if (baseDebt > 0) {
     const min20 = Math.round(baseDebt * 0.20 * 100) / 100;
     const min40 = Math.round(baseDebt * 0.40 * 100) / 100;
@@ -2707,6 +3468,113 @@ function renderPayCardQuickChips(periodDebt, totalDebt) {
   });
 }
 
+function openPayCreditCardModal(cardId, initialPeriodKey = null) {
+  const cardAcc = walletState.accounts.find(a => a.id === cardId);
+  if (!cardAcc) return;
+
+  const modal = document.getElementById('modalPayCreditCard');
+  if (!modal) return;
+
+  // Hata kutusunu temizle
+  const errorEl = document.getElementById('payCardErrorMsg');
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+  }
+
+  // Hedef kart bilgilerini yerleştir
+  document.getElementById('inputPayCardTargetAccountId').value = cardId;
+  const iconEl = document.getElementById('payCardBannerIcon');
+  if (iconEl) iconEl.textContent = cardAcc.icon || '💳';
+  const nameEl = document.getElementById('payCardBannerName');
+  if (nameEl) nameEl.textContent = cardAcc.name;
+
+  const badgeEl = document.getElementById('payCardBannerDebtBadge');
+  if (badgeEl) {
+    badgeEl.textContent = `Toplam Bakiye: ${formatWalletTL(cardAcc.balance)}`;
+    badgeEl.style.color = cardAcc.balance < 0 ? 'var(--rose)' : 'var(--emerald)';
+  }
+
+  // Kaynak hesapları doldur (ödemenin yapılacağı hesap)
+  const selectSource = document.getElementById('selectPayCardSourceAccount');
+  if (selectSource) {
+    selectSource.innerHTML = '';
+    const otherAccounts = walletState.accounts.filter(a => a.id !== cardId);
+
+    // Vadesiz banka ve nakit hesaplarını öne al, bakiyeye göre sırala
+    otherAccounts.sort((a, b) => {
+      if (a.type === 'bank' && b.type !== 'bank') return -1;
+      if (b.type === 'bank' && a.type !== 'bank') return 1;
+      return b.balance - a.balance;
+    });
+
+    otherAccounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.textContent = `${acc.icon || '🏦'} ${acc.name} (${formatWalletTL(acc.balance)})`;
+      selectSource.appendChild(opt);
+    });
+
+    // Pozitif bakiyeli ilk hesabı seç, yoksa ilk hesabı seç
+    const positiveAcc = otherAccounts.find(a => a.balance > 0 && a.type !== 'credit');
+    if (positiveAcc) {
+      selectSource.value = positiveAcc.id;
+    } else if (otherAccounts.length > 0) {
+      selectSource.value = otherAccounts[0].id;
+    }
+
+    updatePayCardSourceHint();
+    if (typeof updatePayCardSourceCustomCard === 'function' && selectSource.value) {
+      updatePayCardSourceCustomCard(selectSource.value);
+    }
+  }
+
+  // Ödeme tarihi bugüne ayarlansın
+  const dateInput = document.getElementById('inputPayCardDate');
+  const todayVal = new Date().toISOString().split('T')[0];
+  if (dateInput) {
+    dateInput.value = todayVal;
+  }
+
+  // Dönemleri doldur ve kullanıcı kuralına göre varsayılan dönemi seç
+  populatePayCardPeriods(cardAcc, todayVal, true);
+
+  if (initialPeriodKey) {
+    const selectPeriod = document.getElementById('selectPayCardPeriod');
+    if (selectPeriod && currentPayCardPeriodsCache.some(p => p.key === initialPeriodKey)) {
+      selectPeriod.value = initialPeriodKey;
+      updatePayCardPeriodView(cardAcc.id);
+    }
+  }
+
+  modal.showModal();
+
+  // Modal açıldığında tutar alanına odaklanıp seç
+  const amountInput = document.getElementById('inputPayCardAmount');
+  setTimeout(() => {
+    if (amountInput) {
+      amountInput.focus();
+      amountInput.select();
+    }
+  }, 60);
+}
+
+function updatePayCardSourceHint() {
+  const selectSource = document.getElementById('selectPayCardSourceAccount');
+  const hintEl = document.getElementById('payCardSourceBalanceHint');
+  if (!selectSource || !hintEl) return;
+
+  const acc = walletState.accounts.find(a => a.id === selectSource.value);
+  if (acc) {
+    hintEl.innerHTML = `Seçili hesap bakiyesi: <strong style="color: ${acc.balance >= 0 ? 'var(--emerald)' : 'var(--rose)'};">${formatWalletTL(acc.balance)}</strong> (${getAccountTypeLabel(acc.type)})`;
+  } else {
+    hintEl.innerHTML = '';
+  }
+  if (typeof updateCustomAccountPickersDisplay === 'function') {
+    updateCustomAccountPickersDisplay();
+  }
+}
+
 function handlePayCreditCardSubmit(e) {
   e.preventDefault();
 
@@ -2727,6 +3595,7 @@ function handlePayCreditCardSubmit(e) {
   const amountInput = document.getElementById('inputPayCardAmount');
   const dateInput = document.getElementById('inputPayCardDate');
   const noteInput = document.getElementById('inputPayCardNote');
+  const selectPeriod = document.getElementById('selectPayCardPeriod');
 
   const amount = parseFloat(amountInput.value);
   if (!amount || amount <= 0) {
@@ -2754,7 +3623,12 @@ function handlePayCreditCardSubmit(e) {
   }
 
   const dateVal = dateInput.value || new Date().toISOString().split('T')[0];
-  const noteVal = noteInput.value.trim() || `${cardAcc.name} Dönem Borcu Ödemesi`;
+  const selectedPeriodKey = selectPeriod ? selectPeriod.value : '';
+  const selectedPeriodObj = currentPayCardPeriodsCache.find(p => p.key === selectedPeriodKey);
+  const defaultNote = selectedPeriodObj 
+    ? `${cardAcc.name} ${selectedPeriodObj.rangeText} Borç Ödemesi`
+    : `${cardAcc.name} Kart Borcu Ödemesi`;
+  const noteVal = noteInput.value.trim() || defaultNote;
 
   // 1. Yeni Transfer İşlemi Oluştur (Kaynak -> Kredi Kartı)
   const newTx = {
@@ -2766,7 +3640,9 @@ function handlePayCreditCardSubmit(e) {
     categoryId: '',
     subCategory: '',
     date: dateVal,
-    note: noteVal
+    note: noteVal,
+    periodKey: selectedPeriodKey || '',
+    periodRange: selectedPeriodObj ? selectedPeriodObj.rangeText : ''
   };
 
   // 2. Bakiyeleri Güncelle
@@ -2790,6 +3666,7 @@ function handlePayCreditCardSubmit(e) {
     openAccountDetailModal(targetCardId, activeAccountDetailFilter || 'all');
   }
 }
+
 
 function syncAccountBalanceWithMovements(accId) {
   const acc = walletState.accounts.find(a => a.id === accId);
@@ -2862,7 +3739,7 @@ function handleAccountFormSubmit(e) {
   const name = document.getElementById('inputAccountName').value.trim();
   const type = document.getElementById('selectAccountType').value;
   const icon = document.getElementById('inputAccountIcon').value || '💳';
-  const balance = parseFloat(document.getElementById('inputAccountBalance').value) || 0;
+  const balance = parseFloat(String(document.getElementById('inputAccountBalance').value || '0').replace(',', '.')) || 0;
   const billingDayInput = document.getElementById('inputAccountBillingDay');
   const billingDay = (type === 'credit' && billingDayInput) ? (parseInt(billingDayInput.value) || 15) : null;
 
@@ -2986,7 +3863,7 @@ function updateInstallmentCalculation() {
 
   const count = parseInt(countSelect?.value || '3');
   const amountType = typeSelect?.value || 'total';
-  const val = parseFloat(amountInput?.value || 0) || 0;
+  const val = parseFloat(String(amountInput?.value || 0).replace(',', '.')) || 0;
 
   let totalAmount = 0;
   let monthlyAmount = 0;
@@ -3020,8 +3897,53 @@ function updateInstallmentCalculation() {
   }
 }
 
+// --- Tutar İşareti (± / Eksi) Yönetimi ---
+function toggleInputSign(inputId, btnId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  let val = String(input.value || '').trim();
+  if (!val || val === '0') {
+    input.value = '-';
+  } else if (val === '-') {
+    input.value = '';
+  } else if (val.startsWith('-')) {
+    input.value = val.substring(1);
+  } else {
+    input.value = '-' + val;
+  }
+
+  if (inputId === 'inputWalletAmount' && typeof updateInstallmentCalculation === 'function') {
+    updateInstallmentCalculation();
+  }
+
+  if (btnId) {
+    syncSignButton(inputId, btnId);
+  }
+  input.focus();
+}
+
+function syncSignButton(inputId, btnId) {
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  if (!input || !btn) return;
+
+  const val = String(input.value || '').trim();
+  const isNegative = val.startsWith('-');
+
+  if (isNegative) {
+    btn.classList.add('is-negative');
+    btn.textContent = '−';
+    btn.title = 'Tutar Negatif (−). Pozitif (+) yapmak için dokunun';
+  } else {
+    btn.classList.remove('is-negative');
+    btn.textContent = '±';
+    btn.title = 'İşareti Değiştir (Eksi / Artı)';
+  }
+}
+
 // --- İşlem Ekleme / Düzenleme / Silme Formu (Modal) ---
-function openAddWalletTxModal() {
+function openAddWalletTxModal(defaultAccountId = null, defaultDate = null) {
   editingWalletTxId = null;
   const modal = document.getElementById('modalWalletTx');
   if (!modal) return;
@@ -3042,10 +3964,13 @@ function openAddWalletTxModal() {
   const dateInput = document.getElementById('inputWalletTxDate');
   if (dateInput) {
     const today = new Date().toISOString().split('T')[0];
-    dateInput.value = today;
+    dateInput.value = defaultDate || today;
   }
   const amountInput = document.getElementById('inputWalletAmount');
-  if (amountInput) amountInput.value = '';
+  if (amountInput) {
+    amountInput.value = '';
+    syncSignButton('inputWalletAmount', 'btnWalletAmountSign');
+  }
   const noteInput = document.getElementById('inputWalletNote');
   if (noteInput) noteInput.value = '';
 
@@ -3060,7 +3985,21 @@ function openAddWalletTxModal() {
   if (dateLabel) dateLabel.textContent = 'Tarih';
   updateInstallmentCalculation();
 
+  const errBox = document.getElementById('walletTxErrorMsg');
+  if (errBox) {
+    errBox.textContent = '';
+    errBox.style.display = 'none';
+  }
+
   populateWalletAccountSelectors();
+  if (defaultAccountId) {
+    const fromSelect = document.getElementById('selectWalletFromAccount');
+    if (fromSelect && walletState.accounts.some(a => a.id === defaultAccountId)) {
+      fromSelect.value = defaultAccountId;
+      renderSingleAccountCard(defaultAccountId);
+      updateTransferFlowCards();
+    }
+  }
   modal.showModal();
 }
 
@@ -3103,7 +4042,10 @@ function openEditWalletTxModal(txId) {
 
   // Tutar
   const amountInput = document.getElementById('inputWalletAmount');
-  if (amountInput) amountInput.value = tx.amount;
+  if (amountInput) {
+    amountInput.value = tx.amount;
+    syncSignButton('inputWalletAmount', 'btnWalletAmountSign');
+  }
 
   // Hesapları doldur ve seç
   populateWalletAccountSelectors();
@@ -3114,6 +4056,14 @@ function openEditWalletTxModal(txId) {
   const toSelect = document.getElementById('selectWalletToAccount');
   if (toSelect && tx.toAccountId) {
     toSelect.value = tx.toAccountId;
+  }
+  renderSingleAccountCard(tx.fromAccountId);
+  updateTransferFlowCards();
+
+  const errBox = document.getElementById('walletTxErrorMsg');
+  if (errBox) {
+    errBox.textContent = '';
+    errBox.style.display = 'none';
   }
 
   // Kategori & Alt başlık (transfer değilse)
@@ -3134,6 +4084,346 @@ function openEditWalletTxModal(txId) {
   modal.showModal();
 }
 
+// --- Custom Account Card & Flow Helpers ---
+let activeCustomAccountPickerTarget = 'from'; // 'from' | 'to' | 'payCardSource'
+let activeCustomAccountPickerFilter = 'all';
+
+function getAccountTypeBadge(type) {
+  switch (type) {
+    case 'bank': return 'Vadesiz';
+    case 'cash': return 'Nakit';
+    case 'credit': return 'Kredi Kartı';
+    case 'savings': return 'Birikim';
+    default: return 'Hesap';
+  }
+}
+
+function renderSingleAccountCard(accId) {
+  const cardEl = document.getElementById('walletSingleAccountCard');
+  if (!cardEl) return;
+  const acc = (walletState?.accounts || []).find(a => a.id === accId) || walletState?.accounts?.[0];
+  if (!acc) {
+    cardEl.innerHTML = '<span style="color: var(--text-dim); font-size: 0.85rem;">Hesap seçilmedi</span>';
+    return;
+  }
+  const isNegative = acc.balance < 0;
+  cardEl.innerHTML = `
+    <div class="tx-acc-card-inner">
+      <div class="tx-acc-main-left">
+        <div class="tx-acc-avatar-box">${acc.icon || '🏦'}</div>
+        <div class="tx-acc-meta-box">
+          <div class="tx-acc-name-line">
+            <span class="tx-acc-name-text">${acc.name}</span>
+            <span class="tx-acc-type-pill">${getAccountTypeBadge(acc.type)}</span>
+          </div>
+          <div class="tx-acc-balance-line">
+            <span class="tx-acc-balance-label">Bakiye:</span>
+            <span class="tx-acc-balance-val ${isNegative ? 'negative' : 'positive'}">${formatWalletTL(acc.balance)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="tx-acc-change-pill">Değiştir ▾</div>
+    </div>
+  `;
+}
+
+function updateTransferFlowCards() {
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  const toSelect = document.getElementById('selectWalletToAccount');
+  const fromContainer = document.getElementById('walletCustomFromCardContent');
+  const toContainer = document.getElementById('walletCustomToCardContent');
+  if (!fromSelect || !toSelect || !walletState?.accounts?.length) return;
+
+  // Kaynak ve hedef aynıysa hedefi farklı hesaba taşı
+  if (fromSelect.value === toSelect.value && walletState.accounts.length > 1) {
+    for (let i = 0; i < toSelect.options.length; i++) {
+      if (toSelect.options[i].value !== fromSelect.value) {
+        toSelect.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  const fromAcc = walletState.accounts.find(a => a.id === fromSelect.value) || walletState.accounts[0];
+  const toAcc = walletState.accounts.find(a => a.id === toSelect.value) || walletState.accounts[1] || walletState.accounts[0];
+
+  if (fromContainer && fromAcc) {
+    const isNeg = fromAcc.balance < 0;
+    fromContainer.innerHTML = `
+      <div class="tx-acc-card-inner">
+        <div class="tx-acc-main-left">
+          <div class="tx-acc-avatar-box">${fromAcc.icon || '🏦'}</div>
+          <div class="tx-acc-meta-box">
+            <div class="tx-acc-name-line">
+              <span class="tx-acc-name-text">${fromAcc.name}</span>
+              <span class="tx-acc-type-pill">${getAccountTypeBadge(fromAcc.type)}</span>
+            </div>
+            <div class="tx-acc-balance-line">
+              <span class="tx-acc-balance-label">Bakiye:</span>
+              <span class="tx-acc-balance-val ${isNeg ? 'negative' : 'positive'}">${formatWalletTL(fromAcc.balance)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="tx-acc-change-pill">Değiştir ▾</div>
+      </div>
+    `;
+  }
+
+  if (toContainer && toAcc) {
+    const isNeg = toAcc.balance < 0;
+    toContainer.innerHTML = `
+      <div class="tx-acc-card-inner">
+        <div class="tx-acc-main-left">
+          <div class="tx-acc-avatar-box">${toAcc.icon || '🏦'}</div>
+          <div class="tx-acc-meta-box">
+            <div class="tx-acc-name-line">
+              <span class="tx-acc-name-text">${toAcc.name}</span>
+              <span class="tx-acc-type-pill">${getAccountTypeBadge(toAcc.type)}</span>
+            </div>
+            <div class="tx-acc-balance-line">
+              <span class="tx-acc-balance-label">Bakiye:</span>
+              <span class="tx-acc-balance-val ${isNeg ? 'negative' : 'positive'}">${formatWalletTL(toAcc.balance)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="tx-acc-change-pill">Değiştir ▾</div>
+      </div>
+    `;
+  }
+}
+
+function swapTransferAccounts(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  const toSelect = document.getElementById('selectWalletToAccount');
+  if (!fromSelect || !toSelect) return;
+
+  const temp = fromSelect.value;
+  fromSelect.value = toSelect.value;
+  toSelect.value = temp;
+
+  const btn = document.getElementById('btnSwapTransferAccounts');
+  if (btn) {
+    btn.style.transform = 'rotate(180deg) scale(1.1)';
+    setTimeout(() => {
+      btn.style.transform = '';
+    }, 280);
+  }
+
+  updateTransferFlowCards();
+  renderSingleAccountCard(fromSelect.value);
+}
+
+function openCustomAccountPicker(targetSlot) {
+  activeCustomAccountPickerTarget = targetSlot || 'from';
+  const modal = document.getElementById('modalCustomAccountPicker');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('accountPickerTitle');
+  const subEl = document.getElementById('accountPickerSubtitle');
+  const iconBox = document.getElementById('accountPickerHeaderIconBox');
+
+  if (targetSlot === 'to') {
+    if (titleEl) titleEl.textContent = 'Hedef Hesap Seçin (Giriş)';
+    if (subEl) subEl.textContent = 'Transferin yatırılacağı alıcı hesabı belirleyin';
+    if (iconBox) iconBox.textContent = '🟢';
+  } else if (targetSlot === 'payCardSource') {
+    if (titleEl) titleEl.textContent = 'Ödemenin Yapılacağı Hesap (Kaynak)';
+    if (subEl) subEl.textContent = 'Kart borcunun ödeneceği vadesiz veya nakit hesabı seçin';
+    if (iconBox) iconBox.textContent = '💳';
+  } else {
+    if (titleEl) {
+      if (currentTxType === 'transfer') titleEl.textContent = 'Kaynak Hesap Seçin (Çıkış)';
+      else if (currentTxType === 'income') titleEl.textContent = 'Gelirin Yatırıldığı Hesap';
+      else titleEl.textContent = 'Harcama Yapılan Hesap';
+    }
+    if (subEl) {
+      if (currentTxType === 'transfer') subEl.textContent = 'Paranın çıkış yapacağı kaynak hesabı belirleyin';
+      else if (currentTxType === 'income') subEl.textContent = 'Gelirin aktarılacağı hesabı belirleyin';
+      else subEl.textContent = 'Ödemenin çekileceği hesabı belirleyin';
+    }
+    if (iconBox) {
+      if (currentTxType === 'transfer') iconBox.textContent = '🔴';
+      else if (currentTxType === 'income') iconBox.textContent = '💰';
+      else iconBox.textContent = '🏦';
+    }
+  }
+
+  filterCustomAccountPicker('all');
+  modal.showModal();
+}
+
+function filterCustomAccountPicker(filterType) {
+  activeCustomAccountPickerFilter = filterType || 'all';
+  const chips = document.querySelectorAll('#accountPickerFilterChips .acc-filter-chip');
+  chips.forEach(c => {
+    if (c.getAttribute('data-type') === filterType) {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
+  });
+
+  const listEl = document.getElementById('customAccountsPickerList');
+  if (!listEl) return;
+
+  const accounts = walletState?.accounts || [];
+  let filtered = accounts;
+  if (filterType && filterType !== 'all') {
+    filtered = accounts.filter(a => a.type === filterType);
+  }
+
+  const fromVal = document.getElementById('selectWalletFromAccount')?.value;
+  const toVal = document.getElementById('selectWalletToAccount')?.value;
+  const paySourceVal = document.getElementById('selectPayCardSourceAccount')?.value;
+
+  let currentSelectedId = fromVal;
+  let otherSlotId = null;
+  if (activeCustomAccountPickerTarget === 'to') {
+    currentSelectedId = toVal;
+    otherSlotId = fromVal;
+  } else if (activeCustomAccountPickerTarget === 'from') {
+    currentSelectedId = fromVal;
+    if (currentTxType === 'transfer') otherSlotId = toVal;
+  } else if (activeCustomAccountPickerTarget === 'payCardSource') {
+    currentSelectedId = paySourceVal;
+  }
+
+  if (!filtered.length) {
+    listEl.innerHTML = `
+      <div style="text-align: center; padding: 25px 10px; color: var(--text-dim); font-size: 0.85rem;">
+        Bu t\u00fcrde kay\u0131tl\u0131 hesap bulunamad\u0131.
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(acc => {
+    const isSelected = acc.id === currentSelectedId;
+    const isOtherSlot = otherSlotId && acc.id === otherSlotId;
+    const isNeg = acc.balance < 0;
+    const slotBadgeText = activeCustomAccountPickerTarget === 'from' ? 'Mevcut Hedef' : 'Mevcut Kaynak';
+
+    html += `
+      <div class="account-picker-row ${isSelected ? 'selected' : ''} ${isOtherSlot ? 'in-other-slot' : ''}" 
+           onclick="selectAccountFromPicker('${acc.id}')"
+           role="button"
+           tabindex="0"
+           title="${isOtherSlot ? 'Tıklayarak iki hesabı birbiriyle değiştirin' : 'Bu hesabı seçin'}">
+        <div class="acc-picker-icon-box">${acc.icon || '🏦'}</div>
+        <div class="acc-picker-info">
+          <div class="acc-picker-title-row">
+            <span class="acc-picker-name">${acc.name}</span>
+            <span class="acc-picker-badge">${getAccountTypeBadge(acc.type)}</span>
+            ${isSelected ? '<span class="acc-picker-status-badge" style="color:#34d399; background:rgba(52,211,153,0.14); border-color:rgba(52,211,153,0.35);">✓ Seçili</span>' : ''}
+            ${isOtherSlot ? `<span class="acc-picker-status-badge">🔄 ${slotBadgeText} (Değiştir)</span>` : ''}
+          </div>
+          <div class="acc-picker-balance-row">
+            <span class="acc-picker-balance-label">Güncel Bakiye:</span>
+            <strong class="acc-picker-balance-val ${isNeg ? 'negative' : 'positive'}">${formatWalletTL(acc.balance)}</strong>
+          </div>
+        </div>
+        <div class="acc-picker-check-circle">
+          <span class="acc-check-icon">✓</span>
+        </div>
+      </div>
+    `;
+  });
+
+  listEl.innerHTML = html;
+}
+
+function selectAccountFromPicker(accId) {
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  const toSelect = document.getElementById('selectWalletToAccount');
+  const errBox = document.getElementById('walletTxErrorMsg');
+  if (errBox) errBox.style.display = 'none';
+
+  if (activeCustomAccountPickerTarget === 'from') {
+    if (currentTxType === 'transfer' && toSelect && toSelect.value === accId) {
+      // Diğer slot ile aynı hesap seçildi -> Otomatik yer değiştir (Swap)
+      const oldFrom = fromSelect ? fromSelect.value : '';
+      if (fromSelect) fromSelect.value = accId;
+      if (toSelect && oldFrom) toSelect.value = oldFrom;
+    } else {
+      if (fromSelect) fromSelect.value = accId;
+    }
+    renderSingleAccountCard(fromSelect ? fromSelect.value : accId);
+    if (currentTxType === 'transfer') {
+      updateTransferFlowCards();
+    }
+  } else if (activeCustomAccountPickerTarget === 'to') {
+    if (currentTxType === 'transfer' && fromSelect && fromSelect.value === accId) {
+      // Diğer slot ile aynı hesap seçildi -> Otomatik yer değiştir (Swap)
+      const oldTo = toSelect ? toSelect.value : '';
+      if (toSelect) toSelect.value = accId;
+      if (fromSelect && oldTo) fromSelect.value = oldTo;
+    } else {
+      if (toSelect) toSelect.value = accId;
+    }
+    updateTransferFlowCards();
+    if (fromSelect) renderSingleAccountCard(fromSelect.value);
+  } else if (activeCustomAccountPickerTarget === 'payCardSource') {
+    const paySourceSelect = document.getElementById('selectPayCardSourceAccount');
+    if (paySourceSelect) {
+      paySourceSelect.value = accId;
+      if (typeof updatePayCardSourceHint === 'function') updatePayCardSourceHint();
+    }
+    updatePayCardSourceCustomCard(accId);
+  }
+
+  closeModal('modalCustomAccountPicker');
+}
+
+function updatePayCardSourceCustomCard(accId) {
+  const cardEl = document.getElementById('payCardSourceCustomCard');
+  if (!cardEl) return;
+  const acc = (walletState?.accounts || []).find(a => a.id === accId) || walletState?.accounts?.[0];
+  if (!acc) return;
+  const isNeg = acc.balance < 0;
+  cardEl.innerHTML = `
+    <div class="tx-acc-card-inner">
+      <div class="tx-acc-main-left">
+        <div class="tx-acc-avatar-box">${acc.icon || '🏦'}</div>
+        <div class="tx-acc-meta-box">
+          <div class="tx-acc-name-line">
+            <span class="tx-acc-name-text">${acc.name}</span>
+            <span class="tx-acc-type-pill">${getAccountTypeBadge(acc.type)}</span>
+          </div>
+          <div class="tx-acc-balance-line">
+            <span class="tx-acc-balance-label">Kullanılabilir Bakiye:</span>
+            <span class="tx-acc-balance-val ${isNeg ? 'negative' : 'positive'}">${formatWalletTL(acc.balance)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="tx-acc-change-pill">Değiştir ▾</div>
+    </div>
+  `;
+}
+
+function openAddAccountFromPicker() {
+  closeModal('modalCustomAccountPicker');
+  openAddAccountModal();
+}
+
+function updateCustomAccountPickersDisplay() {
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  if (fromSelect && typeof renderSingleAccountCard === 'function') {
+    renderSingleAccountCard(fromSelect.value);
+  }
+  if (typeof updateTransferFlowCards === 'function') {
+    updateTransferFlowCards();
+  }
+  const payCardSelect = document.getElementById('selectPayCardSourceAccount');
+  if (payCardSelect && typeof updatePayCardSourceCustomCard === 'function') {
+    updatePayCardSourceCustomCard(payCardSelect.value);
+  }
+}
+
 function setTxType(type) {
   currentTxType = type;
   ['txTypeBtn_expense', 'txTypeBtn_income', 'txTypeBtn_transfer'].forEach(id => {
@@ -3145,19 +4435,90 @@ function setTxType(type) {
   if (btn) btn.classList.add('active');
 
   const catSection = document.getElementById('walletCatSection');
+  const subCatSection = document.getElementById('walletSubCatSection');
+  const singleAccountSection = document.getElementById('walletSingleAccountSection');
+  const transferAccountsSection = document.getElementById('walletTransferAccountsSection');
   const transferSection = document.getElementById('walletTransferSection');
   const instSection = document.getElementById('walletInstallmentToggleSection');
+  const lblFromAcc = document.getElementById('lblWalletFromAccount');
+  const toSelect = document.getElementById('selectWalletToAccount');
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  const titleEl = document.getElementById('modalWalletTxTitle');
+  const submitBtn = document.getElementById('btnWalletTxSubmit');
+  const noteInput = document.getElementById('inputWalletNote');
 
   if (type === 'transfer') {
+    // 1. Kategori ve Alt Ba\u015fl\u0131k b\u00f6l\u00fcmlerini KES\u0130N OLARAK gizle ve s\u0131f\u0131rla
     if (catSection) catSection.style.display = 'none';
-    if (transferSection) transferSection.style.display = 'block';
-    if (instSection) instSection.style.display = 'none';
-  } else {
-    if (catSection) catSection.style.display = 'block';
+    if (subCatSection) {
+      subCatSection.style.display = 'none';
+      subCatSection.innerHTML = '';
+    }
+
+    // 2. Tekli hesap kart\u0131n\u0131 gizle, Transfer kart\u0131n\u0131 a\u00e7
+    if (singleAccountSection) singleAccountSection.style.display = 'none';
+    if (transferAccountsSection) transferAccountsSection.style.display = 'block';
     if (transferSection) transferSection.style.display = 'none';
+    if (toSelect) toSelect.required = false;
+
+    // 3. Taksit b\u00f6l\u00fcm\u00fc transferde olamaz, gizle ve kapat
+    if (instSection) instSection.style.display = 'none';
+    const chkInst = document.getElementById('checkWalletIsInstallment');
+    if (chkInst && chkInst.checked) {
+      chkInst.checked = false;
+      const instDetails = document.getElementById('walletInstallmentDetails');
+      if (instDetails) instDetails.style.display = 'none';
+      const toggleCard = document.getElementById('installmentToggleCard');
+      if (toggleCard) toggleCard.classList.remove('active');
+      const subDesc = document.getElementById('installmentSubDesc');
+      if (subDesc) subDesc.textContent = 'Taksitlendirme kapal\u0131 (Tek \u00e7ekim)';
+    }
+
+    // 4. Transfer kartlar\u0131n\u0131 doldur ve e\u015fitlik \u00e7ak\u0131\u015fmas\u0131n\u0131 \u00f6nle
+    updateTransferFlowCards();
+
+    // 5. Ba\u015fl\u0131k, buton ve placeholder'lar\u0131 g\u00fcncelle (d\u00fczenleme modunda de\u011filse)
+    if (!editingWalletTxId) {
+      if (titleEl) titleEl.textContent = 'Hesaplar Aras\u0131 Transfer';
+      if (submitBtn) submitBtn.textContent = 'Transferi Kaydet';
+      if (noteInput && (!noteInput.value || noteInput.placeholder.includes('Market') || noteInput.placeholder.includes('Maa\u015f'))) {
+        noteInput.placeholder = '\u00d6rn: Hesaba virman, karta bor\u00e7 \u00f6deme, nakit \u00e7ekim...';
+      }
+    }
+  } else {
+    // GEL\u0130R VEYA G\u0130DER MODU
+    // 1. Kategori b\u00f6l\u00fcm\u00fcn\u00fc a\u00e7
+    if (catSection) catSection.style.display = 'block';
+
+    // 2. Tekli hesap kart\u0131n\u0131 a\u00e7, Transfer kart\u0131n\u0131 gizle
+    if (singleAccountSection) singleAccountSection.style.display = 'block';
+    if (transferAccountsSection) transferAccountsSection.style.display = 'none';
+    if (transferSection) transferSection.style.display = 'none';
+    if (toSelect) toSelect.required = false;
+
+    // 3. Taksit se\u00e7ene\u011fi yaln\u0131zca yeni i\u015flemde a\u00e7\u0131k
     if (instSection) {
       instSection.style.display = editingWalletTxId ? 'none' : 'block';
     }
+
+    // 4. Etiketler ve tekli kart g\u00fcncellemesi
+    if (lblFromAcc) {
+      lblFromAcc.textContent = type === 'income' ? 'Hesap / C\u00fczdan (Yat\u0131r\u0131lacak Hesap)' : 'Hesap / C\u00fczdan (\u00d6deme Y\u00f6ntemi)';
+    }
+    renderSingleAccountCard(fromSelect?.value);
+
+    // 5. Ba\u015fl\u0131k ve butonlar (d\u00fczenleme de\u011filse)
+    if (!editingWalletTxId) {
+      if (titleEl) titleEl.textContent = type === 'income' ? 'Gelir Ekle' : 'Gider Ekle';
+      if (submitBtn) submitBtn.textContent = type === 'income' ? 'Geliri Kaydet' : 'Gideri Kaydet';
+      if (noteInput && (!noteInput.value || noteInput.placeholder.includes('virman') || noteInput.placeholder.includes('Market') || noteInput.placeholder.includes('Maa\u015f'))) {
+        noteInput.placeholder = type === 'income'
+          ? '\u00d6rn: Maa\u015f, prim, ek gelir, kira geliri...'
+          : '\u00d6rn: Market al\u0131\u015fveri\u015fi, benzin, ak\u015fam yeme\u011fi...';
+      }
+    }
+
+    // 6. Kategorileri ve ba\u011fl\u0131 alt ba\u015fl\u0131klar\u0131 listele
     renderCategoryGrid(type);
   }
 }
@@ -3197,6 +4558,7 @@ function renderSubCategoryPicker(type) {
 
   if (type === 'transfer') {
     container.style.display = 'none';
+    container.innerHTML = '';
     return;
   }
 
@@ -3281,6 +4643,27 @@ function populateWalletAccountSelectors() {
     });
     if (walletState.accounts.length > 1) toSelect.selectedIndex = 1;
   }
+
+  // Kartlar\u0131 ilk a\u00e7\u0131l\u0131\u015fta da canl\u0131 g\u00fcncelle
+  if (fromSelect) renderSingleAccountCard(fromSelect.value);
+  updateTransferFlowCards();
+
+  // Transfer modunda kaynak ve hedef hesap birbirini otomatik denetlesin
+  if (fromSelect && !fromSelect.dataset.transferBound) {
+    fromSelect.dataset.transferBound = 'true';
+    fromSelect.addEventListener('change', () => {
+      if (currentTxType !== 'transfer') return;
+      const ts = document.getElementById('selectWalletToAccount');
+      if (ts && ts.value === fromSelect.value && ts.options.length > 1) {
+        for (let i = 0; i < ts.options.length; i++) {
+          if (ts.options[i].value !== fromSelect.value) {
+            ts.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    });
+  }
 }
 
 function handleWalletTxSubmit(e) {
@@ -3292,14 +4675,24 @@ function handleWalletTxSubmit(e) {
   const toSelect = document.getElementById('selectWalletToAccount');
   const isInstallment = document.getElementById('checkWalletIsInstallment')?.checked && currentTxType !== 'transfer';
 
-  const inputAmount = parseFloat(amountInput.value);
-  if (!inputAmount || inputAmount <= 0 || !dateInput.value) return;
+  const rawVal = String(amountInput.value || '').replace(',', '.');
+  const inputAmount = parseFloat(rawVal);
+  if (isNaN(inputAmount) || inputAmount === 0 || !dateInput.value) return;
 
   const fromAccountId = fromSelect.value;
   const toAccountId = currentTxType === 'transfer' ? toSelect.value : '';
 
+  const errBox = document.getElementById('walletTxErrorMsg');
+  if (errBox) errBox.style.display = 'none';
+
   if (currentTxType === 'transfer' && fromAccountId === toAccountId) {
-    alert('Kaynak ve hedef hesap aynı olamaz!');
+    if (errBox) {
+      errBox.textContent = 'Kaynak ve hedef hesap aynı olamaz! Lütfen farklı bir hesap seçin.';
+      errBox.style.display = 'block';
+      errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      alert('Kaynak ve hedef hesap aynı olamaz!');
+    }
     return;
   }
 
@@ -3384,8 +4777,12 @@ function handleWalletTxSubmit(e) {
       totalAmount = Math.round(inputAmount * count * 100) / 100;
     }
 
-    const baseMonthly = Math.floor((totalAmount / count) * 100) / 100;
-    const remainder = Math.round((totalAmount - (baseMonthly * count)) * 100) / 100;
+    const sign = totalAmount < 0 ? -1 : 1;
+    const absTotal = Math.abs(totalAmount);
+    const absMonthly = Math.floor((absTotal / count) * 100) / 100;
+    const absRemainder = Math.round((absTotal - (absMonthly * count)) * 100) / 100;
+    const baseMonthly = absMonthly * sign;
+    const remainder = absRemainder * sign;
 
     const installmentGroupId = 'inst_' + Date.now();
     const installmentDates = getInstallmentDates(dateInput.value, count);
@@ -4030,6 +5427,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (oldBanner) oldBanner.remove();
       const instSection = document.getElementById('walletInstallmentToggleSection');
       if (instSection) instSection.style.display = 'block';
+      const subCatSection = document.getElementById('walletSubCatSection');
+      if (subCatSection) {
+        subCatSection.style.display = 'none';
+        subCatSection.innerHTML = '';
+      }
     });
   }
 
@@ -4055,11 +5457,12 @@ const BORDRO_ROWS_DEF = [
   { key: 'yolYardimi', label: 'Yol Yardımı' },
   { key: 'yemekYardimi', label: 'Yemek Yardımı' },
   { key: 'ekstra', label: 'Ekstra' },
+  { key: 'sgkMuafiyet', label: 'SGK Muafiyet' },
   { key: 'sgkPrimEsasKazanc', label: 'SGK Prim Esas Kazanç' },
   { key: 'sigortaPrimi', label: 'Sigorta Primi' },
+  { key: 'muafiyet', label: 'Muafiyet' },
   { key: 'topGelVerMat', label: 'Top. Gel. Ver. Mat.' },
   { key: 'avans', label: 'Avans' },
-  { key: 'muafiyet', label: 'Muafiyet' },
   { key: 'bes', label: 'BES' },
   { key: 'asgariUcret', label: 'Asgari Ücret' },
   { key: 'asgariUcrTopMat', label: 'Asgari Ücr. Top. Mat.' },
@@ -4150,7 +5553,7 @@ const DEFAULT_TAX_CONFIG = {
 };
 
 let bordroState = { periods: {}, taxConfig: null, manualOverrides: {}, lockedMonths: {} };
-let bordroWideMode = true;
+let bordroWideMode = false;
 let selectedSummaryYear = new Date().getFullYear();
 let activeTaxModalYear = new Date().getFullYear();
 
@@ -4481,9 +5884,10 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
       }
     }
 
-    // 3. Madde: Yol yardımı ve Ekstra tamamen manueldir
+    // 3. Madde: Yol yardımı, Ekstra ve SGK Muafiyet elle girilir; SGK Muafiyet her ayın kendine aittir
     p.yolYardimi = Number(p.yolYardimi) || 0;
     p.ekstra = Number(p.ekstra) || 0;
+    p.sgkMuafiyet = Number(p.sgkMuafiyet) || 0;
 
     // Muafiyet: Değer elle girilir, her ay bir önceki aya girilen veri varsayılan (default) olarak kullanılır
     if (!overrides.muafiyet) {
@@ -4504,12 +5908,12 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     const yolVal = Number(p.yolYardimi) || 0;
     const yemekVal = Number(p.yemekYardimi) || 0;
     const ekstraVal = Number(p.ekstra) || 0;
+    const sgkMuafiyetVal = Number(p.sgkMuafiyet) || 0;
     const muafiyetVal = Number(p.muafiyet) || 0;
 
-    // 5. Madde: SGK Prim Esas Kazanç = Brüt + Sosyal + İkramiye + Yol + Ekstra - (varsa Yemek Yardımı)
-    // Muafiyet düşülmez; varsa yemek parası düşülür.
+    // 5. Madde: SGK Prim Esas Kazanç = 1. satır (Brüt) + 2. satır (Sosyal) + 3. satır (İkramiye) + 4. satır (Yol) + 5. satır (Yemek) + 6. satır (Ekstra) - SGK Muafiyet
     if (!overrides.sgkPrimEsasKazanc) {
-      p.sgkPrimEsasKazanc = Math.max(0, Math.round((brutVal + sosyalVal + ikramiyeVal + yolVal + ekstraVal - yemekVal) * 100) / 100);
+      p.sgkPrimEsasKazanc = Math.max(0, Math.round((brutVal + sosyalVal + ikramiyeVal + yolVal + yemekVal + ekstraVal - sgkMuafiyetVal) * 100) / 100);
     }
     const sgkVal = Number(p.sgkPrimEsasKazanc) || 0;
 
@@ -4519,10 +5923,10 @@ function recalculateBordroEngine(forceRecomputeAll = false) {
     }
     const sigortaVal = Number(p.sigortaPrimi) || 0;
 
-    // 7. Madde: Top. Gel. Ver. Mat. = Bir önceki ayın Top. Gel. Ver. Mat. + SGK Prim Esas Kazanç - Sigorta Primi - Muafiyet
+    // 7. Madde: Top. Gel. Ver. Mat. = Önceki ayın Top. Gel. Ver. Mat. + 1. satır (Brüt) + 2. satır (Sosyal) + 3. satır (İkramiye) + 4. satır (Yol) + 6. satır (Ekstra) - Muafiyet
     const oncekiTopGelVerMat = yearCumulatives[year].topGelVerMat || 0;
     if (!overrides.topGelVerMat) {
-      const buAykiKazancMatrahi = Math.max(0, sgkVal - sigortaVal - muafiyetVal);
+      const buAykiKazancMatrahi = Math.max(0, brutVal + sosyalVal + ikramiyeVal + yolVal + ekstraVal - muafiyetVal);
       p.topGelVerMat = Math.round((oncekiTopGelVerMat + buAykiKazancMatrahi) * 100) / 100;
     }
     yearCumulatives[year].topGelVerMat = Number(p.topGelVerMat) || 0;
@@ -4958,7 +6362,7 @@ function handleBordroCellBlur(inputEl) {
     delete bordroState.manualOverrides[periodKey].toplam;
     delete bordroState.manualOverrides[periodKey].calismaGunuBasi;
   }
-  if (['yemekYardimi', 'brutUcret', 'sosyalYardim', 'ikramiyeYardimi', 'yolYardimi', 'ekstra', 'muafiyet'].includes(paramKey)) {
+  if (['yemekYardimi', 'brutUcret', 'sosyalYardim', 'ikramiyeYardimi', 'yolYardimi', 'ekstra', 'muafiyet', 'sgkMuafiyet'].includes(paramKey)) {
     delete bordroState.manualOverrides[periodKey].sgkPrimEsasKazanc;
     delete bordroState.manualOverrides[periodKey].sigortaPrimi;
     delete bordroState.manualOverrides[periodKey].topGelVerMat;

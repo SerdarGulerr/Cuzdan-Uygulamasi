@@ -31,3 +31,13 @@ Bu kurallar projede çalışan tüm yapay zeka asistanları (Gemini, Claude vb.)
 
 ### 4. 💾 Çevrimdışı ve PWA Uyumluluğu
 - Veriler `localStorage` tabanlıdır. `sw.js` (Service Worker) ve `excel-sync.js` dosyaları çevrimdışı çalışabilirlik ve Excel yedekleme/içe aktarma fonksiyonlarını sağlar.
+
+---
+
+### 5. 📱 Cihaz ve Ekran Standardı (Samsung Galaxy Note 10+)
+- **Birincil Hedef Cihaz:** Tüm tasarım, tipografi, buton, modal, kart ve yerleşim işlerinde **Samsung Galaxy Note 10 Plus** (6.8" Dynamic AMOLED, 412×869 / 412×915 px viewport, 3.5x DPR) fiziksel ekranı ve tek el ergonomisi esas alınır.
+- **Yazı Okunabilirliği ve Kontrast:**
+  - Buton içlerindeki yazılar, kart özetleri ve seçim çipleri ASLA soluk gri, düşük kontrastlı veya okunaksız açık pastel renklerde bırakılamaz.
+  - Aksiyon butonları (`Borç Öde`, `Ödemeyi Kaydet`, vb.) her zaman yüksek kontrastlı, canlı arkaplanlı (ör. zümrüt yeşili degrade), net beyaz (`#ffffff`) ve kalın (`font-weight: 700-800`) yazılar içermelidir.
+  - Metin boyutları butonlarda ve bilgi panellerinde en az `0.85rem - 0.95rem` seviyesinde tutulmalı; `0.72rem` gibi aşırı küçük, mobil ekranda göz yoran ve okunmayan puntolardan kaçınılmalıdır.
+- **Dokunmatik Alanlar:** Dokunmatik butonlar ve çipler en az 42px - 48px dokunma yüksekliğine (`min-height`) ve rahat tıklanabilir iç boşluklara (`padding`) sahip olmalıdır.

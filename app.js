@@ -764,7 +764,8 @@ function importDataBackup(e) {
 function resetAllData() {
   if (confirm('DİKKAT: Tüm işlemler, faiz oranları ve kişiler sıfırlanacak! Emin misiniz?')) {
     localStorage.removeItem('faiz_takip_data_v1');
-    loadState();
+    initCapacitorBackButton();
+  loadState();
     renderUI();
     closeModal('modalSettings');
     alert('Veriler sıfırlandı.');
@@ -845,12 +846,36 @@ async function clearCookiesAndSiteData() {
   }
 }
 
-// Modal Kontrolleri
+// Modal Kontrolleri & Android Geri Tuşu History Entegrasyonu
+let isClosingFromPopstate = false;
+
+// HTMLDialogElement showModal sarmalayıcısı: Açılan tüm modal dialoglar için geçmişe kayıt ekler
+if (typeof HTMLDialogElement !== 'undefined' && HTMLDialogElement.prototype.showModal) {
+  const originalShowModal = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal = function() {
+    originalShowModal.apply(this, arguments);
+    try {
+      if (!window.history.state || window.history.state.modalId !== (this.id || 'dialog')) {
+        window.history.pushState({ isModal: true, modalId: this.id || 'dialog' }, '', window.location.href);
+      }
+    } catch (err) {}
+  };
+}
+
+// Dialog'ların normal X, İptal veya kod ile kapatılmasını yakala (history senkronizasyonu için)
+document.addEventListener('close', (e) => {
+  if (e.target && e.target.nodeName === 'DIALOG') {
+    if (!isClosingFromPopstate && window.history.state && window.history.state.isModal) {
+      window.history.back();
+    }
+  }
+}, true);
+
 function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {
     modal.showModal();
-    // Default tarihleri bugün yap
+    // Default tarihleri bugÃ¼n yap
     const today = getTodayDateString();
     if (id === 'modalDeposit') {
       const dInput = document.getElementById('inputTxDate');
@@ -1267,17 +1292,68 @@ window.addEventListener('resize', () => {
   }
 });
 
-// Browser Geri / İleri Butonu Yönetimi (Android Geri Tuşu Desteği)
+
+// Browser Geri / İleri Butonu Yönetimi (Android Donanım Geri Tuşu Desteği)
 window.addEventListener('popstate', (e) => {
+  // 1. Açık bir dialog penceresi varsa (İşlem Ekle, vb.), önce onu kapat ve sayfada kal
+  const openModals = Array.from(document.querySelectorAll('dialog[open]'));
+  if (openModals.length > 0) {
+    isClosingFromPopstate = true;
+    const topModal = openModals[openModals.length - 1];
+    topModal.close();
+    setTimeout(() => {
+      isClosingFromPopstate = false;
+    }, 80);
+    return; // Kullanıcıyı cüzdan ekranında tut, modül değiştirme!
+  }
+
+  // 2. Açık modal yoksa: Kişi detay sayfası veya ana sayfa navigasyonu
   if (e.state && e.state.page === 'member' && e.state.memberId) {
     showMemberPage(e.state.memberId);
-  } else {
+  } else if (e.state && e.state.page === 'home') {
     showHomePage();
   }
 });
 
+// Capacitor Android Donanım Geri Tuşu (Hardware Back Button) Entegrasyonu
+function initCapacitorBackButton() {
+  try {
+    const CapApp = window.Capacitor?.Plugins?.App;
+    if (CapApp && typeof CapApp.addListener === 'function') {
+      CapApp.addListener('backButton', ({ canGoBack }) => {
+        const openModals = Array.from(document.querySelectorAll('dialog[open]'));
+        if (openModals.length > 0) {
+          isClosingFromPopstate = true;
+          const topModal = openModals[openModals.length - 1];
+          topModal.close();
+          setTimeout(() => {
+            isClosingFromPopstate = false;
+          }, 80);
+          return;
+        }
+
+        // Açık modal yoksa ve kişi detay sayfası açıksa ana sayfaya dön
+        if (typeof currentActiveMemberId !== 'undefined' && currentActiveMemberId) {
+          if (typeof showHomePage === 'function') showHomePage();
+          return;
+        }
+
+        // Webview geri gidebiliyorsa geri git, gidemiyorsa uygulamadan çık
+        if (!canGoBack) {
+          CapApp.exitApp();
+        } else {
+          window.history.back();
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Capacitor App backButton listener init error:', err);
+  }
+}
+
 // --- Başlatma (Init) ---
 document.addEventListener('DOMContentLoaded', () => {
+  initCapacitorBackButton();
   loadState();
   renderUI();
 
