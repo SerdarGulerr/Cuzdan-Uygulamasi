@@ -2711,10 +2711,51 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
     </button>
   `;
 
+  const selectedPeriod = periods.find(p => p.key === activeAccountDetailCardPeriodKey) || periods[0];
+  const activePeriodStart = selectedPeriod ? selectedPeriod.startDate : (acc.customPeriodStart || '');
+  const activePeriodEnd = selectedPeriod ? selectedPeriod.endDate : (acc.customPeriodEnd || '');
+  const isReviseOpen = !!detailReviseOpenState[acc.id];
+
   filterBar.innerHTML = `
     <div class="wacc-period-navigator-wrapper">
+      <div class="wacc-period-nav-header">
+        <div class="wacc-period-nav-title">
+          <span>📅 Borç & Ekstre Dönemi</span>
+        </div>
+        <div class="wacc-period-nav-arrows">
+          <button type="button" class="wacc-period-step-btn" onclick="toggleDetailPeriodRevisePanel('${acc.id}')" title="Dönem Başlangıç & Bitiş Aralığını Revize Et">
+            ✏️ ${isReviseOpen ? 'Revizeyi Kapat' : 'Aralığı Revize Et'}
+          </button>
+        </div>
+      </div>
+
       <div class="wacc-period-scroll-track" id="waccPeriodScrollTrack">
         ${chipsHtml}
+      </div>
+
+      <div id="detailPeriodRevisePanel_${acc.id}" class="detail-period-revise-box" style="display: ${isReviseOpen ? 'flex' : 'none'};">
+        <div class="detail-revise-header">
+          <span>✏️ Dönem Başlangıç & Bitiş Tarihini Revize Et</span>
+          <button type="button" class="btn-period-reset-small" onclick="toggleDetailPeriodRevisePanel('${acc.id}')">✕ Kapat</button>
+        </div>
+        <div class="detail-revise-grid">
+          <div>
+            <label class="detail-revise-label">Başlangıç Tarihi</label>
+            <input type="date" id="inputDetailReviseStart_${acc.id}" class="app-input" value="${activePeriodStart}">
+          </div>
+          <div>
+            <label class="detail-revise-label">Bitiş (Kesim) Tarihi</label>
+            <input type="date" id="inputDetailReviseEnd_${acc.id}" class="app-input" value="${activePeriodEnd}">
+          </div>
+        </div>
+        <div class="detail-revise-actions">
+          <button type="button" class="btn-detail-revise-apply" onclick="saveDetailPeriodRevise('${acc.id}')">
+            💾 Karta Kaydet & Borcu Güncelle
+          </button>
+          <button type="button" class="btn-detail-revise-auto" onclick="resetDetailPeriodToAuto('${acc.id}')">
+            🔄 Otomatik Döneme Sıfırla
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -2725,6 +2766,71 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
       activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   }, 40);
+}
+
+let detailReviseOpenState = {};
+
+function toggleDetailPeriodRevisePanel(accId) {
+  detailReviseOpenState[accId] = !detailReviseOpenState[accId];
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const stats = getAccountMovementStats(accId);
+  renderAccountTxFilters(acc, stats, activeAccountDetailFilter);
+}
+
+function saveDetailPeriodRevise(accId) {
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const startInput = document.getElementById(`inputDetailReviseStart_${accId}`);
+  const endInput = document.getElementById(`inputDetailReviseEnd_${accId}`);
+  if (!startInput || !endInput) return;
+
+  const startDate = startInput.value;
+  let endDate = endInput.value;
+  if (!startDate || !endDate) return;
+
+  if (startDate > endDate) {
+    endDate = startDate;
+    endInput.value = startDate;
+  }
+
+  acc.isCustomPeriod = true;
+  acc.customPeriodStart = startDate;
+  acc.customPeriodEnd = endDate;
+
+  // Revize edilen aralığa göre net borcu hesapla ve bakiye olarak güncelle
+  const pData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay, { startDate, endDate });
+  if (pData) {
+    acc.balance = pData.netDebt === 0 ? 0 : -pData.netDebt;
+  }
+
+  saveWalletState();
+  const customKey = `custom_${startDate}_${endDate}`;
+  activeAccountDetailCardPeriodKey = customKey;
+  detailReviseOpenState[accId] = false;
+  openAccountDetailModal(acc.id, 'period:' + customKey);
+  renderAccountsView();
+}
+
+function resetDetailPeriodToAuto(accId) {
+  const acc = walletState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+
+  acc.isCustomPeriod = false;
+  delete acc.customPeriodStart;
+  delete acc.customPeriodEnd;
+
+  // Otomatik borcu hesapla ve bakiye olarak eşitle
+  const pData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay, null, true);
+  if (pData) {
+    acc.balance = pData.netDebt === 0 ? 0 : -pData.netDebt;
+  }
+
+  saveWalletState();
+  activeAccountDetailCardPeriodKey = null;
+  detailReviseOpenState[accId] = false;
+  openAccountDetailModal(acc.id, 'all');
+  renderAccountsView();
 }
 
 function selectCardDetailPeriod(accId, periodKey) {
@@ -3500,7 +3606,109 @@ function onPayCardPeriodSelectChange() {
   updatePayCardPeriodView(cardId);
 }
 
-function updatePayCardPeriodView(cardId) {
+let isPayCardReviseOpen = false;
+
+function togglePayCardPeriodRevise() {
+  const section = document.getElementById('payCardRevisePeriodSection');
+  const btn = document.getElementById('btnTogglePayCardRevise');
+  const cardId = document.getElementById('inputPayCardTargetAccountId')?.value;
+  if (!section) return;
+
+  isPayCardReviseOpen = (section.style.display === 'none');
+  section.style.display = isPayCardReviseOpen ? 'flex' : 'none';
+
+  if (btn) {
+    btn.textContent = isPayCardReviseOpen ? '✕ Revizeyi Kapat' : '✏️ Tarih Aralığını Revize Et';
+  }
+
+  if (isPayCardReviseOpen && cardId) {
+    const cardAcc = walletState.accounts.find(a => a.id === cardId);
+    const selectPeriod = document.getElementById('selectPayCardPeriod');
+    const selectedKey = selectPeriod ? selectPeriod.value : null;
+    const currentPeriod = currentPayCardPeriodsCache.find(p => p.key === selectedKey) ||
+      (cardAcc && cardAcc.isCustomPeriod ? { startDate: cardAcc.customPeriodStart, endDate: cardAcc.customPeriodEnd } : null);
+
+    const startInput = document.getElementById('inputPayCardReviseStart');
+    const endInput = document.getElementById('inputPayCardReviseEnd');
+
+    if (startInput && endInput) {
+      if (currentPeriod && currentPeriod.startDate && currentPeriod.endDate) {
+        startInput.value = currentPeriod.startDate;
+        endInput.value = currentPeriod.endDate;
+      } else {
+        const auto = getCreditCardAutoPeriod(cardId, cardAcc ? cardAcc.billingDay : 15);
+        if (auto) {
+          startInput.value = auto.startDate;
+          endInput.value = auto.endDate;
+        }
+      }
+      onPayCardReviseDateChange();
+    }
+  }
+}
+
+function onPayCardReviseDateChange() {
+  const cardId = document.getElementById('inputPayCardTargetAccountId')?.value;
+  const startInput = document.getElementById('inputPayCardReviseStart');
+  const endInput = document.getElementById('inputPayCardReviseEnd');
+  if (!cardId || !startInput || !endInput) return;
+
+  const startDate = startInput.value;
+  let endDate = endInput.value;
+  if (!startDate || !endDate) return;
+
+  if (startDate > endDate) {
+    endDate = startDate;
+    endInput.value = startDate;
+  }
+
+  const customKey = `custom_${startDate}_${endDate}`;
+  const customPeriod = {
+    key: customKey,
+    startDate,
+    endDate,
+    cutoffDate: endDate,
+    nextCutoffDate: null,
+    rangeText: formatCreditCardPeriodRange(startDate, endDate),
+    label: `✏️ ${formatCreditCardPeriodRange(startDate, endDate)} (Revize)`
+  };
+
+  if (!currentPayCardPeriodsCache.some(p => p.key === customKey)) {
+    currentPayCardPeriodsCache.unshift(customPeriod);
+  }
+
+  const selectPeriod = document.getElementById('selectPayCardPeriod');
+  if (selectPeriod) {
+    let opt = Array.from(selectPeriod.options).find(o => o.value === customKey);
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = customKey;
+      opt.textContent = customPeriod.label;
+      selectPeriod.insertBefore(opt, selectPeriod.firstChild);
+    }
+    selectPeriod.value = customKey;
+  }
+
+  updatePayCardPeriodView(cardId, customPeriod);
+}
+
+function resetPayCardPeriodToAuto() {
+  const cardId = document.getElementById('inputPayCardTargetAccountId')?.value;
+  if (!cardId) return;
+  const cardAcc = walletState.accounts.find(a => a.id === cardId);
+  if (!cardAcc) return;
+
+  const section = document.getElementById('payCardRevisePeriodSection');
+  if (section) section.style.display = 'none';
+  const btn = document.getElementById('btnTogglePayCardRevise');
+  if (btn) btn.textContent = '✏️ Tarih Aralığını Revize Et';
+  isPayCardReviseOpen = false;
+
+  const dateInput = document.getElementById('inputPayCardDate');
+  populatePayCardPeriods(cardAcc, dateInput ? dateInput.value : '', true);
+}
+
+function updatePayCardPeriodView(cardId, overridePeriod = null) {
   const cardAcc = walletState.accounts.find(a => a.id === cardId);
   if (!cardAcc) return;
 
@@ -3508,7 +3716,7 @@ function updatePayCardPeriodView(cardId) {
   const detailContainer = document.getElementById('payCardPeriodDetailCard');
   const selectedKey = selectPeriod ? selectPeriod.value : null;
 
-  const selectedPeriod = currentPayCardPeriodsCache.find(p => p.key === selectedKey);
+  const selectedPeriod = overridePeriod || currentPayCardPeriodsCache.find(p => p.key === selectedKey);
   const stats = getCreditCardPeriodStats(cardId, selectedPeriod);
 
   // 1. Detay Kartını Güncelle
@@ -3681,6 +3889,13 @@ function openPayCreditCardModal(cardId, initialPeriodKey = null) {
     errorEl.textContent = '';
     errorEl.style.display = 'none';
   }
+
+  // Revize alanını sıfırla
+  const reviseSection = document.getElementById('payCardRevisePeriodSection');
+  if (reviseSection) reviseSection.style.display = 'none';
+  const btnRevise = document.getElementById('btnTogglePayCardRevise');
+  if (btnRevise) btnRevise.textContent = '✏️ Tarih Aralığını Revize Et';
+  isPayCardReviseOpen = false;
 
   // Hedef kart bilgilerini yerleştir
   document.getElementById('inputPayCardTargetAccountId').value = cardId;
@@ -3920,6 +4135,21 @@ function handleAccountTypeChange(type) {
     const dayVal = (billingDayInput && billingDayInput.value) ? parseInt(billingDayInput.value) : 15;
     if (billingDayInput && !billingDayInput.value) billingDayInput.value = '15';
     const currentAccId = document.getElementById('inputAccountId').value;
+
+    const isCustomHidden = document.getElementById('inputAccountIsCustomPeriod');
+    if (isCustomHidden) isCustomHidden.value = 'false';
+    const badge = document.getElementById('badgeAccountPeriodMode');
+    if (badge) {
+      badge.className = 'badge-period-mode auto';
+      badge.textContent = '🤖 Otomatik';
+    }
+    const autoInfo = getCreditCardAutoPeriod(currentAccId, dayVal);
+    const startInput = document.getElementById('inputAccountPeriodStart');
+    const endInput = document.getElementById('inputAccountPeriodEnd');
+    if (autoInfo && startInput && endInput) {
+      startInput.value = autoInfo.startDate;
+      endInput.value = autoInfo.endDate;
+    }
     updateCreditCardCutoffPreview(currentAccId, dayVal, true);
   } else {
     if (billingDayGroup) billingDayGroup.style.display = 'none';
@@ -3936,6 +4166,11 @@ function handleAccountFormSubmit(e) {
   const balance = parseFloat(String(document.getElementById('inputAccountBalance').value || '0').replace(',', '.')) || 0;
   const billingDayInput = document.getElementById('inputAccountBillingDay');
   const billingDay = (type === 'credit' && billingDayInput) ? (parseInt(billingDayInput.value) || 15) : null;
+  const isCustomPeriod = (type === 'credit' && document.getElementById('inputAccountIsCustomPeriod')?.value === 'true');
+  const startInput = document.getElementById('inputAccountPeriodStart');
+  const endInput = document.getElementById('inputAccountPeriodEnd');
+  const customPeriodStart = (isCustomPeriod && startInput) ? startInput.value : null;
+  const customPeriodEnd = (isCustomPeriod && endInput) ? endInput.value : null;
 
   if (!name) return;
 
@@ -3948,6 +4183,9 @@ function handleAccountFormSubmit(e) {
       acc.icon = icon;
       acc.balance = balance;
       acc.billingDay = billingDay;
+      acc.isCustomPeriod = isCustomPeriod;
+      acc.customPeriodStart = customPeriodStart;
+      acc.customPeriodEnd = customPeriodEnd;
     }
   } else {
     // Yeni hesap oluştur
@@ -3957,7 +4195,10 @@ function handleAccountFormSubmit(e) {
       type: type,
       icon: icon,
       balance: balance,
-      billingDay: billingDay
+      billingDay: billingDay,
+      isCustomPeriod: isCustomPeriod,
+      customPeriodStart: customPeriodStart,
+      customPeriodEnd: customPeriodEnd
     };
     walletState.accounts.push(newAcc);
   }
