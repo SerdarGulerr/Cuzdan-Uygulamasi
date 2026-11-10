@@ -80,6 +80,9 @@ function getCreditCardNotificationDetails(acc, now = new Date()) {
 
   const billingDay = parseInt(acc.billingDay, 10) || 15;
   const currentD = now.getDate();
+  const pad = n => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const isCustom = !!(acc.isCustomPeriod && acc.customPeriodEnd);
 
   // wallet.js içindeki detaylı dönem borç motorunu çağır
   const periodData = (typeof calculateCreditCardPeriodDebt === 'function')
@@ -91,13 +94,15 @@ function getCreditCardNotificationDetails(acc, now = new Date()) {
   let statusText = '';
   let reason = '';
 
-  if (currentD >= billingDay) {
-    // 1. Durum: Bugün bu ayın hesap kesim gününe ulaştı veya geçti (örn: Ayın 15'i ve sonrası)
+  const isCutoffArrived = isCustom ? (todayStr >= acc.customPeriodEnd) : (currentD >= billingDay);
+
+  if (isCutoffArrived) {
+    // 1. Durum: Bugün bu ayın hesap kesim gününe ulaştı veya geçti (örn: Ayın 15'i ve sonrası veya revize tarih)
     // Kesim gerçekleşti, borç ödenene kadar bildirim aktiftir.
     shouldNotify = true;
     notifDebt = (periodData && periodData.netDebt > 0) ? Math.min(totalDebt, periodData.netDebt) : totalDebt;
-    reason = 'current_cutoff_arrived';
-    const cutoffDateText = (typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null) : `Ayın ${billingDay}'i`;
+    reason = isCustom ? 'custom_cutoff_arrived' : 'current_cutoff_arrived';
+    const cutoffDateText = (typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null) : (isCustom ? acc.customPeriodEnd : `Ayın ${billingDay}'i`);
     statusText = `${cutoffDateText} tarihinde kesildi. Borç ödenene kadar her gün 11:30'da bildirim aktif.`;
   } else {
     // 2. Durum: Bugün henüz bu ayın kesim gününe gelmedi (örn: Bugün ayın 6'sı, kesim 15'i)

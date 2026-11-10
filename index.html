@@ -1252,7 +1252,34 @@
             <input type="number" id="inputAccountBillingDay" min="1" max="31" placeholder="Örn: 15" oninput="handleAccountBillingDayChange()">
             <span class="affix">. Gün</span>
           </div>
-          <small class="form-help-text">Ekstrenin kesildiği ayın gününü girin. Son kesimden bugüne harcamalarınız otomatik toplanıp borç olarak yazılır.</small>
+          <small class="form-help-text">Ekstrenin kesildiği ayın gününü girin. Sistem dönem tarihlerini otomatik hesaplar; isterseniz başlangıç ve bitişi revize edebilirsiniz.</small>
+
+          <!-- Dönem Başlangıç & Bitiş Aralığı Seçici Paneli -->
+          <div class="credit-period-picker-card">
+            <div class="credit-period-picker-header">
+              <span class="credit-period-picker-title">🗓️ Dönem Başlangıç & Bitiş Aralığı</span>
+              <span id="badgeAccountPeriodMode" class="badge-period-mode auto">🤖 Otomatik</span>
+            </div>
+
+            <div class="credit-period-dates-grid">
+              <div class="credit-period-field">
+                <label for="inputAccountPeriodStart" class="credit-period-label">Başlangıç Tarihi</label>
+                <input type="date" id="inputAccountPeriodStart" class="app-input" onchange="handleAccountPeriodDateChange()">
+              </div>
+              <div class="credit-period-field">
+                <label for="inputAccountPeriodEnd" class="credit-period-label">Bitiş (Kesim) Tarihi</label>
+                <input type="date" id="inputAccountPeriodEnd" class="app-input" onchange="handleAccountPeriodDateChange()">
+              </div>
+            </div>
+
+            <div class="credit-period-controls">
+              <button type="button" class="btn-period-reset" id="btnResetAccountPeriod" onclick="resetAccountPeriodToAuto()">
+                🔄 Otomatik Döneme Sıfırla
+              </button>
+              <span class="credit-period-hint">Tarihleri değiştirdiğinizde borç anında yeni aralığa göre güncellenir.</span>
+            </div>
+            <input type="hidden" id="inputAccountIsCustomPeriod" value="false">
+          </div>
 
           <!-- Kesimden bugüne harcama ve borç özeti kartı -->
           <div id="creditCardCutoffSummary" class="credit-cutoff-card" style="display: none;"></div>
@@ -1353,9 +1380,6 @@
             <div class="card-debt-banner-sub" id="payCardBannerSub">Dönem Borcu: 0,00 ₺</div>
           </div>
         </div>
-        <div class="card-debt-banner-badge" id="payCardBannerDebtBadge">
-          Bakiye: 0,00 ₺
-        </div>
       </div>
 
       <form id="formPayCreditCard" onsubmit="handlePayCreditCardSubmit(event)">
@@ -1382,6 +1406,29 @@
               <span id="payCardCutoffHintBadge" class="badge" style="font-size: 0.68rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 6px; border-radius: 6px; font-weight: 700;"></span>
             </div>
             <select id="selectPayCardPeriod" class="app-select" onchange="onPayCardPeriodSelectChange()"></select>
+          </div>
+        </div>
+
+        <div class="pay-card-revise-toggle-row">
+          <button type="button" class="btn-pay-revise-toggle" id="btnTogglePayCardRevise" onclick="togglePayCardPeriodRevise()">
+            ✏️ Tarih Aralığını Revize Et
+          </button>
+        </div>
+
+        <div id="payCardRevisePeriodSection" class="pay-card-revise-section" style="display: none;">
+          <div class="pay-card-revise-header">
+            <span class="pay-card-revise-title">🗓️ Özel Revize Tarih Aralığı</span>
+            <button type="button" class="btn-period-reset-small" onclick="resetPayCardPeriodToAuto()">🔄 Otomatik Dönem</button>
+          </div>
+          <div class="pay-revise-grid">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="inputPayCardReviseStart" class="pay-modal-label">Başlangıç Tarihi</label>
+              <input type="date" id="inputPayCardReviseStart" class="app-input" onchange="onPayCardReviseDateChange()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="inputPayCardReviseEnd" class="pay-modal-label">Bitiş Tarihi</label>
+              <input type="date" id="inputPayCardReviseEnd" class="app-input" onchange="onPayCardReviseDateChange()">
+            </div>
           </div>
         </div>
 
