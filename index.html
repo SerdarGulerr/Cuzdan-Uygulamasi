@@ -11,7 +11,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Aile Finansı</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-512.png">
   <link rel="stylesheet" href="style.css?v=20261108_stickyhdr">
   <link rel="stylesheet" href="wallet.css?v=20261108_periodview">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,8 +26,10 @@
   <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
   <aside id="navDrawer" class="nav-drawer">
     <div class="drawer-header">
-      <div class="drawer-brand" style="display: flex; align-items: center; gap: 10px;">
-        <div style="font-size: 1.6rem;">📱</div>
+      <div class="drawer-brand" style="display: flex; align-items: center; gap: 12px;">
+        <div class="logo-box" style="width: 38px; height: 38px;">
+          <img src="icon.png" alt="Aile Finansı Logo" class="logo-img">
+        </div>
         <div>
           <h3 style="font-size: 1rem; font-weight: 800; color: #fff;">Aile Finansı</h3>
           <p style="font-size: 0.72rem; color: var(--text-dim);">Uygulama Modülleri</p>
@@ -95,7 +100,7 @@
             </button>
             <div class="brand">
               <div class="logo-box">
-                <img src="icon.svg" alt="Logo" class="logo-img">
+                <img src="icon.png" alt="Aile Finansı Logo" class="logo-img">
               </div>
               <div>
                 <h1>Yatırım</h1>

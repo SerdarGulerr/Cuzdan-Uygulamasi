@@ -4842,7 +4842,9 @@ function updatePayCardSourceCustomCard(accId) {
 
 function openAddAccountFromPicker() {
   closeModal('modalCustomAccountPicker');
-  openAddAccountModal();
+  setTimeout(() => {
+    openAddAccountModal();
+  }, 60);
 }
 
 function updateCustomAccountPickersDisplay() {

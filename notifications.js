@@ -354,8 +354,8 @@ function checkAndTriggerWebNotificationsIfDue(scheduledList, targetHour, targetM
 function displayBrowserNotification(title, body, options = {}) {
   const defaultOpts = {
     body: body,
-    icon: 'icon.svg',
-    badge: 'icon.svg',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
     vibrate: [200, 100, 200],
     requireInteraction: true,
     ...options

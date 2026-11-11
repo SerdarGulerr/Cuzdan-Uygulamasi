@@ -1,5 +1,5 @@
 // %100 Çevrimdışı (Offline-First) Service Worker
-const CACHE_NAME = 'aile-finansi-offline-v46';
+const CACHE_NAME = 'aile-finansi-offline-v47';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,6 +10,9 @@ const ASSETS_TO_CACHE = [
   './app.js',
   './wallet.js',
   './notifications.js',
+  './icon.png',
+  './icon-192.png',
+  './icon-512.png',
   './icon.svg',
   './manifest.json'
 ];

@@ -848,6 +848,8 @@ async function clearCookiesAndSiteData() {
 
 // Modal Kontrolleri & Android Geri Tuşu History Entegrasyonu
 let isClosingFromPopstate = false;
+let suppressPopstateModalCloseCount = 0;
+let suppressPopstateResetTimer = null;
 
 // HTMLDialogElement showModal sarmalayıcısı: Açılan tüm modal dialoglar için geçmişe kayıt ekler
 if (typeof HTMLDialogElement !== 'undefined' && HTMLDialogElement.prototype.showModal) {
@@ -866,6 +868,11 @@ if (typeof HTMLDialogElement !== 'undefined' && HTMLDialogElement.prototype.show
 document.addEventListener('close', (e) => {
   if (e.target && e.target.nodeName === 'DIALOG') {
     if (!isClosingFromPopstate && window.history.state && window.history.state.isModal) {
+      suppressPopstateModalCloseCount++;
+      if (suppressPopstateResetTimer) clearTimeout(suppressPopstateResetTimer);
+      suppressPopstateResetTimer = setTimeout(() => {
+        suppressPopstateModalCloseCount = 0;
+      }, 500);
       window.history.back();
     }
   }
@@ -1295,6 +1302,13 @@ window.addEventListener('resize', () => {
 
 // Browser Geri / İleri Butonu Yönetimi (Android Donanım Geri Tuşu Desteği)
 window.addEventListener('popstate', (e) => {
+  // Eğer bu popstate bir modalın kod/seçim/buton ile zaten kapatılması (close event -> history.back) sonucu tetiklendiyse,
+  // alttaki ana modalı (ör. işlem modalı) yanlışlıkla kapatma ve sayfada kal
+  if (suppressPopstateModalCloseCount > 0) {
+    suppressPopstateModalCloseCount--;
+    return;
+  }
+
   // 1. Açık bir dialog penceresi varsa (İşlem Ekle, vb.), önce onu kapat ve sayfada kal
   const openModals = Array.from(document.querySelectorAll('dialog[open]'));
   if (openModals.length > 0) {
@@ -1323,6 +1337,12 @@ function initCapacitorBackButton() {
       CapApp.addListener('backButton', ({ canGoBack }) => {
         const openModals = Array.from(document.querySelectorAll('dialog[open]'));
         if (openModals.length > 0) {
+          // Eğer geçmişte modal kaydı varsa doğrudan window.history.back() çağır;
+          // böylece popstate tetiklenir ve en üstteki modal kapatılırken geçmiş de senkron kalır
+          if (window.history.state && window.history.state.isModal) {
+            window.history.back();
+            return;
+          }
           isClosingFromPopstate = true;
           const topModal = openModals[openModals.length - 1];
           topModal.close();

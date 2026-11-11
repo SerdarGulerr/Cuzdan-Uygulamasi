@@ -43,7 +43,7 @@ jobs:
       - name: Web dosyalarını hazırla ve Capacitor kur
         run: |
           mkdir -p dist
-          cp index.html style.css wallet.css app.js wallet.js excel-sync.js xlsx.full.min.js icon.svg manifest.json sw.js notifications.js dist/
+          cp index.html style.css wallet.css app.js wallet.js excel-sync.js xlsx.full.min.js icon.svg icon.png icon-192.png icon-512.png manifest.json sw.js notifications.js dist/
           echo "window.APP_VERSION=${{ github.run_number }};window.APP_REPO='${{ github.repository }}';" > dist/version.js
           cat > capacitor.config.json << 'EOF'
           {
@@ -106,9 +106,13 @@ jobs:
       - name: Uygulama ikonunu oluştur
         continue-on-error: true
         run: |
-          sudo apt-get install -y librsvg2-bin
           mkdir -p assets
-          rsvg-convert -w 1024 -h 1024 icon.svg -o assets/icon.png
+          if [ -f "icon.png" ]; then
+            cp icon.png assets/icon.png
+          else
+            sudo apt-get install -y librsvg2-bin
+            rsvg-convert -w 1024 -h 1024 icon.svg -o assets/icon.png
+          fi
           cp assets/icon.png assets/icon-foreground.png
           npx --yes @capacitor/assets generate --android --iconBackgroundColor '#0f172a'
 

@@ -15,7 +15,7 @@ Bu kurallar projede çalışan tüm yapay zeka asistanları (Gemini, Claude vb.)
 
 ### 2. 📦 APK Derleme Paket Bütünlüğü (.github/workflows/build-apk.yml)
 - Web dosyaları `dist/` klasörüne kopyalanırken tüm bağımlılıklar eksiksiz dahil edilmelidir:
-  `index.html`, `style.css`, `wallet.css`, `app.js`, `wallet.js`, `notifications.js`, `excel-sync.js`, `xlsx.full.min.js`, `icon.svg`, `manifest.json`, `sw.js`.
+  `index.html`, `style.css`, `wallet.css`, `app.js`, `wallet.js`, `notifications.js`, `excel-sync.js`, `xlsx.full.min.js`, `icon.svg`, `icon.png`, `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`.
 - Projeye yeni bir JS veya kütüphane eklendiğinde `build-apk.yml` dosyasındaki kopyalama komutu da güncellenmelidir.
 
 ---
