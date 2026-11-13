@@ -272,6 +272,52 @@
   font-weight: 600;
 }
 
+.month-today-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 24px;
+}
+
+.month-today-chip.is-current {
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.month-today-chip.is-current:hover {
+  background: rgba(16, 185, 129, 0.35);
+}
+
+.month-today-chip.is-current:active {
+  background: #10b981;
+  color: #ffffff;
+  transform: scale(0.95);
+}
+
+.month-today-chip.is-jump {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.month-today-chip.is-jump:hover {
+  background: rgba(245, 158, 11, 0.35);
+}
+
+.month-today-chip.is-jump:active {
+  background: #f59e0b;
+  color: #0f172a;
+  transform: scale(0.95);
+}
+
 /* Summary Card (Samsung AMOLED 3'lü Özet Kartı) */
 .wallet-summary-card {
   background: linear-gradient(145deg, #0e172a 0%, #080e1b 100%);
@@ -400,6 +446,101 @@
   content-visibility: auto;
   contain-intrinsic-size: 0 120px;
   transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+/* Bugün Grubu Vurgusu (Samsung Galaxy Note 10+ AMOLED Odaklı) */
+.daily-group.daily-group-today {
+  content-visibility: visible !important;
+  border: 1px solid rgba(16, 185, 129, 0.55) !important;
+  box-shadow: 0 8px 26px rgba(16, 185, 129, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.daily-group.daily-group-today .daily-group-header {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.18) 0%, rgba(20, 31, 54, 0.75) 100%);
+  border-bottom-color: rgba(16, 185, 129, 0.28);
+}
+
+.daily-today-badge {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-left: 6px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.45);
+  vertical-align: middle;
+}
+
+.daily-today-empty-tag {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.daily-empty-today-row {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.5);
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.btn-today-quick-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 42px;
+  white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.35);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-today-quick-add:active {
+  transform: scale(0.96);
+  box-shadow: 0 1px 6px rgba(16, 185, 129, 0.5);
+}
+
+.pulse-today-highlight {
+  animation: pulseTodayHighlight 1.8s ease;
+}
+
+@keyframes pulseTodayHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8);
+    border-color: #10b981;
+  }
+  50% {
+    box-shadow: 0 0 26px 6px rgba(16, 185, 129, 0.45);
+    border-color: #34d399;
+  }
+  100% {
+    box-shadow: 0 8px 26px rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.55);
+  }
+}
+
+.account-tx-today {
+  border-left: 3px solid #10b981 !important;
+  background: rgba(16, 185, 129, 0.05);
 }
 
 .daily-group-header {

@@ -16,7 +16,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="apple-touch-icon" href="icon-512.png">
   <link rel="stylesheet" href="style.css?v=20261108_stickyhdr">
-  <link rel="stylesheet" href="wallet.css?v=20261108_periodview">
+  <link rel="stylesheet" href="wallet.css?v=20261113_todayview">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -343,9 +343,12 @@
         <button type="button" class="month-nav-btn" onclick="changeWalletMonth(-1)" title="Önceki Ay">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </button>
-        <div class="current-month-display">
-          <span class="current-month-title" id="currentWalletMonthTitle">Ekim 2026</span>
-          <span class="current-month-sub">Aylık Bütçe Dönemi</span>
+        <div class="current-month-display" id="walletMonthDisplayBox" onclick="jumpToWalletToday()" style="cursor: pointer;" title="Bugüne Git">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;">
+            <span class="current-month-title" id="currentWalletMonthTitle">Ekim 2026</span>
+            <span class="month-today-chip" id="walletMonthTodayChip" style="display: none;">Bugün</span>
+          </div>
+          <span class="current-month-sub" id="walletMonthSubTitle">Aylık Bütçe Dönemi</span>
         </div>
         <button type="button" class="month-nav-btn" onclick="changeWalletMonth(1)" title="Sonraki Ay">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1594,7 +1597,7 @@
   <script src="excel-sync.js?v=20261031_v22"></script>
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
   <script src="app.js?v=20261031_v22"></script>
-  <script src="wallet.js?v=20261108_periodview"></script>
+  <script src="wallet.js?v=20261113_todayview"></script>
   <script src="notifications.js?v=20261106_v1"></script>
 </body>
 </html>

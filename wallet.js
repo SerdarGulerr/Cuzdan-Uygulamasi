@@ -43,6 +43,11 @@ let currentCategoryMgrType = 'expense'; // 'expense' | 'income'
 let editingWalletTxId = null; // Aktif düzenlenen işlemin ID'si
 
 // --- Yardımcı Tarih ve Para Formatlama ---
+function getTodayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function formatWalletTL(amount) {
   if (isNaN(amount)) return '0,00\u00A0₺';
   return new Intl.NumberFormat('tr-TR', {
@@ -200,7 +205,9 @@ function switchMainModule(modName) {
     if (typeof renderUI === 'function') renderUI();
   }
   closeDrawer();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (modName !== 'wallet') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function openDrawer() {
@@ -221,6 +228,25 @@ function closeDrawer() {
 function changeWalletMonth(offset) {
   currentWalletDate.setMonth(currentWalletDate.getMonth() + offset);
   renderWalletUI();
+  const now = new Date();
+  const isCurrentMonth = (now.getFullYear() === currentWalletDate.getFullYear() && now.getMonth() === currentWalletDate.getMonth());
+  if (isCurrentMonth && activeWalletSubView === 'daily') {
+    scrollDailyViewToToday(true);
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+// --- Doğrudan Bugüne Git / Odaklan ---
+function jumpToWalletToday() {
+  const now = new Date();
+  currentWalletDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (activeWalletSubView !== 'daily') {
+    switchWalletSubView('daily');
+  } else {
+    renderWalletUI();
+    scrollDailyViewToToday(true);
+  }
 }
 
 // --- Cüzdan Alt Sekme Değiştirme (Günlük / Takvim / Analiz / Hesaplar) ---
@@ -235,6 +261,11 @@ function switchWalletSubView(subView) {
   if (activeView) activeView.classList.add('active');
 
   renderWalletUI();
+  if (subView === 'daily') {
+    scrollDailyViewToToday(true);
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 // --- Hesaplama & Filtreleme Motoru ---
@@ -271,10 +302,28 @@ function renderWalletUI() {
   if (!walletState) loadWalletState();
   const data = getFilteredWalletData();
 
-  // 1. Ay Başlığı
+  // 1. Ay Başlığı ve Bugün Çipi
   const monthTitle = document.getElementById('currentWalletMonthTitle');
+  const todayChip = document.getElementById('walletMonthTodayChip');
+  const now = new Date();
+  const isCurrentMonth = (now.getFullYear() === data.year && now.getMonth() === data.month);
+
   if (monthTitle) {
     monthTitle.innerText = `${getMonthNameTR(data.month)} ${data.year}`;
+  }
+
+  if (todayChip) {
+    if (isCurrentMonth) {
+      todayChip.style.display = 'inline-flex';
+      todayChip.className = 'month-today-chip is-current';
+      todayChip.textContent = 'Bugün';
+      todayChip.title = 'Bugünkü hareketlere git';
+    } else {
+      todayChip.style.display = 'inline-flex';
+      todayChip.className = 'month-today-chip is-jump';
+      todayChip.textContent = '📅 Bugüne Git';
+      todayChip.title = 'Mevcut aya ve bugüne dön';
+    }
   }
 
   // 2. Özet Kartı (Gelir / Gider / Net Kalan)
@@ -307,7 +356,35 @@ function renderDailyView(txs) {
   const container = document.getElementById('subView_daily');
   if (!container) return;
 
+  const now = new Date();
+  const isCurrentMonth = (now.getFullYear() === currentWalletDate.getFullYear() && now.getMonth() === currentWalletDate.getMonth());
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
   if (txs.length === 0) {
+    if (isCurrentMonth) {
+      container.innerHTML = `
+        <div class="daily-group daily-group-today" id="dailyGroup_today">
+          <div class="daily-group-header">
+            <div class="daily-date-info">
+              <span class="daily-day-num">${now.getDate()}</span>
+              <span class="daily-date-str">${new Intl.DateTimeFormat('tr-TR', { weekday: 'long', month: 'short' }).format(now)} <span class="daily-today-badge">Bugün</span></span>
+            </div>
+            <div class="daily-group-totals">
+              <span class="daily-today-empty-tag">İşlem yok</span>
+            </div>
+          </div>
+          <div class="daily-tx-list">
+            <div class="daily-empty-today-row">
+              <span>✨ Bu ay ve bugün henüz bir işlem kaydedilmedi.</span>
+              <button type="button" class="btn-today-quick-add" onclick="openAddWalletTxModal(null, '${todayStr}')">+ İlk İşlemi Ekle</button>
+            </div>
+          </div>
+        </div>
+      `;
+      scrollDailyViewToToday(false);
+      return;
+    }
+
     container.innerHTML = `
       <div class="info-card" style="text-align: center; justify-content: center;">
         <div class="info-text">
@@ -326,14 +403,20 @@ function renderDailyView(txs) {
     grouped[t.date].push(t);
   });
 
+  // Eğer mevcut aydaysak, listede bugünün tarihi mutlaka yer alsın (işlem olmasa dahi görünüm buradan başlasın)
+  if (isCurrentMonth && !grouped[todayStr]) {
+    grouped[todayStr] = [];
+  }
+
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
   let html = '';
 
   sortedDates.forEach(dStr => {
     const dayTxs = grouped[dStr];
+    const isToday = (dStr === todayStr && isCurrentMonth);
     const parts = dStr.split('-');
-    const dayNum = parseInt(parts[2]);
-    const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayNum = parseInt(parts[2], 10);
+    const dObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, dayNum);
     const dayName = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', month: 'short' }).format(dObj);
 
     let dayInc = 0;
@@ -344,99 +427,112 @@ function renderDailyView(txs) {
     });
 
     html += `
-      <div class="daily-group">
+      <div class="daily-group ${isToday ? 'daily-group-today' : ''}" ${isToday ? 'id="dailyGroup_today"' : `id="dailyGroup_${dStr}"`}>
         <div class="daily-group-header">
           <div class="daily-date-info">
             <span class="daily-day-num">${dayNum}</span>
-            <span class="daily-date-str">${dayName}</span>
+            <span class="daily-date-str">${dayName} ${isToday ? '<span class="daily-today-badge">Bugün</span>' : ''}</span>
           </div>
           <div class="daily-group-totals">
-            ${dayInc !== 0 ? `<span class="sum-income">${dayInc > 0 ? '+' : ''}${formatWalletTL(dayInc)}</span>` : ''}
-            ${dayExp !== 0 ? `<span class="sum-expense">${dayExp > 0 ? '-' : '+'}${formatWalletTL(Math.abs(dayExp))}</span>` : ''}
+            ${dayTxs.length > 0 ? `
+              ${dayInc !== 0 ? `<span class="sum-income">${dayInc > 0 ? '+' : ''}${formatWalletTL(dayInc)}</span>` : ''}
+              ${dayExp !== 0 ? `<span class="sum-expense">${dayExp > 0 ? '-' : '+'}${formatWalletTL(Math.abs(dayExp))}</span>` : ''}
+            ` : `
+              <span class="daily-today-empty-tag">Henüz işlem yok</span>
+            `}
           </div>
         </div>
         <div class="daily-tx-list">
     `;
 
-    dayTxs.forEach(t => {
-      let icon = '💵';
-      let catName = 'İşlem';
-      let accName = 'Hesap';
-
-      if (t.type === 'transfer') {
-        icon = '🔄';
-        catName = 'Hesaplar Arası Transfer';
-        const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
-        const toAcc = walletState.accounts.find(a => a.id === t.toAccountId);
-        accName = `${fromAcc ? fromAcc.name : 'Hesap'} ➔ ${toAcc ? toAcc.name : 'Hesap'}`;
-      } else {
-        const catList = t.type === 'expense' ? walletState.categories.expense : walletState.categories.income;
-        const cat = catList.find(c => c.id === t.categoryId);
-        if (cat) {
-          icon = cat.icon;
-          catName = cat.name;
-        }
-        const acc = walletState.accounts.find(a => a.id === t.fromAccountId);
-        accName = acc ? acc.name : '';
-      }
-
-      let sign = '';
-      let cls = 'transfer';
-      const isNegative = t.amount < 0;
-      const absAmount = Math.abs(t.amount);
-
-      if (t.type === 'transfer') {
-        sign = isNegative ? '-' : '';
-        cls = 'transfer';
-      } else if (t.type === 'income') {
-        sign = !isNegative ? '+' : '-';
-        cls = !isNegative ? 'income' : 'expense';
-      } else if (t.type === 'expense') {
-        sign = !isNegative ? '-' : '+';
-        cls = !isNegative ? 'expense' : 'income';
-      }
-      const refundBadge = (t.type === 'expense' && isNegative) ? '<span class="tx-refund-badge">İade</span>' : '';
-
+    if (dayTxs.length === 0) {
       html += `
-        <div class="wallet-tx-row">
-          <div class="wallet-tx-left">
-            <div class="tx-cat-icon">${icon}</div>
-            <div class="tx-desc-box">
-              <span class="tx-cat-name">${catName} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
-              <span class="tx-account-name">${accName}</span>
-            </div>
-          </div>
-          <div class="wallet-tx-right">
-            <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(absAmount)}</span>
-            <div class="wallet-tx-actions">
-              ${t.type !== 'transfer' ? `
-              <button type="button" class="btn-tx-action btn-tx-stats" onclick="inspectCategoryTrend('${t.categoryId}', '${(t.subCategory || '').replace(/'/g, "\\'")}', '${t.type}')" title="Bu Kalemin Trendini & Geçmişini İncele" aria-label="Analiz">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"></line>
-                  <line x1="12" y1="20" x2="12" y2="4"></line>
-                  <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-              </button>
-              ` : ''}
-              <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi Düzenle" aria-label="Düzenle">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-              </button>
-              <button type="button" class="btn-tx-action btn-tx-delete" onclick="deleteWalletTx('${t.id}')" title="İşlemi Sil" aria-label="Sil">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  <line x1="10" y1="11" x2="10" y2="17"></line>
-                  <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
+        <div class="daily-empty-today-row">
+          <span>✨ Bugün henüz bir işlem hareketi kaydedilmedi.</span>
+          <button type="button" class="btn-today-quick-add" onclick="openAddWalletTxModal(null, '${dStr}')">+ İşlem Ekle</button>
         </div>
       `;
-    });
+    } else {
+      dayTxs.forEach(t => {
+        let icon = '💵';
+        let catName = 'İşlem';
+        let accName = 'Hesap';
+
+        if (t.type === 'transfer') {
+          icon = '🔄';
+          catName = 'Hesaplar Arası Transfer';
+          const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
+          const toAcc = walletState.accounts.find(a => a.id === t.toAccountId);
+          accName = `${fromAcc ? fromAcc.name : 'Hesap'} ➔ ${toAcc ? toAcc.name : 'Hesap'}`;
+        } else {
+          const catList = t.type === 'expense' ? walletState.categories.expense : walletState.categories.income;
+          const cat = catList.find(c => c.id === t.categoryId);
+          if (cat) {
+            icon = cat.icon;
+            catName = cat.name;
+          }
+          const acc = walletState.accounts.find(a => a.id === t.fromAccountId);
+          accName = acc ? acc.name : '';
+        }
+
+        let sign = '';
+        let cls = 'transfer';
+        const isNegative = t.amount < 0;
+        const absAmount = Math.abs(t.amount);
+
+        if (t.type === 'transfer') {
+          sign = isNegative ? '-' : '';
+          cls = 'transfer';
+        } else if (t.type === 'income') {
+          sign = !isNegative ? '+' : '-';
+          cls = !isNegative ? 'income' : 'expense';
+        } else if (t.type === 'expense') {
+          sign = !isNegative ? '-' : '+';
+          cls = !isNegative ? 'expense' : 'income';
+        }
+        const refundBadge = (t.type === 'expense' && isNegative) ? '<span class="tx-refund-badge">İade</span>' : '';
+
+        html += `
+          <div class="wallet-tx-row">
+            <div class="wallet-tx-left">
+              <div class="tx-cat-icon">${icon}</div>
+              <div class="tx-desc-box">
+                <span class="tx-cat-name">${catName} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
+                <span class="tx-account-name">${accName}</span>
+              </div>
+            </div>
+            <div class="wallet-tx-right">
+              <span class="wallet-tx-amount ${cls}">${sign}${formatWalletTL(absAmount)}</span>
+              <div class="wallet-tx-actions">
+                ${t.type !== 'transfer' ? `
+                <button type="button" class="btn-tx-action btn-tx-stats" onclick="inspectCategoryTrend('${t.categoryId}', '${(t.subCategory || '').replace(/'/g, "\\'")}', '${t.type}')" title="Bu Kalemin Trendini & Geçmişini İncele" aria-label="Analiz">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                  </svg>
+                </button>
+                ` : ''}
+                <button type="button" class="btn-tx-action btn-tx-edit" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi Düzenle" aria-label="Düzenle">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button type="button" class="btn-tx-action btn-tx-delete" onclick="deleteWalletTx('${t.id}')" title="İşlemi Sil" aria-label="Sil">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
 
     html += `
         </div>
@@ -445,6 +541,52 @@ function renderDailyView(txs) {
   });
 
   container.innerHTML = html;
+
+  if (isCurrentMonth) {
+    scrollDailyViewToToday(false);
+  }
+}
+
+// --- Cüzdan Günlük Görünümünde Sayfayı Bugünün Tarihinden Başlat ---
+function scrollDailyViewToToday(smooth = false, forceScroll = false) {
+  if (activeWalletSubView !== 'daily') return;
+  const now = new Date();
+  const isCurrentMonth = (now.getFullYear() === currentWalletDate.getFullYear() && now.getMonth() === currentWalletDate.getMonth());
+  if (!isCurrentMonth) return;
+
+  setTimeout(() => {
+    const todayEl = document.getElementById('dailyGroup_today');
+    if (!todayEl) return;
+
+    const header = document.querySelector('.wallet-header');
+    const headerHeight = header ? header.offsetHeight : 68;
+    const rect = todayEl.getBoundingClientRect();
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+    // Hedef: todayEl sticky header'ın hemen 10px altında yer alacak şekilde başlasın
+    const targetY = currentScrollY + rect.top - headerHeight - 10;
+
+    // Listede bugünün üzerinde gelecek bir tarih veya işlem var mı denetle
+    const dailyContainer = document.getElementById('subView_daily');
+    const firstGroup = dailyContainer ? dailyContainer.querySelector('.daily-group') : null;
+    const hasItemsAboveToday = (firstGroup && firstGroup !== todayEl);
+
+    // Eğer yukarıda gelecek tarihler varsa veya doğrudan bugüne git istendiyse sayfayı bugünden başlat
+    if (hasItemsAboveToday || forceScroll) {
+      window.scrollTo({
+        top: Math.max(0, targetY),
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+    }
+
+    // Samsung Galaxy Note 10+ AMOLED ekranında odaklanmayı belirginleştiren yeşil nabız efekti
+    todayEl.classList.remove('pulse-today-highlight');
+    void todayEl.offsetWidth;
+    todayEl.classList.add('pulse-today-highlight');
+    setTimeout(() => {
+      if (todayEl) todayEl.classList.remove('pulse-today-highlight');
+    }, 1800);
+  }, 40);
 }
 
 // 2. TAKVİM GÖRÜNÜMÜ (CALENDAR)
@@ -3147,12 +3289,14 @@ function renderPeriodTransactionItems(acc, txList) {
   const expCats = (walletState.categories && walletState.categories.expense) || [];
   const incCats = (walletState.categories && walletState.categories.income) || [];
   const allCats = [...expCats, ...incCats];
+  const todayStr = getTodayDateStr();
 
   let html = '';
   txList.forEach(t => {
     let icon = '💳';
     let catTitle = 'Harcama';
     let isOutflow = false;
+    const isToday = (t.date === todayStr);
 
     if (t.type === 'transfer') {
       const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
@@ -3183,13 +3327,13 @@ function renderPeriodTransactionItems(acc, txList) {
     const refundBadge = (t.type === 'expense' && t.amount < 0) ? '<span class="tx-refund-badge">İade</span>' : '';
 
     html += `
-      <div class="account-tx-card">
+      <div class="account-tx-card ${isToday ? 'account-tx-today' : ''}">
         <div class="account-tx-left">
           <div class="account-tx-icon">${icon}</div>
           <div class="account-tx-info">
             <span class="account-tx-title">${catTitle} ${refundBadge}</span>
             <div class="account-tx-sub">
-              <span>📅 ${formatTurkishDate(t.date)}</span>
+              <span>📅 ${formatTurkishDate(t.date)} ${isToday ? '<span class="daily-today-badge" style="font-size:0.65rem; padding: 1px 6px;">Bugün</span>' : ''}</span>
               ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
               ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''}
               ${t.note ? `<span style="color:var(--text-muted);">(${t.note})</span>` : ''}
@@ -3940,7 +4084,7 @@ function openPayCreditCardModal(cardId, initialPeriodKey = null) {
 
   // Ödeme tarihi bugüne ayarlansın
   const dateInput = document.getElementById('inputPayCardDate');
-  const todayVal = new Date().toISOString().split('T')[0];
+  const todayVal = getTodayDateStr();
   if (dateInput) {
     dateInput.value = todayVal;
   }
@@ -4031,7 +4175,7 @@ function handlePayCreditCardSubmit(e) {
     return;
   }
 
-  const dateVal = dateInput.value || new Date().toISOString().split('T')[0];
+  const dateVal = dateInput.value || getTodayDateStr();
   const selectedPeriodKey = selectPeriod ? selectPeriod.value : '';
   const selectedPeriodObj = currentPayCardPeriodsCache.find(p => p.key === selectedPeriodKey);
   const defaultNote = selectedPeriodObj 
@@ -4239,7 +4383,7 @@ function openAddAccountPrompt() {
 // --- Taksit Hesaplama & Tarih Yardımcıları ---
 function getInstallmentDates(baseDateStr, count) {
   const dates = [];
-  const parts = (baseDateStr || new Date().toISOString().split('T')[0]).split('-').map(Number);
+  const parts = (baseDateStr || getTodayDateStr()).split('-').map(Number);
   const y = parts[0];
   const m = parts[1];
   const d = parts[2] || 1;
@@ -4318,7 +4462,7 @@ function updateInstallmentCalculation() {
   if (lblMonthly) lblMonthly.textContent = formatWalletTL(monthlyAmount);
   if (lblTotal) lblTotal.textContent = formatWalletTL(totalAmount);
 
-  const baseDateStr = dateInput?.value || new Date().toISOString().split('T')[0];
+  const baseDateStr = dateInput?.value || getTodayDateStr();
   const dates = getInstallmentDates(baseDateStr, count);
   const lastDateStr = dates[dates.length - 1];
   if (lblEnd && lastDateStr) {
@@ -4398,7 +4542,7 @@ function openAddWalletTxModal(defaultAccountId = null, defaultDate = null) {
   selectedSubCategoryId = '';
   const dateInput = document.getElementById('inputWalletTxDate');
   if (dateInput) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateStr();
     dateInput.value = defaultDate || today;
   }
   const amountInput = document.getElementById('inputWalletAmount');
