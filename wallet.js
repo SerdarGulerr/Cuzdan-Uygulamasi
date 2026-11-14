@@ -2007,11 +2007,12 @@ function getCreditCardCutoffDateDisplay(accOrBillingDay, preferredDateStr) {
 
   let targetY = y;
   let targetM = m;
-  if (d > billingDay) {
-    targetM++;
-    if (targetM > 11) {
-      targetM = 0;
-      targetY++;
+  // Hesap kesimi gerçekleşen son tarihi bul (içinde bulunulan henüz gerçekleşmeyen değil)
+  if (d < billingDay) {
+    targetM--;
+    if (targetM < 0) {
+      targetM = 11;
+      targetY--;
     }
   }
   const maxDays = new Date(targetY, targetM + 1, 0).getDate();
@@ -2072,10 +2073,10 @@ function getCreditCardCutoffInfo(billingDay) {
 
   let prevCutoff, currCutoff, olderCutoff;
 
-  if (currentD <= day) {
-    // Bugün kesim gününden küçük veya eşit: Örn. 6 Kasım, Kesim 15'i
-    // Aktif dönem: 16 Ekim - 15 Kasım
-    // Önceki dönem: 16 Eylül - 15 Ekim
+  if (currentD < day) {
+    // Bugün kesim gününden önce: Örn. 14 Kasım, Kesim 15'i
+    // Kesilen ekstre dönemi: 16 Eylül - 15 Ekim
+    // Henüz kesilmemiş açık dönem: 16 Ekim - 15 Kasım
     let yOld = currentY, mOld = currentM - 2;
     if (mOld < 0) { mOld += 12; yOld--; }
     olderCutoff = getCutoffDateObj(yOld, mOld);
@@ -2086,9 +2087,9 @@ function getCreditCardCutoffInfo(billingDay) {
 
     currCutoff = getCutoffDateObj(currentY, currentM);
   } else {
-    // Bugün kesim gününü geçmiş: Örn. 20 Kasım, Kesim 15'i
-    // Yeni kesilen dönem: 16 Ekim - 15 Kasım (Son ödeme tarihi yaklaşan ekstre)
-    // Yeni başlayan aktif dönem: 16 Kasım - 15 Aralık
+    // Bugün kesim günü veya geçmiş: Örn. 15 veya 20 Kasım, Kesim 15'i
+    // Kesilen ekstre dönemi: 16 Ekim - 15 Kasım
+    // Henüz kesilmemiş açık dönem: 16 Kasım - 15 Aralık
     let yOld = currentY, mOld = currentM - 1;
     if (mOld < 0) { mOld += 12; yOld--; }
     olderCutoff = getCutoffDateObj(yOld, mOld);
@@ -2213,16 +2214,12 @@ function calculateCreditCardPeriodDebt(accId, billingDay, customRange = null, fo
       isCustom: true
     };
   } else {
-    // Aktif dönem seçimi (Otomatik)
-    if (info.currentD > info.billingDay && statsA.net > 0) {
-      activeStats = statsA;
-      activePeriod = info.periodA;
-      activePeriod.label = 'Son Kesilen Ekstre';
-    } else {
-      activeStats = statsB;
-      activePeriod = info.periodB;
-      activePeriod.label = 'Güncel Dönem';
-    }
+    // Kullanıcı Kuralı:
+    // Dönem borcu olarak sadece hesap kesimi gerçekleşen tarihin borcunu göster;
+    // içinde bulunulan ve hesap kesimi henüz gerçekleşmeyen tarihi gösterme!
+    activeStats = statsA;
+    activePeriod = info.periodA;
+    activePeriod.label = 'Kesilen Ekstre';
   }
 
   let netDebt = activeStats.net;
@@ -2257,8 +2254,8 @@ function getCreditCardAutoPeriod(accId, billingDay) {
     return { startDate: res.startDate, endDate: res.endDate };
   }
   const info = getCreditCardCutoffInfo(billingDay || 15);
-  if (info && info.periodB) {
-    return { startDate: info.periodB.startDate, endDate: info.periodB.endDate };
+  if (info && info.periodA) {
+    return { startDate: info.periodA.startDate, endDate: info.periodA.endDate };
   }
   return null;
 }
@@ -2676,17 +2673,10 @@ function openAccountDetailModal(accId, filterType = 'all') {
       activeAccountDetailFilter = 'all';
     } else {
       activeAccountDetailFilter = filterType;
-      // Seçili dönem yoksa veya geçersizse akıllı varsayılan belirle
+      // Seçili dönem yoksa veya geçersizse hesap kesimi gerçekleşen ekstre dönemini varsayılan belirle
       if (!activeAccountDetailCardPeriodKey || (activeAccountDetailCardPeriodKey !== '__all__' && !periods.some(p => p.key === activeAccountDetailCardPeriodKey))) {
         const defaultPeriod = periods.find(p => p.key === periodData.defaultSelectedKey);
-        const defaultStats = defaultPeriod ? getCreditCardPeriodStats(acc.id, defaultPeriod) : null;
-        const currentPeriod = periods.find(p => p.isCurrentCycle);
-
-        if (defaultStats && defaultStats.remaining > 0) {
-          activeAccountDetailCardPeriodKey = defaultPeriod.key;
-        } else if (currentPeriod) {
-          activeAccountDetailCardPeriodKey = currentPeriod.key;
-        } else if (defaultPeriod) {
+        if (defaultPeriod) {
           activeAccountDetailCardPeriodKey = defaultPeriod.key;
         } else if (periods.length > 0) {
           activeAccountDetailCardPeriodKey = periods[0].key;
@@ -3472,15 +3462,15 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
   let defaultCutoffYear = refYear;
   let defaultCutoffMonth = refMonth;
 
-  if (refDay <= refMonthCutoff.day) {
-    // Mevcut ayın kesim gününden önce (veya o gün): Bir önceki ayın kesilen ekstre dönemi
+  if (refDay < refMonthCutoff.day) {
+    // Mevcut ayın kesim gününden önce: Bir önceki ayın kesilen ekstre dönemi
     defaultCutoffMonth = refMonth - 1;
     if (defaultCutoffMonth < 0) {
       defaultCutoffMonth += 12;
       defaultCutoffYear -= 1;
     }
   } else {
-    // Mevcut ayın kesim günü geçmiş: Bu ay kesilen ekstre dönemi
+    // Mevcut ayın kesim günü veya geçmiş: Bu ay kesilen ekstre dönemi
     defaultCutoffMonth = refMonth;
     defaultCutoffYear = refYear;
   }

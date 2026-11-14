@@ -7170,3 +7170,294 @@
   font-weight: 750;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   BİLDİRİM BUTONU & ÖDEME BİLDİRİMLERİ MODALI (Samsung Galaxy Note 10+ Uyumlu)
+   ========================================================================== */
+
+.btn-notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 10px;
+  background: var(--bg-card-subtle, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.btn-notification-bell:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-notification-bell:active {
+  transform: scale(0.94);
+}
+
+.btn-notification-bell.has-unread {
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.btn-notification-bell.has-unread svg {
+  animation: bellShake 3s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+@keyframes bellShake {
+  0%, 70%, 100% { transform: rotate(0); }
+  72% { transform: rotate(14deg); }
+  76% { transform: rotate(-12deg); }
+  80% { transform: rotate(10deg); }
+  84% { transform: rotate(-8deg); }
+  88% { transform: rotate(4deg); }
+  92% { transform: rotate(-2deg); }
+}
+
+.notif-badge-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ef4444, #f43f5e);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: notifPulse 2s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes notifPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(244, 63, 94, 0.8); }
+  50% { transform: scale(1.1); box-shadow: 0 0 14px rgba(244, 63, 94, 1); }
+}
+
+.modal-notifications-content {
+  max-width: 490px;
+  width: 95%;
+  border-radius: 16px;
+  background: linear-gradient(165deg, #131c31 0%, #0c1222 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+}
+
+.notif-banner-box {
+  padding: 12px 14px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.notif-banner-box.active-debts {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fecdd3;
+}
+
+.notif-banner-box.all-clear {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+
+.notif-card-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.notif-card-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.notif-card-item.is-read {
+  opacity: 0.72;
+  border-style: dashed;
+}
+
+.notif-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notif-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.notif-card-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.notif-card-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-card-sub {
+  font-size: 0.80rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+.notif-card-debt-badge {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.notif-card-debt-val {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #f43f5e;
+}
+
+.notif-card-debt-label {
+  font-size: 0.72rem;
+  color: var(--text-dim, #64748b);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.notif-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-notif-pay {
+  min-height: 44px;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 0.90rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  transition: all 0.15s ease;
+}
+
+.btn-notif-pay:hover {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  transform: translateY(-1px);
+}
+
+.btn-notif-single-dismiss {
+  min-height: 44px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: #f1f5f9;
+  font-size: 0.85rem;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-notif-single-dismiss:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.btn-notif-dismiss-all {
+  min-height: 48px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+  transition: all 0.15s ease;
+}
+
+.btn-notif-dismiss-all:hover {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  transform: translateY(-1px);
+}
+
+.btn-notif-dismiss-all:active {
+  transform: scale(0.98);
+}
+
+.btn-notif-dismiss-all:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-notif-link {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.btn-notif-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}

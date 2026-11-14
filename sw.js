@@ -1,5 +1,5 @@
 // %100 Çevrimdışı (Offline-First) Service Worker
-const CACHE_NAME = 'aile-finansi-offline-v48';
+const CACHE_NAME = 'aile-finansi-offline-v49';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -74,8 +74,9 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Bildirime Tıklandığında Uygulamayı Aç ve İlgili Karta Odaklan
+// Not: Kullanıcı isteği gereği bildirim tıklanınca KAPANMAZ (event.notification.close() çağrılmaz).
+// Sadece uygulama içindeki bildirim butonundan okundu yapılınca telefondan silinir.
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
   const accId = event.notification.data ? event.notification.data.accountId : null;
 
   event.waitUntil(
@@ -93,5 +94,21 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// Uygulama içinden bildirim okundu yapıldığında bildirimi telefondan/tarayıcıdan sil
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CLEAR_CARD_NOTIFICATIONS') {
+    const accId = event.data.accountId;
+    event.waitUntil(
+      self.registration.getNotifications().then((notifications) => {
+        notifications.forEach((notification) => {
+          if (!accId || (notification.data && notification.data.accountId === accId) || (notification.tag && notification.tag.includes(accId))) {
+            notification.close();
+          }
+        });
+      })
+    );
+  }
 });
 

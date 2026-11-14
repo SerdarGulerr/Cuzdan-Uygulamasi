@@ -12,6 +12,40 @@
 
 const NOTIF_CONFIG_STORAGE_KEY = 'aile_finansi_cutoff_notif_config_v1';
 const NOTIF_LOG_STORAGE_KEY = 'aile_finansi_cutoff_notif_log_v1';
+const NOTIF_READ_STATUS_STORAGE_KEY = 'aile_finansi_cutoff_read_status_v2';
+
+// Tarih Yardımcısı (YYYY-MM-DD)
+function getNotifTodayDateString(d = new Date()) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Okundu Bilgilerini Oku
+function getNotificationReadMap() {
+  try {
+    const raw = localStorage.getItem(NOTIF_READ_STATUS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+// Okundu Bilgilerini Kaydet
+function saveNotificationReadMap(map) {
+  try {
+    localStorage.setItem(NOTIF_READ_STATUS_STORAGE_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.warn('Read status save error:', e);
+  }
+}
+
+// Belirli bir kart bugün okundu mu?
+function isNotificationReadToday(cardId, now = new Date()) {
+  if (!cardId) return false;
+  const map = getNotificationReadMap();
+  const todayStr = getNotifTodayDateString(now);
+  return !!(map[cardId] && map[cardId].date === todayStr);
+}
 
 // Varsayılan Bildirim Ayarları
 const DEFAULT_NOTIF_CONFIG = {
@@ -95,23 +129,27 @@ function getCreditCardNotificationDetails(acc, now = new Date()) {
   let reason = '';
 
   const isCutoffArrived = isCustom ? (todayStr >= acc.customPeriodEnd) : (currentD >= billingDay);
+  const periodDebt = (periodData && typeof periodData.netDebt === 'number') ? periodData.netDebt : (periodData && periodData.statsA ? periodData.statsA.net : 0);
 
   if (isCutoffArrived) {
     // 1. Durum: Bugün bu ayın hesap kesim gününe ulaştı veya geçti (örn: Ayın 15'i ve sonrası veya revize tarih)
-    // Kesim gerçekleşti, borç ödenene kadar bildirim aktiftir.
-    shouldNotify = true;
-    notifDebt = (periodData && periodData.netDebt > 0) ? Math.min(totalDebt, periodData.netDebt) : totalDebt;
+    // Kesim gerçekleşti, borç varsa ödenene kadar bildirim aktiftir.
+    shouldNotify = periodDebt > 0;
+    notifDebt = shouldNotify ? Math.min(totalDebt, periodDebt) : 0;
     reason = isCustom ? 'custom_cutoff_arrived' : 'current_cutoff_arrived';
     const cutoffDateText = (typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null) : (isCustom ? acc.customPeriodEnd : `Ayın ${billingDay}'i`);
-    statusText = `${cutoffDateText} tarihinde kesildi. Borç ödenene kadar her gün 11:30'da bildirim aktif.`;
+    statusText = shouldNotify
+      ? `${cutoffDateText} tarihinde kesildi. Borç (${formatWalletTL(notifDebt)}) ödenene kadar her gün 11:30'da bildirim aktif.`
+      : `${cutoffDateText} tarihinde kesilen dönem borcu tamamen ödenmiştir.`;
   } else {
-    // 2. Durum: Bugün henüz bu ayın kesim gününe gelmedi (örn: Bugün ayın 6'sı, kesim 15'i)
-    // Önceki ekstreden (statsA) kalan ödenmemiş borç var mı?
-    if (periodData && periodData.statsA && periodData.statsA.net > 0) {
+    // 2. Durum: Bugün henüz bu ayın kesim gününe gelmedi (örn: Bugün ayın 14'ü, kesim 15'i)
+    // Kesimi gerçekleşen önceki ekstreden (periodData) kalan ödenmemiş borç var mı?
+    if (periodDebt > 0) {
       shouldNotify = true;
-      notifDebt = Math.min(totalDebt, periodData.statsA.net);
+      notifDebt = Math.min(totalDebt, periodDebt);
       reason = 'previous_cutoff_unpaid';
-      statusText = `Önceki ekstre borcu (${formatWalletTL(notifDebt)}) henüz ödenmedi. Her gün 11:30'da bildirim aktif.`;
+      const cutoffDateText = (typeof getCreditCardCutoffDateDisplay === 'function') ? getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null) : `Ayın ${billingDay}'i`;
+      statusText = `Önceki ekstre borcu (${cutoffDateText} kesimi: ${formatWalletTL(notifDebt)}) henüz ödenmedi. Her gün 11:30'da bildirim aktif.`;
     } else {
       // Önceki ekstre ödenmiş, mevcut harcamalar henüz kesilmemiş bir sonraki ekstreye ait
       shouldNotify = false;
@@ -145,6 +183,179 @@ function getActivePendingCutoffCards(now = new Date()) {
     .filter(a => a.type === 'credit')
     .map(a => ({ account: a, info: getCreditCardNotificationDetails(a, now) }))
     .filter(item => item.info.shouldNotify);
+}
+
+/**
+ * Şu an bildirimi yapılması gereken ve BUGÜN HENÜZ OKUNDU YAPILMAMIŞ kartları döndürür
+ */
+function getUnreadActiveCutoffCards(now = new Date()) {
+  const pending = getActivePendingCutoffCards(now);
+  return pending.filter(item => !isNotificationReadToday(item.account.id, now));
+}
+
+/**
+ * Tek bir kartın bildirimini hem Android hem de Web bildirim çekmecesinden siler
+ */
+async function dismissNativeAndWebNotification(cardId) {
+  if (!cardId) return;
+  const notifId = getCardNotificationId(cardId);
+  const plugin = getCapacitorLocalNotifications();
+
+  // 1. Android Native (Capacitor)
+  if (plugin) {
+    try {
+      if (plugin.removeDeliveredNotifications) {
+        await plugin.removeDeliveredNotifications({
+          notifications: [{ id: notifId }]
+        });
+      }
+      if (plugin.cancel) {
+        await plugin.cancel({
+          notifications: [{ id: notifId }]
+        });
+      }
+    } catch (e) {
+      console.warn('Native bildirim silme uyarısı:', e);
+    }
+  }
+
+  // 2. Web Service Worker & Notification API
+  if ('serviceWorker' in navigator) {
+    try {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CLEAR_CARD_NOTIFICATIONS',
+          accountId: cardId
+        });
+      }
+      if (navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.getNotifications().then(list => {
+            list.forEach(n => {
+              if ((n.data && n.data.accountId === cardId) || (n.tag && n.tag.includes(cardId))) {
+                n.close();
+              }
+            });
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('Web SW notification close notice:', e);
+    }
+  }
+}
+
+/**
+ * Tüm borçlu kartların bildirimlerini hem Android hem de Web bildirim çekmecesinden siler
+ */
+async function dismissAllNativeAndWebNotifications() {
+  const plugin = getCapacitorLocalNotifications();
+
+  // 1. Android Native (Capacitor)
+  if (plugin) {
+    try {
+      if (plugin.removeAllDeliveredNotifications) {
+        await plugin.removeAllDeliveredNotifications();
+      }
+      const pending = await plugin.getPending();
+      if (pending && pending.notifications && pending.notifications.length > 0) {
+        await plugin.cancel({ notifications: pending.notifications });
+      }
+    } catch (e) {
+      console.warn('Native dismissAll uyarısı:', e);
+    }
+  }
+
+  // 2. Web Service Worker & Notification API
+  if ('serviceWorker' in navigator) {
+    try {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CLEAR_CARD_NOTIFICATIONS'
+        });
+      }
+      if (navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.getNotifications().then(list => {
+            list.forEach(n => n.close());
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('Web SW dismissAll notice:', e);
+    }
+  }
+}
+
+/**
+ * Bir kartın bildirimini okundu olarak işaretler ve telefondan siler
+ */
+async function markCardNotificationAsRead(cardId, now = new Date()) {
+  if (!cardId) return;
+  const map = getNotificationReadMap();
+  const todayStr = getNotifTodayDateString(now);
+  map[cardId] = {
+    date: todayStr,
+    timestamp: Date.now()
+  };
+  saveNotificationReadMap(map);
+
+  // Telefondan bildirimi sil
+  await dismissNativeAndWebNotification(cardId);
+
+  // Rozetleri ve modal listesini güncelle
+  updateNotificationBadgeCount(now);
+  renderNotificationsModalList();
+}
+
+/**
+ * Tüm bekleyen kart bildirimlerini okundu olarak işaretler ve telefondan siler
+ */
+async function markAllCardNotificationsAsRead(now = new Date()) {
+  const pending = getActivePendingCutoffCards(now);
+  const map = getNotificationReadMap();
+  const todayStr = getNotifTodayDateString(now);
+
+  pending.forEach(item => {
+    map[item.account.id] = {
+      date: todayStr,
+      timestamp: Date.now()
+    };
+  });
+  saveNotificationReadMap(map);
+
+  // Telefondan tüm bildirimleri sil
+  await dismissAllNativeAndWebNotifications();
+
+  // Rozetleri ve modal listesini güncelle
+  updateNotificationBadgeCount(now);
+  renderNotificationsModalList();
+}
+
+/**
+ * Sağ üstteki bildirim butonlarının üzerindeki okunmamış rozetini günceller
+ */
+function updateNotificationBadgeCount(now = new Date()) {
+  const unreadCards = getUnreadActiveCutoffCards(now);
+  const count = unreadCards.length;
+
+  const bellButtons = document.querySelectorAll('.btn-notification-bell');
+  bellButtons.forEach(btn => {
+    const badge = btn.querySelector('.notif-badge-count');
+    if (badge) {
+      if (count > 0) {
+        badge.style.display = 'inline-flex';
+        badge.textContent = count > 9 ? '9+' : String(count);
+        btn.classList.add('has-unread');
+        btn.setAttribute('title', `${count} adet bekleyen ödeme bildirimi var (Görmek için tıklayın)`);
+      } else {
+        badge.style.display = 'none';
+        badge.textContent = '0';
+        btn.classList.remove('has-unread');
+        btn.setAttribute('title', 'Ödeme Bildirimleri');
+      }
+    }
+  });
 }
 
 // Capacitor LocalNotifications Eklentisini Güvenli Şekilde Al
@@ -262,11 +473,16 @@ async function syncCreditCardCutoffNotifications() {
 
     if (cfg.enabled && details.shouldNotify) {
       // Bu kart için AYRI bildirim planla
+      // Not: Kullanıcı isteği gereği autoCancel: false ve ongoing: true ayarlandı.
+      // Böylece kullanıcı bildirime dokunup uygulamaya girse bile telefonun bildirim penceresinde KAPANMAZ!
+      // Yalnızca kullanıcı sağ üstteki bildirim butonuna tıklayıp okundu yapınca telefondan silinir.
       toSchedule.push({
         id: notifId,
         channelId: 'credit_card_cutoff_reminders',
         title: `💳 ${card.name} - Hesap Kesim Hatırlatması`,
         body: `Hesap kesim tarihiniz geldi. Güncel borcunuz: ${formatWalletTL(details.debt)}. Borç ödenene kadar her gün ${cfg.time || '11:30'}'da hatırlatılacaktır.`,
+        autoCancel: false,
+        ongoing: true,
         schedule: {
           on: {
             hour: targetHour,
@@ -282,8 +498,9 @@ async function syncCreditCardCutoffNotifications() {
         }
       });
     } else {
-      // Borç ödendiyse veya bildirim kapalıysa bu kartın alarmını kaldır
+      // Borç ödendiyse veya bildirim kapalıysa bu kartın alarmını kaldır ve telefondaki açık bildirimi sil
       toCancel.push({ id: notifId });
+      dismissNativeAndWebNotification(card.id);
     }
   });
 
@@ -311,8 +528,9 @@ async function syncCreditCardCutoffNotifications() {
   // 2. WEB / PWA FALLBACK (Tarayıcı açıldığında veya sekme açıkken kontrol)
   checkAndTriggerWebNotificationsIfDue(toSchedule, targetHour, targetMinute, now);
 
-  // 3. UI'daki kart durumlarını güncelle
+  // 3. UI'daki kart durumlarını ve sağ üst bildirim rozetini güncelle
   updateNotificationUIBadges();
+  updateNotificationBadgeCount(now);
 }
 
 /**
@@ -335,8 +553,9 @@ function checkAndTriggerWebNotificationsIfDue(scheduledList, targetHour, targetM
     const accId = item.extra ? item.extra.accountId : item.id;
     const sentKey = `cc_notif_sent_${accId}_${todayStr}`;
     
-    // Bugün bu kart için zaten gösterildiyse tekrar etme
+    // Bugün bu kart için zaten gösterildiyse veya kullanıcı okundu yaptıysa tekrar etme
     if (localStorage.getItem(sentKey)) return;
+    if (isNotificationReadToday(accId, now)) return;
 
     // Bildirimi fırlat
     displayBrowserNotification(item.title, item.body, {
@@ -472,6 +691,8 @@ async function testCreditCardCutoffNotifications() {
               channelId: 'credit_card_cutoff_reminders',
               title: title,
               body: body,
+              autoCancel: false,
+              ongoing: true,
               schedule: { at: new Date(Date.now() + 1000 * (sentCount + 1)) }, // 1 sn arayla ayrı ayrı
               extra: { accountId: card.id, type: 'credit_card_cutoff_test' }
             }
@@ -609,11 +830,189 @@ function handleNotificationPermissionClick() {
   requestNotificationPermissionPrompt();
 }
 
+/**
+ * Bildirimler Modalını Açar
+ */
+function openNotificationsModal() {
+  renderNotificationsModalList();
+  if (typeof openModal === 'function') {
+    openModal('modalNotifications');
+  }
+}
+
+/**
+ * Modal İçindeki Kart Listesini ve Durumları Çizer
+ */
+function renderNotificationsModalList() {
+  const banner = document.getElementById('notifModalHeaderBanner');
+  const container = document.getElementById('notifCardsListContainer');
+  const btnAll = document.getElementById('btnDismissAllNotifs');
+
+  if (!banner || !container) return;
+
+  const now = new Date();
+  const activePending = getActivePendingCutoffCards(now);
+  const unreadPending = getUnreadActiveCutoffCards(now);
+
+  if (activePending.length === 0) {
+    banner.className = 'notif-banner-box all-clear';
+    banner.innerHTML = `
+      <span style="font-size: 1.5rem;">🎉</span>
+      <div>
+        <div style="font-weight: 800; color: #10b981;">Harika! Borçlu Kesilmiş Kart Yok</div>
+        <div style="font-size: 0.80rem; color: #a7f3d0; margin-top: 2px;">
+          Tüm kredi kartlarınızın dönem borçları kapalı veya henüz hesap kesim tarihi gelmedi.
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = `
+      <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">💳</div>
+        <p style="margin: 0; font-size: 0.88rem; font-weight: 600;">Şu anda telefonunuza gönderilecek aktif bir ödeme uyarısı bulunmuyor.</p>
+      </div>
+    `;
+
+    if (btnAll) {
+      btnAll.disabled = true;
+      btnAll.innerHTML = '<span>✓ Bekleyen Bildirim Yok</span>';
+    }
+    return;
+  }
+
+  // Borçlu kesilmiş kartlar var
+  const hasUnread = unreadPending.length > 0;
+  if (hasUnread) {
+    banner.className = 'notif-banner-box active-debts';
+    banner.innerHTML = `
+      <span style="font-size: 1.5rem;">⚠️</span>
+      <div>
+        <div style="font-weight: 800; color: #f43f5e;">${unreadPending.length} Kart İçin Bildirim Bekliyor</div>
+        <div style="font-size: 0.80rem; color: #fecdd3; margin-top: 2px;">
+          Bildirimler siz "Okundu Say" diyene kadar telefonunuzun bildirim ekranında görünmeye devam edecektir.
+        </div>
+      </div>
+    `;
+    if (btnAll) {
+      btnAll.disabled = false;
+      btnAll.innerHTML = '<span>✓ Tümünü Okundu Say & Telefondan Sil</span>';
+    }
+  } else {
+    banner.className = 'notif-banner-box all-clear';
+    banner.innerHTML = `
+      <span style="font-size: 1.5rem;">✓</span>
+      <div>
+        <div style="font-weight: 800; color: #10b981;">Bugünkü Bildirimler Okundu Olarak İşaretlendi</div>
+        <div style="font-size: 0.80rem; color: #a7f3d0; margin-top: 2px;">
+          Bildirimler telefonunuzun bildirim çekmecesinden temizlendi. Borç ödenmediği takdirde yarın 11:30'da tekrar hatırlatılacaktır.
+        </div>
+      </div>
+    `;
+    if (btnAll) {
+      btnAll.disabled = true;
+      btnAll.innerHTML = '<span>✓ Tüm Bildirimler Okundu</span>';
+    }
+  }
+
+  let html = '';
+  activePending.forEach(item => {
+    const card = item.account;
+    const details = item.info;
+    const isRead = isNotificationReadToday(card.id, now);
+    const cutoffText = (typeof getCreditCardCutoffDateDisplay === 'function') 
+      ? getCreditCardCutoffDateDisplay(card) 
+      : (card.billingDay || 15);
+
+    html += `
+      <div class="notif-card-item ${isRead ? 'is-read' : ''}">
+        <div class="notif-card-top">
+          <div class="notif-card-brand">
+            <span class="notif-card-icon">${card.icon || '💳'}</span>
+            <div style="min-width: 0;">
+              <div class="notif-card-name" title="${card.name}">${card.name}</div>
+              <div class="notif-card-sub">📅 Kesim: Ayın ${cutoffText} | ${details.reason === 'custom_cutoff_arrived' ? 'Özel Dönem' : 'Normal Dönem'}</div>
+            </div>
+          </div>
+          <div class="notif-card-debt-badge">
+            <div class="notif-card-debt-val">${formatWalletTL(details.debt)}</div>
+            <div class="notif-card-debt-label">Kesim Borcu</div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.78rem; color: ${isRead ? 'var(--emerald)' : 'var(--text-dim)'}; display: flex; align-items: center; gap: 6px;">
+          ${isRead ? '<span>✓ Bugün okundu işaretlendi (telefondan silindi)</span>' : '<span>🔔 Telefonda bildirim aktif ve görünür durumda</span>'}
+        </div>
+
+        <div class="notif-card-actions">
+          <button type="button" class="btn-notif-pay" onclick="handlePayNotificationCardClick('${card.id}')">
+            <span>💳 Borcu Öde</span>
+          </button>
+          ${!isRead ? `
+            <button type="button" class="btn-notif-single-dismiss" onclick="markCardNotificationAsRead('${card.id}')" title="Bu bildirimi telefondan sil ve okundu yap">
+              <span>✓ Okundu Say</span>
+            </button>
+          ` : `
+            <button type="button" class="btn-notif-single-dismiss" style="opacity: 0.6; cursor: default;" disabled>
+              <span>✓ Okundu</span>
+            </button>
+          `}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+/**
+ * Tümünü Okundu Say Tıklaması
+ */
+async function handleDismissAllNotificationsClick() {
+  await markAllCardNotificationsAsRead();
+}
+
+/**
+ * Bildirim Modalından Borç Öde Butonuna Tıklanınca
+ */
+function handlePayNotificationCardClick(cardId) {
+  if (typeof closeModal === 'function') {
+    closeModal('modalNotifications');
+  }
+  handleNotificationCardClick(cardId);
+}
+
+/**
+ * Bildirim Modalından Ayarlar Sayfasına Git
+ */
+function openAppSettingsWithNotifSection() {
+  if (typeof closeModal === 'function') {
+    closeModal('modalNotifications');
+  }
+  if (typeof openAppSettings === 'function') {
+    openAppSettings();
+  }
+  setTimeout(() => {
+    const el = document.getElementById('notifSettingsContainer');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300);
+}
+
 // Global Erişime Aç
 window.getCutoffNotificationConfig = getCutoffNotificationConfig;
 window.saveCutoffNotificationConfig = saveCutoffNotificationConfig;
 window.getCreditCardNotificationDetails = getCreditCardNotificationDetails;
 window.getActivePendingCutoffCards = getActivePendingCutoffCards;
+window.getUnreadActiveCutoffCards = getUnreadActiveCutoffCards;
+window.dismissNativeAndWebNotification = dismissNativeAndWebNotification;
+window.dismissAllNativeAndWebNotifications = dismissAllNativeAndWebNotifications;
+window.markCardNotificationAsRead = markCardNotificationAsRead;
+window.markAllCardNotificationsAsRead = markAllCardNotificationsAsRead;
+window.updateNotificationBadgeCount = updateNotificationBadgeCount;
+window.openNotificationsModal = openNotificationsModal;
+window.renderNotificationsModalList = renderNotificationsModalList;
+window.handleDismissAllNotificationsClick = handleDismissAllNotificationsClick;
+window.handlePayNotificationCardClick = handlePayNotificationCardClick;
+window.openAppSettingsWithNotifSection = openAppSettingsWithNotifSection;
 window.syncCreditCardCutoffNotifications = syncCreditCardCutoffNotifications;
 window.testCreditCardCutoffNotifications = testCreditCardCutoffNotifications;
 window.renderNotificationSettingsUI = renderNotificationSettingsUI;
@@ -662,12 +1061,18 @@ function initNotificationService() {
     }
   } catch (e) { /* ignore */ }
 
-  // 5. İlk Bildirim Senkronizasyonunu Çalıştır
+  // 5. İlk Bildirim Senkronizasyonunu ve Rozet Sayısını Çalıştır
   setTimeout(() => {
     syncCreditCardCutoffNotifications();
+    updateNotificationBadgeCount();
   }, 1000);
 
-  // 6. Web / PWA için Arka Plan Kontrol Zamanlayıcısı (Her 60 saniyede bir saati yoklar)
+  // 6. Sayfaya her odaklanıldığında (Focus) rozeti ve bildirim durumlarını güncelle
+  window.addEventListener('focus', () => {
+    updateNotificationBadgeCount();
+  });
+
+  // 7. Web / PWA için Arka Plan Kontrol Zamanlayıcısı (Her 60 saniyede bir saati yoklar)
   setInterval(() => {
     const now = new Date();
     const cfg = getCutoffNotificationConfig();
@@ -678,6 +1083,7 @@ function initNotificationService() {
     if (now.getHours() === targetHour && now.getMinutes() === targetMinute) {
       syncCreditCardCutoffNotifications();
     }
+    updateNotificationBadgeCount(now);
   }, 60000);
 }
 

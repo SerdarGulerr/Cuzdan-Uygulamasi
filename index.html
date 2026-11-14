@@ -109,6 +109,10 @@
             </div>
           </div>
           <div class="header-actions">
+            <button type="button" class="icon-btn btn-notification-bell" onclick="openNotificationsModal()" title="Bildirimler & Hatırlatmalar" aria-label="Bildirimler">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              <span class="notif-badge-count" style="display: none;">0</span>
+            </button>
             <button class="icon-btn" onclick="forceHardRefresh()" title="Önbelleği Temizle & En Güncel Sürümü Yükle">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
             </button>
@@ -332,6 +336,10 @@
           </div>
         </div>
         <div class="header-actions">
+          <button type="button" class="icon-btn btn-notification-bell" onclick="openNotificationsModal()" title="Bildirimler & Hatırlatmalar" aria-label="Bildirimler">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            <span class="notif-badge-count" style="display: none;">0</span>
+          </button>
           <button type="button" class="icon-btn" id="btnWalletSettings" onclick="openAppSettings()" title="Ayarlar & Araçlar">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
           </button>
@@ -421,6 +429,10 @@
         <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
           <button type="button" class="btn-bordro-wide-toggle" id="btnBordroTaxBrackets" onclick="openTaxBracketsModal()" title="Gelir Vergisi Dilimleri & Asgari Ücret Tanımları" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
             <span>⚖️</span> <span>Vergi Dilimleri</span>
+          </button>
+          <button type="button" class="icon-btn btn-notification-bell" onclick="openNotificationsModal()" title="Bildirimler & Hatırlatmalar" aria-label="Bildirimler">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            <span class="notif-badge-count" style="display: none;">0</span>
           </button>
           <button type="button" class="icon-btn" onclick="openAppSettings()" title="Ayarlar & Araçlar">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -1566,6 +1578,45 @@
     </div>
   </dialog>
 
+  <!-- MODAL: ÖDEME BİLDİRİMLERİ (KREDİ KARTI KESİM & BORÇ HATIRLATMALARI) -->
+  <dialog class="app-modal" id="modalNotifications">
+    <div class="modal-content modal-notifications-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.4rem;">🔔</span>
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #ffffff;">Ödeme Bildirimleri</h3>
+            <p style="margin: 0; font-size: 0.80rem; color: var(--text-muted);">Hesap Kesim & Borç Hatırlatmaları</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('modalNotifications')">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Üst Özet Bilgi Şeridi -->
+        <div id="notifModalHeaderBanner" class="notif-banner-box"></div>
+
+        <!-- Kart Bildirimleri Listesi -->
+        <div id="notifCardsListContainer" class="notif-cards-list-box" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto;"></div>
+
+        <!-- Alt Aksiyonlar -->
+        <div class="notif-actions-bottom" style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+          <button type="button" id="btnDismissAllNotifs" class="btn-notif-dismiss-all" onclick="handleDismissAllNotificationsClick()">
+            <span>✓ Tümünü Okundu Say & Telefondan Sil</span>
+          </button>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; gap: 8px;">
+            <button type="button" class="btn-notif-link" onclick="openAppSettingsWithNotifSection()">
+              ⚙️ Bildirim Saat Ayarları
+            </button>
+            <button type="button" class="btn-notif-link" onclick="testCreditCardCutoffNotifications()">
+              🧪 Test Bildirimi Gönder
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     // PWA Service Worker & Localhost Önbellek Yönetimi
     const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -1598,6 +1649,6 @@
   <script src="version.js" onerror="window.APP_VERSION=0"></script>
   <script src="app.js?v=20261031_v22"></script>
   <script src="wallet.js?v=20261113_todayview"></script>
-  <script src="notifications.js?v=20261106_v1"></script>
+  <script src="notifications.js?v=20261114_notifbell"></script>
 </body>
 </html>
