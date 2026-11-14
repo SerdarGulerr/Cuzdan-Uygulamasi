@@ -42,10 +42,36 @@ let selectedSubCategoryId = '';
 let currentCategoryMgrType = 'expense'; // 'expense' | 'income'
 let editingWalletTxId = null; // Aktif düzenlenen işlemin ID'si
 
-// --- Yardımcı Tarih ve Para Formatlama ---
+// --- Yardımcı Tarih, Saat ve Para Formatlama ---
 function getTodayDateStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getCurrentTimeStr() {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function setCurrentTimeToWalletTx() {
+  const timeInput = document.getElementById('inputWalletTxTime');
+  if (timeInput) {
+    timeInput.value = getCurrentTimeStr();
+  }
+}
+
+function compareWalletTx(a, b) {
+  if (a.date !== b.date) {
+    return b.date.localeCompare(a.date);
+  }
+  const timeA = a.time || '00:00';
+  const timeB = b.time || '00:00';
+  if (timeA !== timeB) {
+    return timeB.localeCompare(timeA);
+  }
+  return (b.id || '').localeCompare(a.id || '');
 }
 
 function formatWalletTL(amount) {
@@ -73,6 +99,7 @@ function generateDemoWalletTxs(year, month) {
       toAccountId: '',
       categoryId: 'cat_salary',
       date: `${year}-${mStr}-01`,
+      time: '09:00',
       note: 'Aylık net maaş yattı'
     },
     {
@@ -83,6 +110,7 @@ function generateDemoWalletTxs(year, month) {
       toAccountId: '',
       categoryId: 'cat_market',
       date: `${year}-${mStr}-05`,
+      time: '14:35',
       note: 'Haftalık süpermarket alışverişi'
     },
     {
@@ -93,6 +121,7 @@ function generateDemoWalletTxs(year, month) {
       toAccountId: '',
       categoryId: 'cat_bills',
       date: `${year}-${mStr}-08`,
+      time: '10:15',
       note: 'Elektrik & Doğalgaz faturası'
     },
     {
@@ -103,6 +132,7 @@ function generateDemoWalletTxs(year, month) {
       toAccountId: '',
       categoryId: 'cat_food',
       date: `${year}-${mStr}-12`,
+      time: '19:45',
       note: 'Ailece akşam yemeği'
     },
     {
@@ -113,6 +143,7 @@ function generateDemoWalletTxs(year, month) {
       toAccountId: '',
       categoryId: 'cat_transport',
       date: `${year}-${mStr}-15`,
+      time: '16:20',
       note: 'Araç benzin dolumu'
     },
     {
@@ -123,6 +154,7 @@ function generateDemoWalletTxs(year, month) {
       toAccountId: 'acc_cash',
       categoryId: '',
       date: `${year}-${mStr}-18`,
+      time: '11:00',
       note: 'ATM\'den nakit para çekildi'
     }
   ];
@@ -413,6 +445,7 @@ function renderDailyView(txs) {
 
   sortedDates.forEach(dStr => {
     const dayTxs = grouped[dStr];
+    dayTxs.sort(compareWalletTx);
     const isToday = (dStr === todayStr && isCurrentMonth);
     const parts = dStr.split('-');
     const dayNum = parseInt(parts[2], 10);
@@ -498,7 +531,7 @@ function renderDailyView(txs) {
               <div class="tx-cat-icon">${icon}</div>
               <div class="tx-desc-box">
                 <span class="tx-cat-name">${catName} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
-                <span class="tx-account-name">${accName}</span>
+                <span class="tx-account-name">${t.time ? `<span class="tx-time-badge">${t.time}</span>${accName ? ' • ' : ''}` : ''}${accName}</span>
               </div>
             </div>
             <div class="wallet-tx-right">
@@ -652,6 +685,7 @@ function filterCalendarDay(day) {
   const data = getFilteredWalletData();
   const dStr = `${data.year}-${String(data.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const dayTxs = data.monthTxs.filter(t => t.date === dStr);
+  dayTxs.sort(compareWalletTx);
   const detailBox = document.getElementById('calendarDayDetails');
   if (!detailBox) return;
 
@@ -682,7 +716,7 @@ function filterCalendarDay(day) {
       <div class="wallet-tx-row" style="background:var(--bg-card); border-radius:8px; margin-bottom:6px;">
         <div class="wallet-tx-left">
           <div class="tx-desc-box">
-            <span style="font-size:0.85rem; font-weight:700;">${t.note || 'İşlem'} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}</span>
+            <span style="font-size:0.85rem; font-weight:700;">${t.time ? `<span class="tx-time-badge" style="margin-right:6px;">${t.time}</span>` : ''}${t.note || 'İşlem'} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total}</span>` : ''}</span>
           </div>
         </div>
         <div class="wallet-tx-right">
@@ -1403,14 +1437,14 @@ function renderStatsView(legacyTxs, legacyTotalExpense) {
 
           let txListHtml = '';
           if (isTxOpen) {
-            const sortedTxs = [...sData.txs].sort((a, b) => b.date.localeCompare(a.date));
+            const sortedTxs = [...sData.txs].sort(compareWalletTx);
             txListHtml = `<div class="subcat-tx-mini-list">`;
             sortedTxs.forEach(t => {
               const acc = (walletState.accounts || []).find(a => a.id === t.fromAccountId);
               txListHtml += `
                 <div class="subcat-tx-mini-row" onclick="openEditWalletTxModal('${t.id}')" style="cursor: pointer;" title="İşlemi düzenlemek için tıklayın">
                   <div class="subcat-tx-mini-left">
-                    <span class="subcat-tx-mini-date">📅 ${formatTurkishDate(t.date)}</span>
+                    <span class="subcat-tx-mini-date">📅 ${formatTurkishDate(t.date)}${t.time ? ` <span class="tx-time-badge">${t.time}</span>` : ''}</span>
                     ${acc ? `<span class="subcat-tx-mini-acc">• ${acc.name}</span>` : ''}
                     ${t.note ? `<span class="subcat-tx-mini-note">(${t.note})</span>` : ''}
                   </div>
@@ -1801,7 +1835,7 @@ function renderStatsView(legacyTxs, legacyTotalExpense) {
         const allowedKeys = new Set(monthsList.map(m => m.key));
         displayTxs = allMatchingTxs.filter(t => allowedKeys.has(t.date.slice(0, 7)));
       }
-      displayTxs.sort((a, b) => b.date.localeCompare(a.date));
+      displayTxs.sort(compareWalletTx);
 
       html += `
         <div class="trend-history-header">
@@ -1828,7 +1862,7 @@ function renderStatsView(legacyTxs, legacyTotalExpense) {
           html += `
             <div class="trend-tx-card" onclick="openEditWalletTxModal('${t.id}')" title="İşlemi düzenlemek için dokunun">
               <div class="trend-tx-left">
-                <span class="trend-tx-date">📅 ${formatTurkishDate(t.date)}</span>
+                <span class="trend-tx-date">📅 ${formatTurkishDate(t.date)}${t.time ? ` <span class="tx-time-badge">${t.time}</span>` : ''}</span>
                 ${(!trendSubCat && t.subCategory) ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
                 ${acc ? `<span class="trend-tx-acc">• ${acc.name}</span>` : ''}
                 ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''}
@@ -2199,6 +2233,18 @@ function calculateCreditCardPeriodDebt(accId, billingDay, customRange = null, fo
       endDate: customRange.endDate,
       cutoffDate: customRange.endDate,
       isClosed: customRange.endDate < info.todayStr,
+      label: 'Revize Dönem',
+      isCustom: true
+    };
+  } else if (!forceAuto && cardAcc && cardAcc.periodOverrides && cardAcc.periodOverrides[`${info.periodA.startDate}_${info.periodA.endDate}`]) {
+    const ov = cardAcc.periodOverrides[`${info.periodA.startDate}_${info.periodA.endDate}`];
+    isCustom = true;
+    activeStats = getStatsForRange(ov.startDate, ov.endDate);
+    activePeriod = {
+      startDate: ov.startDate,
+      endDate: ov.endDate,
+      cutoffDate: ov.endDate,
+      isClosed: ov.endDate < info.todayStr,
       label: 'Revize Dönem',
       isCustom: true
     };
@@ -2666,7 +2712,9 @@ function openAccountDetailModal(accId, filterType = 'all') {
     const periods = periodData.periods;
 
     if (typeof filterType === 'string' && filterType.startsWith('period:')) {
-      activeAccountDetailCardPeriodKey = filterType.slice(7);
+      const requestedKey = filterType.slice(7);
+      const matched = periods.find(p => p.key === requestedKey || p.autoKey === requestedKey);
+      activeAccountDetailCardPeriodKey = matched ? matched.key : requestedKey;
       activeAccountDetailFilter = 'period';
     } else if (filterType === '__all__' || filterType === 'all_history') {
       activeAccountDetailCardPeriodKey = '__all__';
@@ -2811,7 +2859,9 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
     const pStats = getCreditCardPeriodStats(acc.id, p);
 
     let subBadge = '';
-    if (p.key === periodData.defaultSelectedKey) {
+    if (p.isCustom) {
+      subBadge = '<span class="period-chip-sub-badge custom" style="color:#fecaca; font-weight:700;">✏️ Revize</span>';
+    } else if (p.key === periodData.defaultSelectedKey) {
       subBadge = '<span class="period-chip-sub-badge star">⭐ Son Kesilen</span>';
     } else if (p.isCurrentCycle) {
       subBadge = '<span class="period-chip-sub-badge current">⏳ Güncel Dönem</span>';
@@ -2824,10 +2874,10 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
     chipsHtml += `
       <button type="button"
               id="waccPeriodChip_${p.key}"
-              class="wacc-period-chip ${isSelected ? 'active' : ''}"
+              class="wacc-period-chip ${isSelected ? 'active' : ''} ${p.isCustom ? 'custom' : ''}"
               onclick="selectCardDetailPeriod('${acc.id}', '${p.key}')"
-              title="${p.rangeText}">
-        <span class="period-chip-dates">${p.rangeText}</span>
+              title="${p.rangeText}${p.isCustom ? ' (Revize Edilmiş Aralık)' : ''}">
+        <span class="period-chip-dates">${p.isCustom ? '✏️ ' : ''}${p.rangeText}</span>
         ${subBadge}
       </button>
     `;
@@ -2867,7 +2917,7 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
 
       <div id="detailPeriodRevisePanel_${acc.id}" class="detail-period-revise-box" style="display: ${isReviseOpen ? 'flex' : 'none'};">
         <div class="detail-revise-header">
-          <span>✏️ Dönem Başlangıç & Bitiş Tarihini Revize Et</span>
+          <span>✏️ ${selectedPeriod ? selectedPeriod.rangeText : 'Dönem'} Tarih Aralığını Revize Et</span>
           <button type="button" class="btn-period-reset-small" onclick="toggleDetailPeriodRevisePanel('${acc.id}')">✕ Kapat</button>
         </div>
         <div class="detail-revise-grid">
@@ -2881,10 +2931,10 @@ function renderAccountTxFilters(acc, stats, activeFilter) {
           </div>
         </div>
         <div class="detail-revise-actions">
-          <button type="button" class="btn-detail-revise-apply" onclick="saveDetailPeriodRevise('${acc.id}')">
+          <button type="button" class="btn-detail-revise-apply" onclick="saveDetailPeriodRevise('${acc.id}', '${selectedPeriod ? selectedPeriod.key : ''}')">
             💾 Karta Kaydet & Borcu Güncelle
           </button>
-          <button type="button" class="btn-detail-revise-auto" onclick="resetDetailPeriodToAuto('${acc.id}')">
+          <button type="button" class="btn-detail-revise-auto" onclick="resetDetailPeriodToAuto('${acc.id}', '${selectedPeriod ? selectedPeriod.key : ''}')">
             🔄 Otomatik Döneme Sıfırla
           </button>
         </div>
@@ -2910,9 +2960,15 @@ function toggleDetailPeriodRevisePanel(accId) {
   renderAccountTxFilters(acc, stats, activeAccountDetailFilter);
 }
 
-function saveDetailPeriodRevise(accId) {
+function saveDetailPeriodRevise(accId, periodKey) {
   const acc = walletState.accounts.find(a => a.id === accId);
   if (!acc) return;
+
+  const targetKey = periodKey || activeAccountDetailCardPeriodKey;
+  const periodData = getCreditCardPeriods(acc);
+  const targetPeriod = periodData.periods.find(p => p.key === targetKey || p.autoKey === targetKey) || periodData.periods[0];
+  if (!targetPeriod) return;
+
   const startInput = document.getElementById(`inputDetailReviseStart_${accId}`);
   const endInput = document.getElementById(`inputDetailReviseEnd_${accId}`);
   if (!startInput || !endInput) return;
@@ -2926,37 +2982,71 @@ function saveDetailPeriodRevise(accId) {
     endInput.value = startDate;
   }
 
-  acc.isCustomPeriod = true;
-  acc.customPeriodStart = startDate;
-  acc.customPeriodEnd = endDate;
+  // İlgili dönemin tarihlerini doğrudan revize et (yeni sekme açma, mevcut sekmeyi güncelle!)
+  if (!acc.periodOverrides) {
+    acc.periodOverrides = {};
+  }
+  const autoKey = targetPeriod.autoKey || targetPeriod.key;
+  acc.periodOverrides[autoKey] = {
+    startDate,
+    endDate,
+    isCustom: true
+  };
 
-  // Revize edilen aralığa göre net borcu hesapla ve bakiye olarak güncelle
-  const pData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay, { startDate, endDate });
-  if (pData) {
-    acc.balance = pData.netDebt === 0 ? 0 : -pData.netDebt;
+  // Bu dönem varsayılan / aktif ekstre dönemi ise kartın ana bakiye ve alanlarını da senkronize et
+  const isDefaultStatement = (targetPeriod.key === periodData.defaultSelectedKey || targetPeriod.autoKey === periodData.defaultSelectedKey);
+  if (isDefaultStatement) {
+    acc.isCustomPeriod = true;
+    acc.customPeriodStart = startDate;
+    acc.customPeriodEnd = endDate;
+
+    // Revize edilen aralığa göre net borcu hesapla ve bakiye olarak güncelle
+    const pData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay, { startDate, endDate });
+    if (pData) {
+      acc.balance = pData.netDebt === 0 ? 0 : -pData.netDebt;
+    }
   }
 
   saveWalletState();
-  const customKey = `custom_${startDate}_${endDate}`;
-  activeAccountDetailCardPeriodKey = customKey;
+  activeAccountDetailCardPeriodKey = targetPeriod.key;
   detailReviseOpenState[accId] = false;
-  openAccountDetailModal(acc.id, 'period:' + customKey);
+  openAccountDetailModal(acc.id, 'period:' + targetPeriod.key);
   renderAccountsView();
 }
 
-function resetDetailPeriodToAuto(accId) {
+function resetDetailPeriodToAuto(accId, periodKey) {
   const acc = walletState.accounts.find(a => a.id === accId);
   if (!acc) return;
 
-  acc.isCustomPeriod = false;
-  delete acc.customPeriodStart;
-  delete acc.customPeriodEnd;
+  const targetKey = periodKey || activeAccountDetailCardPeriodKey;
+  const periodData = getCreditCardPeriods(acc);
+  const targetPeriod = periodData.periods.find(p => p.key === targetKey || p.autoKey === targetKey);
+  const autoKey = targetPeriod ? (targetPeriod.autoKey || targetPeriod.key) : targetKey;
 
-  // Otomatik borcu hesapla ve bakiye olarak eşitle
-  const pData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay, null, true);
-  if (pData) {
-    acc.balance = pData.netDebt === 0 ? 0 : -pData.netDebt;
+  if (acc.periodOverrides && autoKey && acc.periodOverrides[autoKey]) {
+    delete acc.periodOverrides[autoKey];
   }
+
+  const isDefaultStatement = !targetPeriod || (targetPeriod.key === periodData.defaultSelectedKey || targetPeriod.autoKey === periodData.defaultSelectedKey);
+  if (isDefaultStatement) {
+    acc.isCustomPeriod = false;
+    delete acc.customPeriodStart;
+    delete acc.customPeriodEnd;
+
+    // Otomatik borcu hesapla ve bakiye olarak eşitle
+    const pData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay, null, true);
+    if (pData) {
+      acc.balance = pData.netDebt === 0 ? 0 : -pData.netDebt;
+    }
+  }
+
+  saveWalletState();
+  detailReviseOpenState[accId] = false;
+  const finalKey = targetPeriod ? targetPeriod.key : periodData.defaultSelectedKey;
+  activeAccountDetailCardPeriodKey = finalKey;
+  openAccountDetailModal(acc.id, targetPeriod ? 'period:' + targetPeriod.key : 'all');
+  renderAccountsView();
+}
 
   saveWalletState();
   activeAccountDetailCardPeriodKey = null;
@@ -3187,7 +3277,7 @@ function renderStandardAccountTxList(acc, stats, filterType) {
     filtered = filtered.filter(t => t.type === 'transfer');
   }
 
-  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  filtered.sort(compareWalletTx);
 
   if (filtered.length === 0) {
     listEl.innerHTML = `
@@ -3220,7 +3310,7 @@ function renderCreditCardAllHistoryList(acc, stats, filterType) {
     filtered = filtered.filter(t => t.type === 'transfer');
   }
 
-  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  filtered.sort(compareWalletTx);
 
   let bannerHtml = `
     <div class="period-all-history-banner">
@@ -3323,7 +3413,7 @@ function renderPeriodTransactionItems(acc, txList) {
           <div class="account-tx-info">
             <span class="account-tx-title">${catTitle} ${refundBadge}</span>
             <div class="account-tx-sub">
-              <span>📅 ${formatTurkishDate(t.date)} ${isToday ? '<span class="daily-today-badge" style="font-size:0.65rem; padding: 1px 6px;">Bugün</span>' : ''}</span>
+              <span>📅 ${formatTurkishDate(t.date)}${t.time ? ` <span class="tx-time-badge">${t.time}</span>` : ''} ${isToday ? '<span class="daily-today-badge" style="font-size:0.65rem; padding: 1px 6px;">Bugün</span>' : ''}</span>
               ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
               ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''}
               ${t.note ? `<span style="color:var(--text-muted);">(${t.note})</span>` : ''}
@@ -3530,11 +3620,32 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
     if (nextM > 11) { nextM -= 12; nextY++; }
     const nextCutoff = getCutoffDateObj(nextY, nextM);
 
-    const startDate = getNextDayStr(prevCutoff.dateStr);
-    const endDate = currCutoff.dateStr;
+    const autoStartDate = getNextDayStr(prevCutoff.dateStr);
+    const autoEndDate = currCutoff.dateStr;
     const nextCutoffDate = nextCutoff.dateStr;
-    const key = `${startDate}_${endDate}`;
+    const autoKey = `${autoStartDate}_${autoEndDate}`;
+    const cycleId = `${targetY}-${pad(targetM + 1)}`;
 
+    let startDate = autoStartDate;
+    let endDate = autoEndDate;
+    let isCustom = false;
+
+    // Period overrides kontrolü: İlgili dönem revize edilmişse doğrudan o dönemin tarihlerini güncelle
+    const override = (cardAcc.periodOverrides && (cardAcc.periodOverrides[autoKey] || cardAcc.periodOverrides[cycleId])) || null;
+    if (override && override.startDate && override.endDate) {
+      startDate = override.startDate;
+      endDate = override.endDate;
+      isCustom = true;
+    } else if (cardAcc.isCustomPeriod && cardAcc.customPeriodStart && cardAcc.customPeriodEnd) {
+      // Legacy customPeriod uyumluluğu: Eğer bu dönem varsayılan ekstre dönemi ise doğrudan güncelle
+      if (autoKey === defaultSelectedKey) {
+        startDate = cardAcc.customPeriodStart;
+        endDate = cardAcc.customPeriodEnd;
+        isCustom = true;
+      }
+    }
+
+    const key = autoKey;
     const isClosed = endDate < todayStr;
     const isCurrentCycle = startDate <= todayStr && todayStr <= endDate;
     const rangeText = formatCreditCardPeriodRange(startDate, endDate);
@@ -3546,8 +3657,16 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
       tag = ' ⏳ Güncel Dönem (Açık)';
     }
 
+    const label = isCustom 
+      ? `✏️ ${rangeText} (Revize)${tag ? tag : ''}`
+      : `${rangeText}${tag}`;
+
     periods.push({
       key,
+      autoKey,
+      autoStartDate,
+      autoEndDate,
+      cycleId,
       startDate,
       endDate,
       cutoffDate: endDate,
@@ -3556,41 +3675,19 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
       month: targetM,
       isClosed,
       isCurrentCycle,
+      isCustom,
       rangeText,
-      label: `${rangeText}${tag}`
+      label
     });
   }
 
   // Yeniden eskiye sıralama (en güncel dönemler en üstte)
-  periods.sort((a, b) => b.endDate.localeCompare(a.endDate));
-
-  // Kartın kayıtlı revize dönemi varsa en başa ekle ve varsayılan yap
-  let finalDefaultKey = defaultSelectedKey;
-  if (cardAcc.isCustomPeriod && cardAcc.customPeriodStart && cardAcc.customPeriodEnd) {
-    const customKey = `custom_${cardAcc.customPeriodStart}_${cardAcc.customPeriodEnd}`;
-    const customRangeText = formatCreditCardPeriodRange(cardAcc.customPeriodStart, cardAcc.customPeriodEnd);
-    const customObj = {
-      key: customKey,
-      startDate: cardAcc.customPeriodStart,
-      endDate: cardAcc.customPeriodEnd,
-      cutoffDate: cardAcc.customPeriodEnd,
-      nextCutoffDate: null,
-      year: parseInt(cardAcc.customPeriodEnd.split('-')[0], 10),
-      month: parseInt(cardAcc.customPeriodEnd.split('-')[1], 10) - 1,
-      isClosed: cardAcc.customPeriodEnd < todayStr,
-      isCurrentCycle: cardAcc.customPeriodStart <= todayStr && todayStr <= cardAcc.customPeriodEnd,
-      isCustom: true,
-      rangeText: customRangeText,
-      label: `✏️ ${customRangeText} (Revize Dönem)`
-    };
-    periods.unshift(customObj);
-    finalDefaultKey = customKey;
-  }
+  periods.sort((a, b) => b.autoEndDate.localeCompare(a.autoEndDate));
 
   return {
     billingDay,
     refDateStr: `${refYear}-${pad(refMonth + 1)}-${pad(refDay)}`,
-    defaultSelectedKey: finalDefaultKey,
+    defaultSelectedKey,
     periods
   };
 }
@@ -3631,7 +3728,13 @@ function getCreditCardPeriodStats(accId, period) {
     const isPaymentToCard = (tx.toAccountId === accId && tx.type === 'transfer') ||
                             (tx.fromAccountId === accId && tx.type === 'income');
     if (isPaymentToCard) {
-      if (tx.periodKey && tx.periodKey === period.key) {
+      const matchesPeriod = tx.periodKey && (
+        tx.periodKey === period.key ||
+        (period.autoKey && tx.periodKey === period.autoKey) ||
+        tx.periodKey === `${period.startDate}_${period.endDate}` ||
+        tx.periodKey === `custom_${period.startDate}_${period.endDate}`
+      );
+      if (matchesPeriod) {
         // Doğrudan bu dönem için kaydedilmiş ödeme
         paid += tx.amount;
         paidTxs.push(tx);
@@ -3796,34 +3899,41 @@ function onPayCardReviseDateChange() {
     endInput.value = startDate;
   }
 
-  const customKey = `custom_${startDate}_${endDate}`;
-  const customPeriod = {
-    key: customKey,
-    startDate,
-    endDate,
-    cutoffDate: endDate,
-    nextCutoffDate: null,
-    rangeText: formatCreditCardPeriodRange(startDate, endDate),
-    label: `✏️ ${formatCreditCardPeriodRange(startDate, endDate)} (Revize)`
-  };
-
-  if (!currentPayCardPeriodsCache.some(p => p.key === customKey)) {
-    currentPayCardPeriodsCache.unshift(customPeriod);
-  }
-
   const selectPeriod = document.getElementById('selectPayCardPeriod');
+  const selectedKey = selectPeriod ? selectPeriod.value : null;
+  const periodObj = currentPayCardPeriodsCache.find(p => p.key === selectedKey);
+  if (!periodObj) return;
+
+  // Revize edilen tarihleri doğrudan mevcut seçili döneme uygula! (Ayrı sekme / seçenek açma!)
+  periodObj.startDate = startDate;
+  periodObj.endDate = endDate;
+  periodObj.cutoffDate = endDate;
+  periodObj.isCustom = true;
+  periodObj.rangeText = formatCreditCardPeriodRange(startDate, endDate);
+  periodObj.label = `✏️ ${periodObj.rangeText} (Revize)`;
+
+  // Dropdown seçeneğinin metnini güncelle
   if (selectPeriod) {
-    let opt = Array.from(selectPeriod.options).find(o => o.value === customKey);
-    if (!opt) {
-      opt = document.createElement('option');
-      opt.value = customKey;
-      opt.textContent = customPeriod.label;
-      selectPeriod.insertBefore(opt, selectPeriod.firstChild);
+    const opt = selectPeriod.querySelector(`option[value="${selectedKey}"]`);
+    if (opt) {
+      opt.textContent = periodObj.label;
     }
-    selectPeriod.value = customKey;
   }
 
-  updatePayCardPeriodView(cardId, customPeriod);
+  // Kart üzerindeki periodOverrides'a da kaydet
+  const cardAcc = walletState.accounts.find(a => a.id === cardId);
+  if (cardAcc) {
+    if (!cardAcc.periodOverrides) cardAcc.periodOverrides = {};
+    const autoKey = periodObj.autoKey || periodObj.key;
+    cardAcc.periodOverrides[autoKey] = {
+      startDate,
+      endDate,
+      isCustom: true
+    };
+    saveWalletState();
+  }
+
+  updatePayCardPeriodView(cardId, periodObj);
 }
 
 function resetPayCardPeriodToAuto() {
@@ -3832,6 +3942,21 @@ function resetPayCardPeriodToAuto() {
   const cardAcc = walletState.accounts.find(a => a.id === cardId);
   if (!cardAcc) return;
 
+  const selectPeriod = document.getElementById('selectPayCardPeriod');
+  const selectedKey = selectPeriod ? selectPeriod.value : null;
+  const periodObj = currentPayCardPeriodsCache.find(p => p.key === selectedKey);
+  const autoKey = periodObj ? (periodObj.autoKey || periodObj.key) : selectedKey;
+
+  if (cardAcc.periodOverrides && autoKey && cardAcc.periodOverrides[autoKey]) {
+    delete cardAcc.periodOverrides[autoKey];
+  }
+  if (cardAcc.isCustomPeriod) {
+    cardAcc.isCustomPeriod = false;
+    delete cardAcc.customPeriodStart;
+    delete cardAcc.customPeriodEnd;
+  }
+  saveWalletState();
+
   const section = document.getElementById('payCardRevisePeriodSection');
   if (section) section.style.display = 'none';
   const btn = document.getElementById('btnTogglePayCardRevise');
@@ -3839,7 +3964,11 @@ function resetPayCardPeriodToAuto() {
   isPayCardReviseOpen = false;
 
   const dateInput = document.getElementById('inputPayCardDate');
-  populatePayCardPeriods(cardAcc, dateInput ? dateInput.value : '', true);
+  populatePayCardPeriods(cardAcc, dateInput ? dateInput.value : '', false);
+  if (selectPeriod && selectedKey) {
+    selectPeriod.value = selectedKey;
+    updatePayCardPeriodView(cardId);
+  }
 }
 
 function updatePayCardPeriodView(cardId, overridePeriod = null) {
@@ -4084,9 +4213,12 @@ function openPayCreditCardModal(cardId, initialPeriodKey = null) {
 
   if (initialPeriodKey) {
     const selectPeriod = document.getElementById('selectPayCardPeriod');
-    if (selectPeriod && currentPayCardPeriodsCache.some(p => p.key === initialPeriodKey)) {
-      selectPeriod.value = initialPeriodKey;
-      updatePayCardPeriodView(cardAcc.id);
+    if (selectPeriod) {
+      const match = currentPayCardPeriodsCache.find(p => p.key === initialPeriodKey || p.autoKey === initialPeriodKey);
+      if (match) {
+        selectPeriod.value = match.key;
+        updatePayCardPeriodView(cardAcc.id);
+      }
     }
   }
 
@@ -4183,6 +4315,7 @@ function handlePayCreditCardSubmit(e) {
     categoryId: '',
     subCategory: '',
     date: dateVal,
+    time: getCurrentTimeStr(),
     note: noteVal,
     periodKey: selectedPeriodKey || '',
     periodRange: selectedPeriodObj ? selectedPeriodObj.rangeText : ''
@@ -4194,7 +4327,7 @@ function handlePayCreditCardSubmit(e) {
 
   // 3. İşlemi ekle ve tarihe göre sırala
   walletState.transactions.push(newTx);
-  walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  walletState.transactions.sort(compareWalletTx);
 
   // 4. Durumu kaydet ve arayüzü güncelle
   saveWalletState();
@@ -4320,6 +4453,9 @@ function handleAccountFormSubmit(e) {
       acc.isCustomPeriod = isCustomPeriod;
       acc.customPeriodStart = customPeriodStart;
       acc.customPeriodEnd = customPeriodEnd;
+      if (!isCustomPeriod) {
+        acc.periodOverrides = {};
+      }
     }
   } else {
     // Yeni hesap oluştur
@@ -4535,6 +4671,10 @@ function openAddWalletTxModal(defaultAccountId = null, defaultDate = null) {
     const today = getTodayDateStr();
     dateInput.value = defaultDate || today;
   }
+  const timeInput = document.getElementById('inputWalletTxTime');
+  if (timeInput) {
+    timeInput.value = getCurrentTimeStr();
+  }
   const amountInput = document.getElementById('inputWalletAmount');
   if (amountInput) {
     amountInput.value = '';
@@ -4642,9 +4782,11 @@ function openEditWalletTxModal(txId) {
     renderCategoryGrid(tx.type);
   }
 
-  // Tarih
+  // Tarih & Saat
   const dateInput = document.getElementById('inputWalletTxDate');
   if (dateInput) dateInput.value = tx.date;
+  const timeInput = document.getElementById('inputWalletTxTime');
+  if (timeInput) timeInput.value = tx.time || '';
 
   // Not
   const noteInput = document.getElementById('inputWalletNote');
@@ -5241,6 +5383,7 @@ function handleWalletTxSubmit(e) {
   e.preventDefault();
   const amountInput = document.getElementById('inputWalletAmount');
   const dateInput = document.getElementById('inputWalletTxDate');
+  const timeInput = document.getElementById('inputWalletTxTime');
   const noteInput = document.getElementById('inputWalletNote');
   const fromSelect = document.getElementById('selectWalletFromAccount');
   const toSelect = document.getElementById('selectWalletToAccount');
@@ -5250,6 +5393,7 @@ function handleWalletTxSubmit(e) {
   const inputAmount = parseFloat(rawVal);
   if (isNaN(inputAmount) || inputAmount === 0 || !dateInput.value) return;
 
+  const txTime = (timeInput ? timeInput.value : '').trim() || getCurrentTimeStr();
   const fromAccountId = fromSelect.value;
   const toAccountId = currentTxType === 'transfer' ? toSelect.value : '';
 
@@ -5299,6 +5443,7 @@ function handleWalletTxSubmit(e) {
     tx.categoryId = (currentTxType !== 'transfer' ? selectedCategoryId : '');
     tx.subCategory = (currentTxType !== 'transfer' ? selectedSubCategoryId : '');
     tx.date = dateInput.value;
+    tx.time = txTime;
     tx.note = noteInput.value.trim();
 
     // 3. Yeni değerleri hesap bakiyelerine uygula
@@ -5317,8 +5462,8 @@ function handleWalletTxSubmit(e) {
       }
     }
 
-    // Tarihe göre sırala
-    walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Tarihe ve saate göre sırala
+    walletState.transactions.sort(compareWalletTx);
 
     editingWalletTxId = null;
     const oldBanner = document.getElementById('walletTxEditInstallmentBanner');
@@ -5380,6 +5525,7 @@ function handleWalletTxSubmit(e) {
         categoryId: selectedCategoryId,
         subCategory: selectedSubCategoryId,
         date: installmentDates[i - 1],
+        time: txTime,
         note: noteInput.value.trim(),
         installment: {
           groupId: installmentGroupId,
@@ -5392,7 +5538,7 @@ function handleWalletTxSubmit(e) {
 
     // Yeni taksitleri mevcut işlemlere ekle ve tarihe göre sırala
     walletState.transactions.push(...newTxs);
-    walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    walletState.transactions.sort(compareWalletTx);
   } else {
     // Standart Tek Çekim İşlem
     const newTx = {
@@ -5404,6 +5550,7 @@ function handleWalletTxSubmit(e) {
       categoryId: currentTxType !== 'transfer' ? selectedCategoryId : '',
       subCategory: currentTxType !== 'transfer' ? selectedSubCategoryId : '',
       date: dateInput.value,
+      time: txTime,
       note: noteInput.value.trim()
     };
 
@@ -5421,6 +5568,7 @@ function handleWalletTxSubmit(e) {
     }
 
     walletState.transactions.unshift(newTx);
+    walletState.transactions.sort(compareWalletTx);
   }
 
   saveWalletState();

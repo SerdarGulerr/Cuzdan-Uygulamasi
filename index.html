@@ -877,9 +877,18 @@
       </div>
 
       <form id="formWalletTx" onsubmit="handleWalletTxSubmit(event)">
-        <div class="form-group">
-          <label id="lblWalletTxDate">Tarih</label>
-          <input type="date" id="inputWalletTxDate" required onchange="updateInstallmentCalculation()">
+        <div class="wallet-datetime-grid">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label id="lblWalletTxDate" for="inputWalletTxDate">Tarih</label>
+            <input type="date" id="inputWalletTxDate" required onchange="updateInstallmentCalculation()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label for="inputWalletTxTime" style="margin-bottom: 0;">Saat</label>
+              <button type="button" class="btn-now-time-quick" onclick="setCurrentTimeToWalletTx()" title="Şu anki saati al">Şimdi</button>
+            </div>
+            <input type="time" id="inputWalletTxTime" class="app-input-time" step="60">
+          </div>
         </div>
 
         <div class="form-group">

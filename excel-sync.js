@@ -106,6 +106,7 @@ function exportDataToExcel() {
   // ==========================================
   const txHeaders = [
     'Tarih',
+    'Saat',
     'İşlem Türü',
     'Tutar (TL)',
     'Hesap / Kart',
@@ -137,6 +138,7 @@ function exportDataToExcel() {
 
       txRows.push([
         formatDateForExcel(tx.date),
+        tx.time || '',
         turStr,
         tx.amount,
         fromAcc ? fromAcc.name : '',
@@ -152,13 +154,14 @@ function exportDataToExcel() {
     // Boş ise örnek rehber satırlar koy
     const todayTR = formatDateForExcel(getTodayDateString());
     const firstAcc = accounts[0] ? accounts[0].name : 'Banka Hesabı (Vadesiz)';
-    txRows.push([todayTR, 'Gider', 350.50, firstAcc, '', 'Market & Gıda', 'Migros', 'Örnek: Haftalık market alışverişi', '', '']);
-    txRows.push([todayTR, 'Gelir', 45000.00, firstAcc, '', 'Aylık Maaş', 'Ana Maaş', 'Örnek: Aylık net maaş', '', '']);
+    txRows.push([todayTR, '12:30', 'Gider', 350.50, firstAcc, '', 'Market & Gıda', 'Migros', 'Örnek: Haftalık market alışverişi', '', '']);
+    txRows.push([todayTR, '09:00', 'Gelir', 45000.00, firstAcc, '', 'Aylık Maaş', 'Ana Maaş', 'Örnek: Aylık net maaş', '', '']);
   }
 
   const wsTx = XLSX.utils.aoa_to_sheet([txHeaders, ...txRows]);
   wsTx['!cols'] = [
     { wch: 14 }, // Tarih
+    { wch: 10 }, // Saat
     { wch: 14 }, // İşlem Türü
     { wch: 15 }, // Tutar
     { wch: 26 }, // Hesap
@@ -497,6 +500,7 @@ function importDataFromExcel(event) {
           if (!amount || amount <= 0) return; // Geçersiz veya boş satır
 
           const dateStr = parseExcelDate(row['Tarih']);
+          const timeStr = (row['Saat'] || row['Zaman'] || '').toString().trim();
           const turRaw = (row['İşlem Türü'] || row['Tür'] || 'Gider').toString().toLowerCase().trim();
           let txType = 'expense';
           if (turRaw.includes('gelir') || turRaw.includes('income')) txType = 'income';
@@ -607,6 +611,7 @@ function importDataFromExcel(event) {
             existingTx.type = txType;
             existingTx.amount = amount;
             existingTx.date = dateStr;
+            if (timeStr) existingTx.time = timeStr;
             existingTx.fromAccountId = fromAccountId;
             existingTx.toAccountId = toAccountId;
             existingTx.categoryId = categoryId;
@@ -639,6 +644,7 @@ function importDataFromExcel(event) {
               categoryId: categoryId,
               subCategory: subCatName,
               date: dateStr,
+              time: timeStr || '',
               note: note,
               installment: installmentData
             };
@@ -664,8 +670,12 @@ function importDataFromExcel(event) {
           stats.walletProcessed++;
         });
 
-        // Tarihe göre yeniden sırala (en yeniden en eskiye)
-        walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Tarihe ve saate göre yeniden sırala (en yeniden en eskiye)
+        if (typeof compareWalletTx === 'function') {
+          walletState.transactions.sort(compareWalletTx);
+        } else {
+          walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
       }
 
       // ----------------------------------------------------

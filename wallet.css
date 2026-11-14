@@ -7461,3 +7461,78 @@
   color: #ffffff;
   text-decoration: underline;
 }
+
+/* ==========================================================================
+   İşlem Tarih & Saat Grid, Saat Inputu ve Listeleme Rozetleri (Note 10+ Uyumlu)
+   ========================================================================== */
+.wallet-datetime-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+  align-items: flex-end;
+}
+
+.btn-now-time-quick {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-now-time-quick:hover,
+.btn-now-time-quick:active {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #059669;
+  transform: scale(0.96);
+}
+
+.app-input-time {
+  width: 100%;
+  min-height: 48px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(20, 31, 54, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 11px 13px;
+  box-sizing: border-box;
+  outline: none;
+  transition: all 0.2s ease;
+  color-scheme: dark;
+}
+
+.app-input-time:focus {
+  border-color: #38bdf8;
+  background: rgba(26, 40, 70, 0.85);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+/* İşlem Listelerinde Saat Rozeti */
+.tx-time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.2px;
+  vertical-align: middle;
+}
+
