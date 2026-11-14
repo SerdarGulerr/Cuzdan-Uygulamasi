@@ -3048,13 +3048,6 @@ function resetDetailPeriodToAuto(accId, periodKey) {
   renderAccountsView();
 }
 
-  saveWalletState();
-  activeAccountDetailCardPeriodKey = null;
-  detailReviseOpenState[accId] = false;
-  openAccountDetailModal(acc.id, 'all');
-  renderAccountsView();
-}
-
 function selectCardDetailPeriod(accId, periodKey) {
   activeAccountDetailCardPeriodKey = periodKey;
   activeAccountDetailPeriodSubFilter = 'all';

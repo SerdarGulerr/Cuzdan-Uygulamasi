@@ -8,3 +8,5 @@ node_modules/
 dist/
 android/
 *.bak
+edge_*.txt
+temp_edge_user/

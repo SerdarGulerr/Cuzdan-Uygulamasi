@@ -1406,6 +1406,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.openAppSettings = openAppSettings;
 
+  // Navigation Drawer (Sol Menü) Açma / Kapatma
+  window.openDrawer = function() {
+    const drawer = document.getElementById('navDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (drawer) drawer.classList.add('active');
+    if (overlay) overlay.classList.add('active');
+  };
+
+  window.closeDrawer = function() {
+    const drawer = document.getElementById('navDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (drawer) drawer.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+  };
+
   const btnFaizSettings = document.getElementById('btnSettings');
   if (btnFaizSettings) btnFaizSettings.addEventListener('click', openAppSettings);
 
