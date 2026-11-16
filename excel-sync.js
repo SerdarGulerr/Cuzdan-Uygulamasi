@@ -676,6 +676,10 @@ function importDataFromExcel(event) {
         } else {
           walletState.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
         }
+
+        if (typeof normalizeCreditCardPaymentPeriods === 'function') {
+          normalizeCreditCardPaymentPeriods();
+        }
       }
 
       // ----------------------------------------------------

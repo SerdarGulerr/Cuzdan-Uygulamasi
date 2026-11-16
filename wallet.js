@@ -186,6 +186,11 @@ function loadWalletState() {
         }
       });
     });
+
+    // Kredi kartı borç ödemelerinin dönem bağlarını doğrula ve onar
+    if (typeof normalizeCreditCardPaymentPeriods === 'function') {
+      normalizeCreditCardPaymentPeriods();
+    }
   } catch (e) {
     console.error('Cüzdan verisi yüklenemedi:', e);
     walletState = JSON.parse(JSON.stringify(DEFAULT_WALLET_STATE));
@@ -332,6 +337,9 @@ function getFilteredWalletData() {
 // --- Cüzdan Ana Render Fonksiyonu ---
 function renderWalletUI() {
   if (!walletState) loadWalletState();
+  if (typeof autoReconcileCreditCardFutureInstallments === 'function') {
+    autoReconcileCreditCardFutureInstallments();
+  }
   const data = getFilteredWalletData();
 
   // 1. Ay Başlığı ve Bugün Çipi
@@ -491,11 +499,21 @@ function renderDailyView(txs) {
         let catName = 'İşlem';
         let accName = 'Hesap';
 
+        let periodBadge = '';
         if (t.type === 'transfer') {
-          icon = '🔄';
-          catName = 'Hesaplar Arası Transfer';
           const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
           const toAcc = walletState.accounts.find(a => a.id === t.toAccountId);
+          if (toAcc && toAcc.type === 'credit') {
+            icon = '💳';
+            catName = 'Kart Borç Ödemesi';
+            const pRange = t.periodRange || (typeof getCreditCardPaymentPeriodRangeText === 'function' ? getCreditCardPaymentPeriodRangeText(toAcc, t) : '');
+            if (pRange) {
+              periodBadge = `<span class="tx-subcat-badge">🗓️ ${pRange} Dönemi</span>`;
+            }
+          } else {
+            icon = '🔄';
+            catName = 'Hesaplar Arası Transfer';
+          }
           accName = `${fromAcc ? fromAcc.name : 'Hesap'} ➔ ${toAcc ? toAcc.name : 'Hesap'}`;
         } else {
           const catList = t.type === 'expense' ? walletState.categories.expense : walletState.categories.income;
@@ -530,7 +548,7 @@ function renderDailyView(txs) {
             <div class="wallet-tx-left">
               <div class="tx-cat-icon">${icon}</div>
               <div class="tx-desc-box">
-                <span class="tx-cat-name">${catName} ${refundBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
+                <span class="tx-cat-name">${catName} ${refundBadge} ${periodBadge} ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''} ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''} ${t.note ? `<small style="font-weight: normal; color: var(--text-dim);">(${t.note})</small>` : ''}</span>
                 <span class="tx-account-name">${t.time ? `<span class="tx-time-badge">${t.time}</span>${accName ? ' • ' : ''}` : ''}${accName}</span>
               </div>
             </div>
@@ -1899,6 +1917,11 @@ function renderAccountsView() {
   const container = document.getElementById('subView_accounts');
   if (!container) return;
 
+  // Kredi kartlarında vadesi gelmemiş gelecek taksitlerin bakiyeyi eksi yapmasını önle ve uzlaştır
+  if (typeof autoReconcileCreditCardFutureInstallments === 'function') {
+    autoReconcileCreditCardFutureInstallments();
+  }
+
   let totalWealth = 0;
   walletState.accounts.forEach(a => totalWealth += a.balance);
 
@@ -1920,6 +1943,7 @@ function renderAccountsView() {
     if (acc.type === 'credit') {
       const periodData = calculateCreditCardPeriodDebt(acc.id, acc.billingDay || 15);
       const periodDebt = periodData ? periodData.netDebt : 0;
+      const futureSpent = periodData ? periodData.futureSpent : 0;
       const isCustomPeriod = !!(acc.isCustomPeriod && acc.customPeriodStart && acc.customPeriodEnd);
       let rangeText = periodData ? formatCreditCardPeriodRange(periodData.startDate, periodData.endDate) : '';
       if (isCustomPeriod && rangeText) {
@@ -1947,6 +1971,7 @@ function renderAccountsView() {
           <div class="wacc-pills">
             <span class="wacc-pill">📅 Kesim: ${getCreditCardCutoffDateDisplay(acc, periodData ? periodData.endDate : null)}</span>
             ${rangeText ? `<span class="wacc-pill ${isCustomPeriod ? 'wacc-pill-alert' : 'wacc-pill-muted'}" title="${isCustomPeriod ? 'Revize edilmiş özel dönem aralığı' : 'Otomatik dönem aralığı'}">🗓️ ${rangeText}</span>` : ''}
+            ${futureSpent > 0 ? `<span class="wacc-pill wacc-pill-muted" title="Gelecek aylara ait henüz vadesi gelmemiş taksitler">⏳ Gelecek Taksitler: ${formatWalletTL(futureSpent)}</span>` : ''}
             ${isNotifActive ? `<span class="wacc-pill wacc-pill-alert" title="Hesap kesim tarihi geldi! Borç ödenene kadar her gün 11:30'da bildirim gönderilir.">🔔 11:30 Bildirim</span>` : ''}
           </div>
 
@@ -2178,37 +2203,102 @@ function calculateCreditCardPeriodDebt(accId, billingDay, customRange = null, fo
   if (!info) return null;
 
   const txs = (walletState && walletState.transactions) || [];
+  const todayStr = info.todayStr;
+  const lastCutoffDate = info.periodA.endDate; // Kesimi gerçekleşen son tarih
 
-  function getStatsForRange(startDate, endDate) {
+  // 1. Hesap kesimi gerçekleşen tarihe (lastCutoffDate) kadar olan TÜM harcamalar
+  // (Böylece ister 1 ay önce, ister 2 ay önceki ödenmemiş ekstre olsun eksiksiz toplanır)
+  let cutoffSpent = 0;
+  const cutoffItems = [];
+
+  // Bugüne kadar karta yapılan TÜM ödemeler (transfer / iade / gelir)
+  let totalPayments = 0;
+  const paymentItems = [];
+
+  // İçinde bulunulan dönem (lastCutoffDate < date <= todayStr) harcamaları
+  let currentCycleSpent = 0;
+  const currentCycleItems = [];
+
+  // Henüz vadesi gelmemiş gelecek taksitler (date > todayStr)
+  let futureSpent = 0;
+  const futureItems = [];
+
+  txs.forEach(tx => {
+    const isFromCard = (tx.fromAccountId === accId);
+    const isToCard = (tx.toAccountId === accId);
+
+    if (isFromCard && (tx.type === 'expense' || tx.type === 'transfer')) {
+      if (tx.date <= lastCutoffDate) {
+        cutoffSpent += tx.amount;
+        cutoffItems.push(tx);
+      } else if (tx.date <= todayStr) {
+        currentCycleSpent += tx.amount;
+        currentCycleItems.push(tx);
+      } else {
+        futureSpent += tx.amount;
+        futureItems.push(tx);
+      }
+    } else if (isToCard && tx.type === 'transfer') {
+      if (tx.date <= todayStr) {
+        totalPayments += tx.amount;
+        paymentItems.push(tx);
+      }
+    } else if (isFromCard && tx.type === 'income') {
+      if (tx.date <= todayStr) {
+        totalPayments += tx.amount;
+        paymentItems.push(tx);
+      }
+    }
+  });
+
+  cutoffSpent = Math.round(cutoffSpent * 100) / 100;
+  totalPayments = Math.round(totalPayments * 100) / 100;
+  currentCycleSpent = Math.round(currentCycleSpent * 100) / 100;
+  futureSpent = Math.round(futureSpent * 100) / 100;
+
+  // Hesap kesimi gerçekleşen tarihin net ödenmemiş borcu:
+  // (Kesim tarihine kadar olan tüm harcamalar - bugüne kadar yapılan tüm ödemeler)
+  let netCutoffDebt = Math.max(0, Math.round((cutoffSpent - totalPayments) * 100) / 100);
+
+  // Kalan ödeme varsa cari dönem harcamasından düş
+  const remainingPayments = Math.max(0, Math.round((totalPayments - cutoffSpent) * 100) / 100);
+  let netCurrentCycleDebt = Math.max(0, Math.round((currentCycleSpent - remainingPayments) * 100) / 100);
+
+  const allPeriods = (cardAcc && typeof getCreditCardPeriods === 'function')
+    ? getCreditCardPeriods(cardAcc).periods
+    : [];
+
+  function getStatsForRange(startDate, endDate, periodKeyHint = null) {
     let spent = 0;
     let payments = 0;
     const items = [];
+    const rangeKey = periodKeyHint || `${startDate}_${endDate}`;
 
     txs.forEach(tx => {
-      if (tx.date >= startDate && tx.date <= endDate) {
-        if (tx.fromAccountId === accId && tx.type === 'expense') {
+      // 1. Dönem içi harcamalar (tarih aralığına göre)
+      if (tx.fromAccountId === accId && (tx.type === 'expense' || tx.type === 'transfer')) {
+        if (tx.date >= startDate && tx.date <= endDate) {
           spent += tx.amount;
-          items.push(tx);
-        } else if (tx.fromAccountId === accId && tx.type === 'transfer') {
-          spent += tx.amount;
-          items.push(tx);
-        } else if (tx.toAccountId === accId && tx.type === 'transfer') {
-          payments += tx.amount;
-          items.push(tx);
-        } else if (tx.fromAccountId === accId && tx.type === 'income') {
-          payments += tx.amount;
           items.push(tx);
         }
       }
-    });
 
-    // Ayrıca dönem sonrasından bugüne kadar karta yapılan ödemeler varsa onları da düş
-    txs.forEach(tx => {
-      if (tx.date > endDate && tx.date <= info.todayStr) {
-        if (tx.toAccountId === accId && tx.type === 'transfer') {
+      // 2. Karta yapılan ödemeler: Ödeme tarihinin düştüğü döneme göre DEĞİL,
+      // hangi dönemin ödemesiyse SADECE o döneme göre eşleştirilir!
+      const isPaymentToCard = (tx.toAccountId === accId && tx.type === 'transfer') ||
+                              (tx.fromAccountId === accId && tx.type === 'income');
+      if (isPaymentToCard) {
+        const targetKey = (cardAcc && typeof resolveCreditCardPaymentPeriodKey === 'function')
+          ? resolveCreditCardPaymentPeriodKey(cardAcc, tx, allPeriods)
+          : (tx.periodKey || '');
+        const matchesThisRange = targetKey && (
+          targetKey === rangeKey ||
+          targetKey === `${startDate}_${endDate}` ||
+          targetKey === `custom_${startDate}_${endDate}`
+        );
+        if (matchesThisRange) {
           payments += tx.amount;
-        } else if (tx.fromAccountId === accId && tx.type === 'income') {
-          payments += tx.amount;
+          items.push(tx);
         }
       }
     });
@@ -2220,42 +2310,65 @@ function calculateCreditCardPeriodDebt(accId, billingDay, customRange = null, fo
     return { spent, payments, net, items, startDate, endDate };
   }
 
-  const statsA = getStatsForRange(info.periodA.startDate, info.periodA.endDate);
-  const statsB = getStatsForRange(info.periodB.startDate, info.periodB.endDate);
+  const periodAKey = `${info.periodA.startDate}_${info.periodA.endDate}`;
+  const periodBKey = `${info.periodB.startDate}_${info.periodB.endDate}`;
+  const rangeStatsA = getStatsForRange(info.periodA.startDate, info.periodA.endDate, periodAKey);
+  const rangeStatsB = getStatsForRange(info.periodB.startDate, info.periodB.endDate, periodBKey);
 
-  let activeStats, activePeriod, isCustom = false;
+  const statsA = {
+    spent: rangeStatsA.spent,
+    payments: rangeStatsA.payments,
+    net: rangeStatsA.net,
+    items: rangeStatsA.items,
+    startDate: info.periodA.startDate,
+    endDate: info.periodA.endDate
+  };
+
+  const statsB = {
+    spent: rangeStatsB.spent,
+    payments: rangeStatsB.payments,
+    net: rangeStatsB.net,
+    items: rangeStatsB.items,
+    startDate: info.periodB.startDate,
+    endDate: info.periodB.endDate
+  };
+
+  let activeStats = statsA;
+  let activePeriod = info.periodA;
+  activePeriod.label = 'Kesilen Ekstre';
+  let isCustom = false;
 
   if (customRange && customRange.startDate && customRange.endDate) {
     isCustom = true;
-    activeStats = getStatsForRange(customRange.startDate, customRange.endDate);
+    activeStats = getStatsForRange(customRange.startDate, customRange.endDate, periodAKey);
     activePeriod = {
       startDate: customRange.startDate,
       endDate: customRange.endDate,
       cutoffDate: customRange.endDate,
-      isClosed: customRange.endDate < info.todayStr,
+      isClosed: customRange.endDate <= todayStr,
       label: 'Revize Dönem',
       isCustom: true
     };
-  } else if (!forceAuto && cardAcc && cardAcc.periodOverrides && cardAcc.periodOverrides[`${info.periodA.startDate}_${info.periodA.endDate}`]) {
-    const ov = cardAcc.periodOverrides[`${info.periodA.startDate}_${info.periodA.endDate}`];
+  } else if (!forceAuto && cardAcc && cardAcc.periodOverrides && cardAcc.periodOverrides[periodAKey]) {
+    const ov = cardAcc.periodOverrides[periodAKey];
     isCustom = true;
-    activeStats = getStatsForRange(ov.startDate, ov.endDate);
+    activeStats = getStatsForRange(ov.startDate, ov.endDate, periodAKey);
     activePeriod = {
       startDate: ov.startDate,
       endDate: ov.endDate,
       cutoffDate: ov.endDate,
-      isClosed: ov.endDate < info.todayStr,
+      isClosed: ov.endDate <= todayStr,
       label: 'Revize Dönem',
       isCustom: true
     };
   } else if (!forceAuto && cardAcc && cardAcc.isCustomPeriod && cardAcc.customPeriodStart && cardAcc.customPeriodEnd) {
     isCustom = true;
-    activeStats = getStatsForRange(cardAcc.customPeriodStart, cardAcc.customPeriodEnd);
+    activeStats = getStatsForRange(cardAcc.customPeriodStart, cardAcc.customPeriodEnd, periodAKey);
     activePeriod = {
       startDate: cardAcc.customPeriodStart,
       endDate: cardAcc.customPeriodEnd,
       cutoffDate: cardAcc.customPeriodEnd,
-      isClosed: cardAcc.customPeriodEnd < info.todayStr,
+      isClosed: cardAcc.customPeriodEnd <= todayStr,
       label: 'Revize Dönem',
       isCustom: true
     };
@@ -2288,6 +2401,10 @@ function calculateCreditCardPeriodDebt(accId, billingDay, customRange = null, fo
     totalPayments: activeStats.payments,
     netDebt: netDebt,
     periodTxs: activeStats.items,
+    cutoffSpent,
+    totalPayments,
+    currentCycleSpent,
+    futureSpent,
     statsA,
     statsB,
     isCustom
@@ -2625,10 +2742,13 @@ function getAccountMovementStats(accId) {
 
   let totalIn = 0;
   let totalOut = 0;
+  let futureOut = 0; // Gelecek tarihli taksitler / işlemler
 
   const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const curY = now.getFullYear();
-  const curM = String(now.getMonth() + 1).padStart(2, '0');
+  const curM = pad(now.getMonth() + 1);
   const curMonthPrefix = `${curY}-${curM}`;
 
   let monthIn = 0;
@@ -2637,25 +2757,42 @@ function getAccountMovementStats(accId) {
 
   accountTxs.forEach(t => {
     const isThisMonth = t.date && t.date.startsWith(curMonthPrefix);
-    if (isThisMonth) monthCount++;
+    const isFuture = t.date && t.date > todayStr;
 
     if (t.type === 'expense' && t.fromAccountId === accId) {
-      totalOut += t.amount;
-      if (isThisMonth) monthOut += t.amount;
+      if (isFuture) {
+        futureOut += t.amount;
+      } else {
+        totalOut += t.amount;
+        if (isThisMonth) monthOut += t.amount;
+        monthCount++;
+      }
     } else if (t.type === 'transfer' && t.fromAccountId === accId) {
-      totalOut += t.amount;
-      if (isThisMonth) monthOut += t.amount;
+      if (isFuture) {
+        futureOut += t.amount;
+      } else {
+        totalOut += t.amount;
+        if (isThisMonth) monthOut += t.amount;
+        monthCount++;
+      }
     } else if (t.type === 'income' && t.fromAccountId === accId) {
-      totalIn += t.amount;
-      if (isThisMonth) monthIn += t.amount;
+      if (!isFuture) {
+        totalIn += t.amount;
+        if (isThisMonth) monthIn += t.amount;
+        monthCount++;
+      }
     } else if (t.type === 'transfer' && t.toAccountId === accId) {
-      totalIn += t.amount;
-      if (isThisMonth) monthIn += t.amount;
+      if (!isFuture) {
+        totalIn += t.amount;
+        if (isThisMonth) monthIn += t.amount;
+        monthCount++;
+      }
     }
   });
 
   totalIn = Math.round(totalIn * 100) / 100;
   totalOut = Math.round(totalOut * 100) / 100;
+  futureOut = Math.round(futureOut * 100) / 100;
   const netDiff = Math.round((totalIn - totalOut) * 100) / 100;
 
   return {
@@ -2663,12 +2800,39 @@ function getAccountMovementStats(accId) {
     txCount: accountTxs.length,
     totalIn,
     totalOut,
+    futureOut,
     netDiff,
     monthIn: Math.round(monthIn * 100) / 100,
     monthOut: Math.round(monthOut * 100) / 100,
     monthNet: Math.round((monthIn - monthOut) * 100) / 100,
     monthCount
   };
+}
+
+// Kredi kartlarında vadesi gelmemiş (gelecek tarihli) taksitlerin kart bakiyesini haksız yere eksiye düşürmesini önleyen uzlaştırma
+function autoReconcileCreditCardFutureInstallments() {
+  if (!walletState || !walletState.accounts) return;
+  let hasChanged = false;
+  walletState.accounts.forEach(acc => {
+    if (acc.type === 'credit') {
+      const stats = getAccountMovementStats(acc.id);
+      // Eğer bu kartta bugünden sonraki tarihlere ait vadesi gelmemiş taksitler varsa
+      if (stats.futureOut > 0) {
+        // Kart hareketlerinin bugüne kadarki gerçek net borcu:
+        const currentRealNetDebt = Math.max(0, Math.round((stats.totalOut - stats.totalIn) * 100) / 100);
+        const expectedMinBalance = currentRealNetDebt === 0 ? 0 : -currentRealNetDebt;
+        // Eğer kayıtlı bakiye, gelecek taksitler peşinen düşüldüğü için daha fazla eksideyse düzelt:
+        if (acc.balance < expectedMinBalance) {
+          acc.balance = expectedMinBalance;
+          hasChanged = true;
+        }
+      }
+    }
+  });
+
+  if (hasChanged) {
+    saveWalletState();
+  }
 }
 
 function openAccountDetailModal(accId, filterType = 'all') {
@@ -2771,6 +2935,12 @@ function openAccountDetailModal(accId, filterType = 'all') {
             <span class="account-mini-stat-label">Toplam Çıkış</span>
             <span class="account-mini-stat-val expense">-${formatWalletTL(stats.totalOut)}</span>
           </div>
+          ${(acc.type === 'credit' && stats.futureOut > 0) ? `
+          <div class="account-mini-stat" style="grid-column: span 2; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15);">
+            <span class="account-mini-stat-label">⏳ Gelecek Aylara Ait Taksitler (Vadesi Gelmemiş)</span>
+            <span class="account-mini-stat-val" style="color: #cbd5e1; font-size: 0.95rem;">${formatWalletTL(stats.futureOut)}</span>
+          </div>
+          ` : ''}
         </div>
         ${notifCalloutHtml}
       </div>
@@ -2782,7 +2952,7 @@ function openAccountDetailModal(accId, filterType = 'all') {
   if (actionsBar) {
     if (acc.type === 'credit') {
       actionsBar.innerHTML = `
-        <button type="button" class="btn-acc-action pay-card-debt full-span" onclick="openPayCreditCardModal('${acc.id}', '${activeAccountDetailCardPeriodKey !== '__all__' ? (activeAccountDetailCardPeriodKey || '') : ''}')">
+        <button type="button" class="btn-acc-action pay-card-debt full-span" onclick="openPayCreditCardFromDetail('${acc.id}')">
           <span class="btn-acc-action-icon">💳</span>
           <span class="btn-acc-action-text">Kart Borcu Öde</span>
         </button>
@@ -3151,7 +3321,7 @@ function renderAccountTxList(acc, stats, filterType) {
   let payDebtBtnHtml = '';
   if (pStats.remaining > 0) {
     payDebtBtnHtml = `
-      <button type="button" class="btn-period-pay-debt" onclick="openPayCreditCardModal('${acc.id}', '${selectedPeriod.key}')">
+      <button type="button" class="btn-period-pay-debt" onclick="openPayCreditCardModal('${acc.id}', '${selectedPeriod.key}', true)">
         <span>💳 Bu Dönemin Borcunu Öde (${formatWalletTL(pStats.remaining)})</span>
       </button>
     `;
@@ -3190,9 +3360,11 @@ function renderAccountTxList(acc, stats, filterType) {
     </div>
   `;
 
+  pStats.spentTxs.sort(compareWalletTx);
+  pStats.paidTxs.sort(compareWalletTx);
   const allTxs = [...pStats.spentTxs, ...pStats.paidTxs];
   const uniqueTxs = Array.from(new Map(allTxs.map(t => [t.id, t])).values());
-  uniqueTxs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  uniqueTxs.sort(compareWalletTx);
 
   const spentCount = pStats.spentTxs.length;
   const paidCount = pStats.paidTxs.length;
@@ -3371,6 +3543,7 @@ function renderPeriodTransactionItems(acc, txList) {
     let isOutflow = false;
     const isToday = (t.date === todayStr);
 
+    let paymentPeriodBadge = '';
     if (t.type === 'transfer') {
       const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
       const toAcc = walletState.accounts.find(a => a.id === t.toAccountId);
@@ -3382,6 +3555,12 @@ function renderPeriodTransactionItems(acc, txList) {
         icon = '💳';
         isOutflow = false;
         catTitle = `Borç Ödemesi 🠔 ${fromAcc ? fromAcc.name : 'Hesap'}`;
+        if (acc && acc.type === 'credit') {
+          const pRange = t.periodRange || (typeof getCreditCardPaymentPeriodRangeText === 'function' ? getCreditCardPaymentPeriodRangeText(acc, t) : '');
+          if (pRange) {
+            paymentPeriodBadge = `<span class="tx-subcat-badge">🗓️ ${pRange} Dönemi</span>`;
+          }
+        }
       }
     } else {
       const catObj = allCats.find(c => c.id === t.categoryId);
@@ -3390,6 +3569,12 @@ function renderPeriodTransactionItems(acc, txList) {
         catTitle = catObj.name;
       }
       isOutflow = (t.type === 'expense');
+      if (!isOutflow && acc && acc.type === 'credit') {
+        const pRange = t.periodRange || (typeof getCreditCardPaymentPeriodRangeText === 'function' ? getCreditCardPaymentPeriodRangeText(acc, t) : '');
+        if (pRange) {
+          paymentPeriodBadge = `<span class="tx-subcat-badge">🗓️ ${pRange} Dönemi</span>`;
+        }
+      }
     }
 
     let effectiveOutflow = isOutflow;
@@ -3407,6 +3592,7 @@ function renderPeriodTransactionItems(acc, txList) {
             <span class="account-tx-title">${catTitle} ${refundBadge}</span>
             <div class="account-tx-sub">
               <span>📅 ${formatTurkishDate(t.date)}${t.time ? ` <span class="tx-time-badge">${t.time}</span>` : ''} ${isToday ? '<span class="daily-today-badge" style="font-size:0.65rem; padding: 1px 6px;">Bugün</span>' : ''}</span>
+              ${paymentPeriodBadge}
               ${t.subCategory ? `<span class="tx-subcat-badge">› ${t.subCategory}</span>` : ''}
               ${t.installment ? `<span class="tx-installment-badge">💳 ${t.installment.current}/${t.installment.total} Taksit</span>` : ''}
               ${t.note ? `<span style="color:var(--text-muted);">(${t.note})</span>` : ''}
@@ -3506,6 +3692,7 @@ function openAddTxForActiveAccount() {
 
 // Aktif kredi kartı dönem önbelleği
 let currentPayCardPeriodsCache = [];
+let payCardPeriodManuallyLocked = false;
 
 function getCreditCardPeriods(cardAcc, referenceDateStr) {
   if (!cardAcc) return { periods: [], defaultSelectedKey: '' };
@@ -3524,6 +3711,7 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
   const refYear = refDate.getFullYear();
   const refMonth = refDate.getMonth(); // 0-11
   const refDay = refDate.getDate();
+  const refDateFormatted = `${refYear}-${pad(refMonth + 1)}-${pad(refDay)}`;
 
   function getCutoffDateObj(y, m) {
     const maxDays = new Date(y, m + 1, 0).getDate();
@@ -3539,34 +3727,12 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
-  // Kullanıcı Kuralı:
-  // "eğer girdiğim tarih mevcut hesap kesim tarihinden önceyse bir önceki dönem borcu çıksın karşıma."
-  const refMonthCutoff = getCutoffDateObj(refYear, refMonth);
-  let defaultCutoffYear = refYear;
-  let defaultCutoffMonth = refMonth;
-
-  if (refDay < refMonthCutoff.day) {
-    // Mevcut ayın kesim gününden önce: Bir önceki ayın kesilen ekstre dönemi
-    defaultCutoffMonth = refMonth - 1;
-    if (defaultCutoffMonth < 0) {
-      defaultCutoffMonth += 12;
-      defaultCutoffYear -= 1;
-    }
-  } else {
-    // Mevcut ayın kesim günü veya geçmiş: Bu ay kesilen ekstre dönemi
-    defaultCutoffMonth = refMonth;
-    defaultCutoffYear = refYear;
-  }
-
-  const defaultTargetCutoff = getCutoffDateObj(defaultCutoffYear, defaultCutoffMonth);
-  let prevTargetMonth = defaultCutoffMonth - 1;
-  let prevTargetYear = defaultCutoffYear;
-  if (prevTargetMonth < 0) {
-    prevTargetMonth += 12;
-    prevTargetYear -= 1;
-  }
-  const defaultTargetPrevCutoff = getCutoffDateObj(prevTargetYear, prevTargetMonth);
-  const defaultSelectedKey = `${getNextDayStr(defaultTargetPrevCutoff.dateStr)}_${defaultTargetCutoff.dateStr}`;
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const todayCutoffInfo = getCreditCardCutoffInfo(billingDay);
+  const todayDefaultAutoKey = (todayCutoffInfo && todayCutoffInfo.periodA)
+    ? `${todayCutoffInfo.periodA.startDate}_${todayCutoffInfo.periodA.endDate}`
+    : '';
 
   // Geriye dönük en az 12 ay ve ileriye dönük en az 2 cari dönem;
   // ayrıca kart hareketlerinde daha eski/yeni işlemler varsa dinamik olarak genişletilir.
@@ -3593,8 +3759,6 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
   maxOffset = Math.min(24, maxOffset);
 
   const periods = [];
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   for (let offset = maxOffset; offset >= minOffset; offset--) {
     let targetM = refMonth + offset;
@@ -3630,8 +3794,9 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
       endDate = override.endDate;
       isCustom = true;
     } else if (cardAcc.isCustomPeriod && cardAcc.customPeriodStart && cardAcc.customPeriodEnd) {
-      // Legacy customPeriod uyumluluğu: Eğer bu dönem varsayılan ekstre dönemi ise doğrudan güncelle
-      if (autoKey === defaultSelectedKey) {
+      // Legacy customPeriod uyumluluğu: Sadece kendi dönemine (todayDefaultAutoKey veya aynı kesim ayına) uygula
+      const customEndYM = String(cardAcc.customPeriodEnd).slice(0, 7);
+      if (autoKey === todayDefaultAutoKey || cycleId === customEndYM) {
         startDate = cardAcc.customPeriodStart;
         endDate = cardAcc.customPeriodEnd;
         isCustom = true;
@@ -3639,20 +3804,7 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
     }
 
     const key = autoKey;
-    const isClosed = endDate < todayStr;
-    const isCurrentCycle = startDate <= todayStr && todayStr <= endDate;
     const rangeText = formatCreditCardPeriodRange(startDate, endDate);
-
-    let tag = '';
-    if (key === defaultSelectedKey) {
-      tag = ' ⭐ Seçilen Ekstre';
-    } else if (isCurrentCycle) {
-      tag = ' ⏳ Güncel Dönem (Açık)';
-    }
-
-    const label = isCustom 
-      ? `✏️ ${rangeText} (Revize)${tag ? tag : ''}`
-      : `${rangeText}${tag}`;
 
     periods.push({
       key,
@@ -3666,23 +3818,193 @@ function getCreditCardPeriods(cardAcc, referenceDateStr) {
       nextCutoffDate,
       year: targetY,
       month: targetM,
-      isClosed,
-      isCurrentCycle,
+      isClosed: false,
+      isCurrentCycle: false,
       isCustom,
       rangeText,
-      label
+      label: rangeText
     });
   }
 
   // Yeniden eskiye sıralama (en güncel dönemler en üstte)
   periods.sort((a, b) => b.autoEndDate.localeCompare(a.autoEndDate));
 
+  // Komşu dönemlerin revize edilmiş kesim tarihlerine göre nextCutoffDate güncelle
+  for (let i = 0; i < periods.length; i++) {
+    if (i > 0) {
+      periods[i].nextCutoffDate = periods[i - 1].endDate;
+    }
+  }
+
+  // Kullanıcı Kuralı:
+  // Referans tarihe (refDateFormatted) göre hesap kesimi gerçekleşmiş olan son ekstre dönemini (p.endDate <= refDateFormatted) seç.
+  // İçinde bulunulan ve henüz kesilmemiş açık dönemi seçme!
+  let defaultSelectedKey = '';
+  const latestClosedForRef = periods.find(p => p.endDate <= refDateFormatted);
+  if (latestClosedForRef) {
+    defaultSelectedKey = latestClosedForRef.key;
+  } else if (periods.length > 0) {
+    defaultSelectedKey = periods[periods.length - 1].key;
+  }
+
+  // Bugüne göre son kesilen dönemi ve güncel açık dönemi işaretle
+  const latestClosedToday = periods.find(p => p.endDate <= todayStr);
+  const latestClosedTodayIdx = latestClosedToday ? periods.indexOf(latestClosedToday) : -1;
+  const currentOpenIdx = latestClosedTodayIdx > 0 ? (latestClosedTodayIdx - 1) : -1;
+
+  periods.forEach((p, idx) => {
+    p.isClosed = (p.endDate <= todayStr);
+    p.isCurrentCycle = (idx === currentOpenIdx) || (!p.isClosed && p.startDate <= todayStr && todayStr <= p.endDate);
+
+    let tag = '';
+    if (p.key === defaultSelectedKey) {
+      tag = ' ⭐ Seçilen Ekstre';
+    } else if (p.isCurrentCycle) {
+      tag = ' ⏳ Güncel Dönem (Açık)';
+    }
+
+    p.label = p.isCustom
+      ? `✏️ ${p.rangeText} (Revize)${tag}`
+      : `${p.rangeText}${tag}`;
+  });
+
   return {
     billingDay,
-    refDateStr: `${refYear}-${pad(refMonth + 1)}-${pad(refDay)}`,
+    refDateStr: refDateFormatted,
     defaultSelectedKey,
     periods
   };
+}
+
+/**
+ * Kredi kartına yapılan bir borç ödemesinin (transfer veya gelir)
+ * HANGİ EKSTRE DÖNEMİNE AİT OLDUĞUNU kesin olarak belirler.
+ * KURAL: Ödeme, ödeme tarihinin (tx.date) düştüğü açık dönemde GÖRÜNMEZ;
+ * hangi dönemin ödemesiyse SADECE o dönemde görünür!
+ */
+function resolveCreditCardPaymentPeriodKey(cardAcc, tx, periodsList = null) {
+  if (!cardAcc || !tx) return '';
+  const periods = periodsList || getCreditCardPeriods(cardAcc).periods;
+  if (!periods || periods.length === 0) return tx.periodKey || '';
+
+  // 1. İşlem üzerinde kayıtlı periodKey varsa dönem listesiyle eşleştir
+  if (tx.periodKey) {
+    const directMatch = periods.find(p =>
+      p.key === tx.periodKey ||
+      (p.autoKey && p.autoKey === tx.periodKey) ||
+      `${p.startDate}_${p.endDate}` === tx.periodKey ||
+      `custom_${p.startDate}_${p.endDate}` === tx.periodKey ||
+      (p.cycleId && p.cycleId === tx.periodKey)
+    );
+    if (directMatch) {
+      return directMatch.key;
+    }
+
+    // periodKey "YYYY-MM-DD_YYYY-MM-DD" formatındaysa bitiş ayına (cycleId) göre eşleştir
+    const cleanKey = String(tx.periodKey).replace(/^custom_/, '');
+    const parts = cleanKey.split('_');
+    if (parts.length === 2 && parts[1].length >= 7) {
+      const endYM = parts[1].slice(0, 7);
+      const cycleMatch = periods.find(p => p.cycleId === endYM);
+      if (cycleMatch) {
+        return cycleMatch.key;
+      }
+    }
+  }
+
+  // 2. periodRange veya işlem açıklamasındaki (note) dönem metniyle eşleştir (örn: "16 Eki - 15 Kas")
+  if (tx.periodRange) {
+    const rangeMatch = periods.find(p => p.rangeText === tx.periodRange);
+    if (rangeMatch) return rangeMatch.key;
+  }
+  if (tx.note) {
+    const noteMatch = periods.find(p => p.rangeText && tx.note.includes(p.rangeText));
+    if (noteMatch) return noteMatch.key;
+  }
+
+  // 3. Dönem etiketi olmayan ödemeler:
+  // Ödeme tarihinin (tx.date) içinde kaldığı açık döneme DEĞİL,
+  // ödeme tarihi itibarıyla hesap kesimi gerçekleşmiş olan son ekstre dönemine (p.endDate <= tx.date) bağlanır!
+  const txDate = tx.date || getTodayDateStr();
+  const closedBeforeOrOnPayment = periods.find(p => p.endDate <= txDate);
+  if (closedBeforeOrOnPayment) {
+    return closedBeforeOrOnPayment.key;
+  }
+
+  return periods[periods.length - 1].key;
+}
+
+function getCreditCardPaymentPeriodRangeText(cardAcc, tx) {
+  if (!cardAcc || !tx) return '';
+  if (tx.periodRange) return tx.periodRange;
+  const periods = getCreditCardPeriods(cardAcc).periods;
+  const targetKey = resolveCreditCardPaymentPeriodKey(cardAcc, tx, periods);
+  const found = periods.find(p => p.key === targetKey || p.autoKey === targetKey);
+  return found ? found.rangeText : '';
+}
+
+/**
+ * Mevcut kayıtlı kredi kartı borç ödemelerini tarayarak:
+ * - Dönem bilgisi eksik olan ödemeleri ait oldukları kesilmiş ekstre dönemine bağlar.
+ * - Ödeme tarihi açık dönemin içine düştüğü için yanlışlıkla açık döneme kaydedilmiş eski ödemeleri
+ *   kesilmiş olan bir önceki ekstre dönemine taşır.
+ */
+function normalizeCreditCardPaymentPeriods() {
+  if (!walletState || !Array.isArray(walletState.accounts) || !Array.isArray(walletState.transactions)) return;
+
+  const creditCards = walletState.accounts.filter(a => a.type === 'credit');
+  if (creditCards.length === 0) return;
+
+  let changed = false;
+
+  creditCards.forEach(cardAcc => {
+    const periodData = getCreditCardPeriods(cardAcc);
+    const periods = periodData.periods;
+    if (!periods || periods.length === 0) return;
+
+    walletState.transactions.forEach(tx => {
+      const isPaymentToCard = (tx.toAccountId === cardAcc.id && tx.type === 'transfer') ||
+                              (tx.fromAccountId === cardAcc.id && tx.type === 'income');
+      if (!isPaymentToCard) return;
+
+      // Eğer işlem henüz yeni dönem doğrulamasından geçmediyse kontrol et
+      if (!tx.periodKey) {
+        const resolvedKey = resolveCreditCardPaymentPeriodKey(cardAcc, tx, periods);
+        const resolvedPeriod = periods.find(p => p.key === resolvedKey);
+        if (resolvedPeriod) {
+          tx.periodKey = resolvedPeriod.key;
+          tx.periodRange = resolvedPeriod.rangeText;
+          tx.periodVerifiedV2 = true;
+          changed = true;
+        }
+      } else if (!tx.periodVerifiedV2) {
+        const currentMatched = periods.find(p =>
+          p.key === tx.periodKey ||
+          p.autoKey === tx.periodKey ||
+          `${p.startDate}_${p.endDate}` === tx.periodKey
+        );
+        // Eğer ödeme, kendi ödeme tarihinin (tx.date) içinde kaldığı henüz kesilmemiş döneme (tx.date < currentMatched.endDate)
+        // düşmüşse, ödeme tarihi itibarıyla kesilmiş olan ekstre dönemine (p.endDate <= tx.date) taşı!
+        if (currentMatched && tx.date >= currentMatched.startDate && tx.date < currentMatched.endDate) {
+          const cutPeriodForTxDate = periods.find(p => p.endDate <= tx.date);
+          if (cutPeriodForTxDate && cutPeriodForTxDate.key !== currentMatched.key) {
+            const oldRange = currentMatched.rangeText;
+            tx.periodKey = cutPeriodForTxDate.key;
+            tx.periodRange = cutPeriodForTxDate.rangeText;
+            if (tx.note && oldRange && tx.note.includes(oldRange)) {
+              tx.note = tx.note.replace(oldRange, cutPeriodForTxDate.rangeText);
+            }
+            changed = true;
+          }
+        }
+        tx.periodVerifiedV2 = true;
+      }
+    });
+  });
+
+  if (changed) {
+    localStorage.setItem('cuzdan_manager_data_v1', JSON.stringify(walletState));
+  }
 }
 
 function getCreditCardPeriodStats(accId, period) {
@@ -3703,6 +4025,8 @@ function getCreditCardPeriodStats(accId, period) {
     };
   }
 
+  const allPeriods = cardAcc ? getCreditCardPeriods(cardAcc).periods : [];
+
   let spent = 0;
   let paid = 0;
   const spentTxs = [];
@@ -3718,29 +4042,23 @@ function getCreditCardPeriodStats(accId, period) {
     }
 
     // 2. Ödemeler (Karta yapılan girişler: borç ödeme transferleri veya gelirler)
+    // KURAL: Ödeme tarih olarak hangi dönemin içinde kalıyorsa orada GÖRÜNMEZ;
+    // hangi dönemin ödemesiyse SADECE o dönemde görünür!
     const isPaymentToCard = (tx.toAccountId === accId && tx.type === 'transfer') ||
                             (tx.fromAccountId === accId && tx.type === 'income');
     if (isPaymentToCard) {
-      const matchesPeriod = tx.periodKey && (
-        tx.periodKey === period.key ||
-        (period.autoKey && tx.periodKey === period.autoKey) ||
-        tx.periodKey === `${period.startDate}_${period.endDate}` ||
-        tx.periodKey === `custom_${period.startDate}_${period.endDate}`
+      const targetKey = cardAcc
+        ? resolveCreditCardPaymentPeriodKey(cardAcc, tx, allPeriods)
+        : (tx.periodKey || '');
+      const matchesPeriod = targetKey && (
+        targetKey === period.key ||
+        (period.autoKey && targetKey === period.autoKey) ||
+        targetKey === `${period.startDate}_${period.endDate}` ||
+        targetKey === `custom_${period.startDate}_${period.endDate}`
       );
       if (matchesPeriod) {
-        // Doğrudan bu dönem için kaydedilmiş ödeme
         paid += tx.amount;
         paidTxs.push(tx);
-      } else if (!tx.periodKey) {
-        // Dönem etiketi olmayan eski / harici transferler:
-        // Ekstre kesim tarihinden bir sonraki kesim tarihine kadar yapılan ödemeler
-        // veya dönem içi erken ara ödemeler
-        const isWithinPaymentWindow = (tx.date > period.endDate && period.nextCutoffDate && tx.date <= period.nextCutoffDate);
-        const isInsidePeriod = (tx.date >= period.startDate && tx.date <= period.endDate);
-        if (isWithinPaymentWindow || isInsidePeriod) {
-          paid += tx.amount;
-          paidTxs.push(tx);
-        }
       }
     }
   });
@@ -3825,15 +4143,41 @@ function onPayCardDateChange() {
   const dateInput = document.getElementById('inputPayCardDate');
   const selectedDate = dateInput ? dateInput.value : '';
 
-  // Kullanıcı Kuralı: Tarih değiştiğinde, girilen tarihe göre hesap kesim tarihi
-  // kontrol edilir ve otomatik olarak doğru dönem seçilir!
-  populatePayCardPeriods(cardAcc, selectedDate, true);
+  // Eğer kullanıcı dönemi özellikle kilitlemediyse, girilen tarihe göre kesilmiş ekstre dönemini seç;
+  // kullanıcı dönemi elle seçtiyse veya belirli bir dönemin "Bu Dönemin Borcunu Öde" butonuna bastıysa seçimi koru!
+  populatePayCardPeriods(cardAcc, selectedDate, !payCardPeriodManuallyLocked);
 }
 
 function onPayCardPeriodSelectChange() {
   const cardId = document.getElementById('inputPayCardTargetAccountId')?.value;
   if (!cardId) return;
+  payCardPeriodManuallyLocked = true;
   updatePayCardPeriodView(cardId);
+}
+
+function openPayCreditCardFromDetail(cardId) {
+  const cardAcc = walletState.accounts.find(a => a.id === cardId);
+  if (!cardAcc) return;
+
+  const periodData = getCreditCardPeriods(cardAcc);
+  const periods = periodData.periods || [];
+  let targetKey = (activeAccountDetailCardPeriodKey && activeAccountDetailCardPeriodKey !== '__all__')
+    ? activeAccountDetailCardPeriodKey
+    : periodData.defaultSelectedKey;
+
+  const viewedPeriod = periods.find(p => p.key === targetKey || p.autoKey === targetKey);
+  const defaultClosedPeriod = periods.find(p => p.key === periodData.defaultSelectedKey);
+
+  // Eğer kullanıcı üstteki genel "Kart Borcu Öde" butonuna bastığında henüz kesilmemiş açık dönemdeyse
+  // ve kesilmiş olan ekstrenin (defaultClosedPeriod) ödenmemiş borcu varsa, kesilmiş ekstreyi seç!
+  if (viewedPeriod && !viewedPeriod.isClosed && defaultClosedPeriod) {
+    const closedStats = getCreditCardPeriodStats(cardId, defaultClosedPeriod);
+    if (closedStats.remaining > 0) {
+      targetKey = defaultClosedPeriod.key;
+    }
+  }
+
+  openPayCreditCardModal(cardId, targetKey, true);
 }
 
 let isPayCardReviseOpen = false;
@@ -4132,12 +4476,14 @@ function renderPayCardQuickChips(periodRemaining, totalDebt, periodSpent) {
   });
 }
 
-function openPayCreditCardModal(cardId, initialPeriodKey = null) {
+function openPayCreditCardModal(cardId, initialPeriodKey = null, lockInitialPeriod = false) {
   const cardAcc = walletState.accounts.find(a => a.id === cardId);
   if (!cardAcc) return;
 
   const modal = document.getElementById('modalPayCreditCard');
   if (!modal) return;
+
+  payCardPeriodManuallyLocked = !!(initialPeriodKey && lockInitialPeriod);
 
   // Hata kutusunu temizle
   const errorEl = document.getElementById('payCardErrorMsg');
@@ -4299,6 +4645,7 @@ function handlePayCreditCardSubmit(e) {
   const noteVal = noteInput.value.trim() || defaultNote;
 
   // 1. Yeni Transfer İşlemi Oluştur (Kaynak -> Kredi Kartı)
+  // Ödeme, ödeme tarihinin düştüğü açık döneme değil, doğrudan seçilen ekstre dönemine (periodKey) bağlanır!
   const newTx = {
     id: 'wtx_' + Date.now(),
     type: 'transfer',
@@ -4311,7 +4658,8 @@ function handlePayCreditCardSubmit(e) {
     time: getCurrentTimeStr(),
     note: noteVal,
     periodKey: selectedPeriodKey || '',
-    periodRange: selectedPeriodObj ? selectedPeriodObj.rangeText : ''
+    periodRange: selectedPeriodObj ? selectedPeriodObj.rangeText : '',
+    periodVerifiedV2: true
   };
 
   // 2. Bakiyeleri Güncelle
@@ -4329,10 +4677,13 @@ function handlePayCreditCardSubmit(e) {
   // 5. Modalı kapat
   closeModal('modalPayCreditCard');
 
-  // 6. Eğer kart detay modalı açıksa hemen yenile
+  // 6. Kart detay modalında ödenen döneme odaklan ve açıksa hemen yenile
+  if (selectedPeriodKey) {
+    activeAccountDetailCardPeriodKey = selectedPeriodKey;
+  }
   const modalDetail = document.getElementById('modalAccountDetail');
   if (modalDetail && modalDetail.open) {
-    openAccountDetailModal(targetCardId, activeAccountDetailFilter || 'all');
+    openAccountDetailModal(targetCardId, selectedPeriodKey ? ('period:' + selectedPeriodKey) : (activeAccountDetailFilter || 'all'));
   }
 }
 
@@ -4446,8 +4797,17 @@ function handleAccountFormSubmit(e) {
       acc.isCustomPeriod = isCustomPeriod;
       acc.customPeriodStart = customPeriodStart;
       acc.customPeriodEnd = customPeriodEnd;
-      if (!isCustomPeriod) {
-        acc.periodOverrides = {};
+      const autoInfo = getCreditCardCutoffInfo(billingDay || 15);
+      const activeAutoKey = (autoInfo && autoInfo.periodA) ? `${autoInfo.periodA.startDate}_${autoInfo.periodA.endDate}` : '';
+      if (isCustomPeriod && customPeriodStart && customPeriodEnd && activeAutoKey) {
+        if (!acc.periodOverrides) acc.periodOverrides = {};
+        acc.periodOverrides[activeAutoKey] = {
+          startDate: customPeriodStart,
+          endDate: customPeriodEnd,
+          isCustom: true
+        };
+      } else if (!isCustomPeriod && acc.periodOverrides && activeAutoKey) {
+        delete acc.periodOverrides[activeAutoKey];
       }
     }
   } else {
@@ -4538,6 +4898,9 @@ function toggleWalletInstallmentSection() {
 }
 
 function updateInstallmentCalculation() {
+  if (typeof updateWalletTxCreditPeriodSelector === 'function' && !editingWalletTxId) {
+    updateWalletTxCreditPeriodSelector(null);
+  }
   const isInst = document.getElementById('checkWalletIsInstallment')?.checked;
   const card = document.getElementById('installmentToggleCard');
   const details = document.getElementById('walletInstallmentDetails');
@@ -4781,11 +5144,76 @@ function openEditWalletTxModal(txId) {
   const timeInput = document.getElementById('inputWalletTxTime');
   if (timeInput) timeInput.value = tx.time || '';
 
+  // Kredi kartı ödemesiyse ait olduğu ekstre dönemini doldur ve seç
+  updateWalletTxCreditPeriodSelector(tx.periodKey || '');
+
   // Not
   const noteInput = document.getElementById('inputWalletNote');
   if (noteInput) noteInput.value = tx.note || '';
 
   modal.showModal();
+}
+
+function updateWalletTxCreditPeriodSelector(preferredPeriodKey = null) {
+  const sectionEl = document.getElementById('walletTxCreditPeriodSection');
+  const selectEl = document.getElementById('selectWalletTxCreditPeriod');
+  const badgeEl = document.getElementById('walletTxCreditPeriodHintBadge');
+  if (!sectionEl || !selectEl) return;
+
+  const fromSelect = document.getElementById('selectWalletFromAccount');
+  const toSelect = document.getElementById('selectWalletToAccount');
+  const dateInput = document.getElementById('inputWalletTxDate');
+
+  let targetCardAcc = null;
+  if (currentTxType === 'transfer' && toSelect && toSelect.value) {
+    const toAcc = (walletState?.accounts || []).find(a => a.id === toSelect.value);
+    if (toAcc && toAcc.type === 'credit') targetCardAcc = toAcc;
+  } else if (currentTxType === 'income' && fromSelect && fromSelect.value) {
+    const fromAcc = (walletState?.accounts || []).find(a => a.id === fromSelect.value);
+    if (fromAcc && fromAcc.type === 'credit') targetCardAcc = fromAcc;
+  }
+
+  if (!targetCardAcc) {
+    sectionEl.style.display = 'none';
+    selectEl.innerHTML = '';
+    return;
+  }
+
+  sectionEl.style.display = 'block';
+  const billingDay = parseInt(targetCardAcc.billingDay) || 15;
+  if (badgeEl) {
+    badgeEl.textContent = `Kesim: Ayın ${billingDay}'i`;
+  }
+
+  const refDate = (dateInput && dateInput.value) ? dateInput.value : getTodayDateStr();
+  const periodData = getCreditCardPeriods(targetCardAcc, refDate);
+  const periods = periodData.periods || [];
+  const prevVal = preferredPeriodKey !== null ? preferredPeriodKey : selectEl.value;
+
+  selectEl.innerHTML = '';
+  periods.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.key;
+    opt.textContent = p.label;
+    selectEl.appendChild(opt);
+  });
+
+  if (prevVal && periods.some(p => p.key === prevVal || p.autoKey === prevVal)) {
+    const matched = periods.find(p => p.key === prevVal || p.autoKey === prevVal);
+    if (matched) selectEl.value = matched.key;
+  } else if (editingWalletTxId) {
+    const editingTx = (walletState?.transactions || []).find(t => t.id === editingWalletTxId);
+    const resolvedKey = editingTx ? resolveCreditCardPaymentPeriodKey(targetCardAcc, editingTx, periods) : '';
+    if (resolvedKey && periods.some(p => p.key === resolvedKey)) {
+      selectEl.value = resolvedKey;
+    } else if (periodData.defaultSelectedKey) {
+      selectEl.value = periodData.defaultSelectedKey;
+    }
+  } else if (periodData.defaultSelectedKey && periods.some(p => p.key === periodData.defaultSelectedKey)) {
+    selectEl.value = periodData.defaultSelectedKey;
+  } else if (periods.length > 0) {
+    selectEl.value = periods[0].key;
+  }
 }
 
 // --- Custom Account Card & Flow Helpers ---
@@ -4829,6 +5257,9 @@ function renderSingleAccountCard(accId) {
       <div class="tx-acc-change-pill">Değiştir ▾</div>
     </div>
   `;
+  if (typeof updateWalletTxCreditPeriodSelector === 'function') {
+    updateWalletTxCreditPeriodSelector();
+  }
 }
 
 function updateTransferFlowCards() {
@@ -4893,6 +5324,10 @@ function updateTransferFlowCards() {
         <div class="tx-acc-change-pill">Değiştir ▾</div>
       </div>
     `;
+  }
+
+  if (typeof updateWalletTxCreditPeriodSelector === 'function') {
+    updateWalletTxCreditPeriodSelector();
   }
 }
 
@@ -5439,8 +5874,29 @@ function handleWalletTxSubmit(e) {
     tx.time = txTime;
     tx.note = noteInput.value.trim();
 
-    // 3. Yeni değerleri hesap bakiyelerine uygula
     const newFromAcc = walletState.accounts.find(a => a.id === fromAccountId);
+    const newToAcc = currentTxType === 'transfer' ? walletState.accounts.find(a => a.id === toAccountId) : null;
+    const targetCreditAcc = (currentTxType === 'transfer' && newToAcc && newToAcc.type === 'credit')
+      ? newToAcc
+      : (currentTxType === 'income' && newFromAcc && newFromAcc.type === 'credit' ? newFromAcc : null);
+
+    if (targetCreditAcc) {
+      const creditPeriodSelect = document.getElementById('selectWalletTxCreditPeriod');
+      const chosenKey = (creditPeriodSelect && creditPeriodSelect.value) ? creditPeriodSelect.value : '';
+      const periodData = getCreditCardPeriods(targetCreditAcc, tx.date);
+      const chosenPeriod = (periodData.periods || []).find(p => p.key === chosenKey || p.autoKey === chosenKey) ||
+                           (periodData.periods || []).find(p => p.key === periodData.defaultSelectedKey);
+      if (chosenPeriod) {
+        tx.periodKey = chosenPeriod.key;
+        tx.periodRange = chosenPeriod.rangeText;
+        tx.periodVerifiedV2 = true;
+      }
+    } else {
+      delete tx.periodKey;
+      delete tx.periodRange;
+    }
+
+    // 3. Yeni değerleri hesap bakiyelerine uygula
     if (newFromAcc) {
       if (currentTxType === 'expense' || currentTxType === 'transfer') {
         newFromAcc.balance -= inputAmount;
@@ -5448,11 +5904,8 @@ function handleWalletTxSubmit(e) {
         newFromAcc.balance += inputAmount;
       }
     }
-    if (currentTxType === 'transfer') {
-      const newToAcc = walletState.accounts.find(a => a.id === toAccountId);
-      if (newToAcc) {
-        newToAcc.balance += inputAmount;
-      }
+    if (currentTxType === 'transfer' && newToAcc) {
+      newToAcc.balance += inputAmount;
     }
 
     // Tarihe ve saate göre sırala
@@ -5496,12 +5949,22 @@ function handleWalletTxSubmit(e) {
     const installmentGroupId = 'inst_' + Date.now();
     const installmentDates = getInstallmentDates(dateInput.value, count);
 
-    // Hesap bakiyesini güncelle
+    // Hesap bakiyesini güncelle (Sadece bugüne kadar vadesi gelmiş taksitler anlık bakiyeden düşülür; gelecek taksitler hesabı eksi yapamaz)
     if (fromAcc) {
+      const todayStr = getTodayDateStr();
+      let dueAmount = 0;
+      for (let i = 1; i <= count; i++) {
+        const instDate = installmentDates[i - 1];
+        if (instDate <= todayStr) {
+          const instAmount = (i === 1 ? Math.round((baseMonthly + remainder) * 100) / 100 : baseMonthly);
+          dueAmount += instAmount;
+        }
+      }
+      dueAmount = Math.round(dueAmount * 100) / 100;
       if (currentTxType === 'expense') {
-        fromAcc.balance -= totalAmount;
+        fromAcc.balance = Math.round((fromAcc.balance - dueAmount) * 100) / 100;
       } else if (currentTxType === 'income') {
-        fromAcc.balance += totalAmount;
+        fromAcc.balance = Math.round((fromAcc.balance + dueAmount) * 100) / 100;
       }
     }
 
@@ -5534,6 +5997,25 @@ function handleWalletTxSubmit(e) {
     walletState.transactions.sort(compareWalletTx);
   } else {
     // Standart Tek Çekim İşlem
+    const toAcc = currentTxType === 'transfer' ? walletState.accounts.find(a => a.id === toAccountId) : null;
+    const targetCreditAcc = (currentTxType === 'transfer' && toAcc && toAcc.type === 'credit')
+      ? toAcc
+      : (currentTxType === 'income' && fromAcc && fromAcc.type === 'credit' ? fromAcc : null);
+
+    let assignedPeriodKey = '';
+    let assignedPeriodRange = '';
+    if (targetCreditAcc) {
+      const creditPeriodSelect = document.getElementById('selectWalletTxCreditPeriod');
+      const chosenKey = (creditPeriodSelect && creditPeriodSelect.value) ? creditPeriodSelect.value : '';
+      const periodData = getCreditCardPeriods(targetCreditAcc, dateInput.value);
+      const chosenPeriod = (periodData.periods || []).find(p => p.key === chosenKey || p.autoKey === chosenKey) ||
+                           (periodData.periods || []).find(p => p.key === periodData.defaultSelectedKey);
+      if (chosenPeriod) {
+        assignedPeriodKey = chosenPeriod.key;
+        assignedPeriodRange = chosenPeriod.rangeText;
+      }
+    }
+
     const newTx = {
       id: 'wtx_' + Date.now(),
       type: currentTxType,
@@ -5544,7 +6026,12 @@ function handleWalletTxSubmit(e) {
       subCategory: currentTxType !== 'transfer' ? selectedSubCategoryId : '',
       date: dateInput.value,
       time: txTime,
-      note: noteInput.value.trim()
+      note: noteInput.value.trim(),
+      ...(assignedPeriodKey ? {
+        periodKey: assignedPeriodKey,
+        periodRange: assignedPeriodRange,
+        periodVerifiedV2: true
+      } : {})
     };
 
     if (fromAcc) {
@@ -5555,9 +6042,8 @@ function handleWalletTxSubmit(e) {
       }
     }
 
-    if (currentTxType === 'transfer') {
-      const toAcc = walletState.accounts.find(a => a.id === toAccountId);
-      if (toAcc) toAcc.balance += inputAmount;
+    if (currentTxType === 'transfer' && toAcc) {
+      toAcc.balance += inputAmount;
     }
 
     walletState.transactions.unshift(newTx);
@@ -5631,12 +6117,13 @@ function executeDeleteTx(txId, mode) {
     const groupId = tx.installment.groupId;
     const groupTxs = walletState.transactions.filter(t => t.installment?.groupId === groupId);
 
-    // Her taksit için bakiyeyi tersine çevir
+    const todayStr = getTodayDateStr();
+    // Sadece vadesi gelmiş (bakiyeyi etkilemiş) taksitler için bakiyeyi tersine çevir
     groupTxs.forEach(t => {
       const fromAcc = walletState.accounts.find(a => a.id === t.fromAccountId);
-      if (fromAcc) {
-        if (t.type === 'expense' || t.type === 'transfer') fromAcc.balance += t.amount;
-        else if (t.type === 'income') fromAcc.balance -= t.amount;
+      if (fromAcc && t.date <= todayStr) {
+        if (t.type === 'expense' || t.type === 'transfer') fromAcc.balance = Math.round((fromAcc.balance + t.amount) * 100) / 100;
+        else if (t.type === 'income') fromAcc.balance = Math.round((fromAcc.balance - t.amount) * 100) / 100;
       }
     });
 
@@ -5646,14 +6133,15 @@ function executeDeleteTx(txId, mode) {
     // Sadece tek işlemi sil
     const idx = walletState.transactions.findIndex(t => t.id === txId);
     if (idx >= 0) {
+      const todayStr = getTodayDateStr();
       const fromAcc = walletState.accounts.find(a => a.id === tx.fromAccountId);
-      if (fromAcc) {
-        if (tx.type === 'expense' || tx.type === 'transfer') fromAcc.balance += tx.amount;
-        else if (tx.type === 'income') fromAcc.balance -= tx.amount;
+      if (fromAcc && tx.date <= todayStr) {
+        if (tx.type === 'expense' || tx.type === 'transfer') fromAcc.balance = Math.round((fromAcc.balance + tx.amount) * 100) / 100;
+        else if (tx.type === 'income') fromAcc.balance = Math.round((fromAcc.balance - tx.amount) * 100) / 100;
       }
-      if (tx.type === 'transfer') {
+      if (tx.type === 'transfer' && tx.date <= todayStr) {
         const toAcc = walletState.accounts.find(a => a.id === tx.toAccountId);
-        if (toAcc) toAcc.balance -= tx.amount;
+        if (toAcc) toAcc.balance = Math.round((toAcc.balance - tx.amount) * 100) / 100;
       }
       walletState.transactions.splice(idx, 1);
     }
